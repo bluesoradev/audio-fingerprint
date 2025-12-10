@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Report - {{ run_id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>Report: {{ run_id }}</h1>
+    
+    {% if summary %}
+    <h2>Summary by Severity</h2>
+    <table>
+        <tr>
+            <th>Severity</th>
+            <th>Count</th>
+            <th>Recall@1</th>
+            <th>Recall@5</th>
+            <th>Recall@10</th>
+            <th>Mean Rank</th>
+            <th>Mean Similarity</th>
+            <th>Mean Latency (ms)</th>
+        </tr>
+        {% for row in summary %}
+        <tr>
+            <td>{{ row.severity }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ "%.3f"|format(row.recall_at_1) }}</td>
+            <td>{{ "%.3f"|format(row.recall_at_5) }}</td>
+            <td>{{ "%.3f"|format(row.recall_at_10) }}</td>
+            <td>{{ "%.2f"|format(row.mean_rank) }}</td>
+            <td>{{ "%.3f"|format(row.mean_similarity) }}</td>
+            <td>{{ "%.1f"|format(row.mean_latency_ms) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+    
+    <p><a href="/">Back to Dashboard</a></p>
+</body>
+</html>

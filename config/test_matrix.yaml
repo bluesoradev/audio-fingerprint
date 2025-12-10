@@ -1,0 +1,173 @@
+# Test matrix configuration - defines which transforms to apply and parameter ranges
+# This file controls the robustness test suite
+
+# Global settings
+global:
+  random_seed: 42
+  num_samples_per_transform: 1  # How many variants per transform parameter
+  
+# Original audio settings
+originals:
+  # Path to manifest CSV or directory with originals
+  manifest_path: "data/manifests/files_manifest.csv"
+  min_duration: 5.0  # Minimum audio duration in seconds
+  max_duration: 300.0  # Maximum audio duration in seconds
+  sample_rate: 44100
+
+# Transform definitions
+transforms:
+  # Pitch shift transforms
+  pitch_shift:
+    enabled: true
+    parameters:
+      - semitones: -3
+        severity: "moderate"
+      - semitones: -1
+        severity: "mild"
+      - semitones: 0
+        severity: "none"  # Identity (should always match)
+      - semitones: 1
+        severity: "mild"
+      - semitones: 3
+        severity: "moderate"
+      - semitones: 6
+        severity: "severe"
+  
+  # Time stretch (speed change)
+  time_stretch:
+    enabled: true
+    parameters:
+      - ratio: 0.8
+        severity: "moderate"  # 20% slower
+      - ratio: 0.9
+        severity: "mild"  # 10% slower
+      - ratio: 1.0
+        severity: "none"
+      - ratio: 1.1
+        severity: "mild"  # 10% faster
+      - ratio: 1.2
+        severity: "moderate"  # 20% faster
+  
+  # Re-encoding (compression artifacts)
+  re_encode:
+    enabled: true
+    parameters:
+      - codec: "mp3"
+        bitrate: "320k"
+        severity: "none"
+      - codec: "mp3"
+        bitrate: "192k"
+        severity: "mild"
+      - codec: "mp3"
+        bitrate: "128k"
+        severity: "moderate"
+      - codec: "mp3"
+        bitrate: "64k"
+        severity: "severe"
+      - codec: "aac"
+        bitrate: "192k"
+        severity: "mild"
+      - codec: "aac"
+        bitrate: "128k"
+        severity: "moderate"
+  
+  # Noise addition
+  add_noise:
+    enabled: true
+    parameters:
+      - snr_db: 30
+        noise_type: "white"
+        severity: "mild"
+      - snr_db: 20
+        noise_type: "white"
+        severity: "moderate"
+      - snr_db: 10
+        noise_type: "white"
+        severity: "severe"
+  
+  # Slice/chop (segment removal)
+  slice_chop:
+    enabled: true
+    parameters:
+      - remove_start: 0.5
+        remove_end: 0.0
+        severity: "mild"
+      - remove_start: 1.0
+        remove_end: 1.0
+        severity: "moderate"
+      - remove_start: 2.0
+        remove_end: 2.0
+        severity: "severe"
+  
+  # Combined transforms (chains)
+  combine_chain:
+    enabled: true
+    chains:
+      - name: "mild_combined"
+        severity: "mild"
+        transforms:
+          - type: "pitch_shift"
+            params: {semitones: 1}
+          - type: "re_encode"
+            params: {codec: "mp3", bitrate: "192k"}
+      
+      - name: "moderate_combined"
+        severity: "moderate"
+        transforms:
+          - type: "pitch_shift"
+            params: {semitones: 2}
+          - type: "time_stretch"
+            params: {ratio: 1.1}
+          - type: "re_encode"
+            params: {codec: "mp3", bitrate: "128k"}
+
+# Pass/fail thresholds
+thresholds:
+  # Recall thresholds by severity
+  recall_at_k:
+    mild:
+      recall_at_1: 0.90
+      recall_at_5: 0.95
+      recall_at_10: 0.98
+    
+    moderate:
+      recall_at_1: 0.75
+      recall_at_5: 0.85
+      recall_at_10: 0.90
+    
+    severe:
+      recall_at_1: 0.50
+      recall_at_5: 0.70
+      recall_at_10: 0.80
+  
+  # Latency thresholds (seconds per file)
+  latency:
+    max_mean_ms: 1000  # 1 second per file
+    max_p95_ms: 2000  # 2 seconds for 95th percentile
+  
+  # Similarity score thresholds
+  similarity:
+    min_score_mild: 0.85
+    min_score_moderate: 0.70
+    min_score_severe: 0.50
+
+# Evaluation settings
+evaluation:
+  top_k_values: [1, 5, 10, 20]
+  compute_per_segment: true
+  aggregate_method: "mean"  # "mean", "max", "median"
+  
+# Failure case capture
+failure_capture:
+  enabled: true
+  save_audio: true
+  save_spectrograms: true
+  save_json: true
+  max_failures_per_transform: 10  # Limit storage
+
+# Report settings
+reporting:
+  generate_html: true
+  generate_pdf: false  # Requires additional tools
+  save_plots: true
+  include_proofs: true

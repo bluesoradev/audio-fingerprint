@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Robustness Lab - Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }
+        .stat-card { background: #f0f0f0; padding: 15px; border-radius: 5px; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #2196F3; }
+        .stat-label { color: #666; margin-top: 5px; }
+        .pass { color: #4CAF50; }
+        .fail { color: #f44336; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Fingerprint Robustness Lab</h1>
+        
+        {% if metrics %}
+        <h2>Latest Run Summary</h2>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ metrics.summary.total_queries }}</div>
+                <div class="stat-label">Total Queries</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ metrics.summary.total_transforms }}</div>
+                <div class="stat-label">Transforms Tested</div>
+            </div>
+        </div>
+        
+        <h3>Pass/Fail Status</h3>
+        <table>
+            <tr>
+                <th>Severity</th>
+                <th>Recall@1</th>
+                <th>Recall@5</th>
+                <th>Recall@10</th>
+            </tr>
+            {% for severity, pf_data in metrics.pass_fail.items() %}
+            <tr>
+                <td>{{ severity }}</td>
+                {% for k in [1, 5, 10] %}
+                <td>
+                    {% set k_data = pf_data.get("recall_at_" + k|string, {}) %}
+                    {% if k_data.get("passed") %}
+                        <span class="pass">✅ PASS</span>
+                    {% else %}
+                        <span class="fail">❌ FAIL</span>
+                    {% endif %}
+                    <br/>
+                    <small>{{ "%.3f"|format(k_data.get("actual", 0.0)) }} / {{ "%.3f"|format(k_data.get("threshold", 0.0)) }}</small>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p>No test runs found. Run an experiment first.</p>
+        {% endif %}
+        
+        <h3>Actions</h3>
+        <ul>
+            <li><a href="/runs">View All Runs</a></li>
+        </ul>
+    </div>
+</body>
+</html>

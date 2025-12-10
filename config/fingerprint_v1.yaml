@@ -1,0 +1,40 @@
+# Fingerprint model configuration for robustness testing
+# This config defines the frozen model to use for all experiments
+
+model:
+  # Model type: "mert", "muq", "openl3", or path to custom model
+  type: "mert"
+  name: "m-a-p/MERT-v1-330M"  # HuggingFace model identifier
+  path: null  # If using custom model, specify path here
+  
+  # Model checksum for verification (sha256)
+  # Update this after freezing the model
+  checksum: null
+  
+  # Device: "cuda", "cpu", or null for auto-detect
+  device: null
+
+# Audio processing parameters
+audio:
+  sample_rate: 44100
+  segment_length: 0.5  # seconds
+  hop_length: null  # null = no overlap, segment_length = hop_length
+  mono: true
+  normalization: "peak"  # "peak", "rms", or null
+
+# Embedding parameters
+embedding:
+  dimension: 512  # Expected output dimension
+  normalization: "l2"  # "l2", "none"
+  dtype: "float32"
+
+# Segment processing
+segmentation:
+  method: "fixed_length"  # "fixed_length", "overlapping"
+  overlap_ratio: 0.0  # 0.0 = no overlap, 0.5 = 50% overlap
+
+# Metadata
+metadata:
+  version: "v1"
+  created_date: null  # Set when model is frozen
+  description: "MERT-based fingerprint model for audio identification"

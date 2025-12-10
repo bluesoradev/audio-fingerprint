@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proof Case - {{ case_id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .audio-player { margin: 10px 0; }
+        img { max-width: 100%; margin: 10px 0; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Failure Case: {{ case_id }}</h1>
+    
+    <h2>Details</h2>
+    <pre>{{ details|tojson(indent=2) }}</pre>
+    
+    {% if files.original %}
+    <h2>Original Audio</h2>
+    <div class="audio-player">
+        <audio controls>
+            <source src="/audio/{{ case_id }}/{{ files.original }}" type="audio/wav">
+        </audio>
+    </div>
+    {% endif %}
+    
+    {% if files.transformed %}
+    <h2>Transformed Audio</h2>
+    <div class="audio-player">
+        <audio controls>
+            <source src="/audio/{{ case_id }}/{{ files.transformed }}" type="audio/wav">
+        </audio>
+    </div>
+    {% endif %}
+    
+    {% if files.spectrogram_original %}
+    <h2>Original Spectrogram</h2>
+    <img src="/image/{{ case_id }}/{{ files.spectrogram_original }}" alt="Original spectrogram">
+    {% endif %}
+    
+    {% if files.spectrogram_transformed %}
+    <h2>Transformed Spectrogram</h2>
+    <img src="/image/{{ case_id }}/{{ files.spectrogram_transformed }}" alt="Transformed spectrogram">
+    {% endif %}
+    
+    <p><a href="/">Back to Dashboard</a></p>
+</body>
+</html>

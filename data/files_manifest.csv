@@ -1,0 +1,3 @@
+id,title,source_url,source_path,file_path,duration,sample_rate,channels,checksum,genre
+test_track_1,Test Track 1,,D:\work folder\kevino\testm3\data\test_audio\test_track_1.wav,D:\work folder\kevino\testm3\data\originals\test_track_1.wav,8.0,44100,1,7c865aa9b5745c4cf0395423c8f4e8c4a01402395a209362d1b62a3cdcae1e69,test
+test_track_2,Test Track 2,,D:\work folder\kevino\testm3\data\test_audio\test_track_2.wav,D:\work folder\kevino\testm3\data\originals\test_track_2.wav,10.0,44100,1,42c433d13a0f54be1724f38e6ea856da9d31ae7b4242687edd9ba1734f9b87ce,test

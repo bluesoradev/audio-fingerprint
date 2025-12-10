@@ -1,0 +1,11 @@
+{
+  "index_type": "hnsw",
+  "metric": "cosine",
+  "parameters": {
+    "M": 32,
+    "ef_construction": 200,
+    "ef_search": 50
+  },
+  "normalize": true,
+  "description": "HNSW index optimized for cosine similarity on normalized embeddings"
+}
