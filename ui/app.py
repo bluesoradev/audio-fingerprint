@@ -778,6 +778,281 @@ async def manipulate_chop(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+@app.post("/api/manipulate/eq/highpass")
+async def manipulate_eq_highpass(
+    input_path: str = Form(...),
+    freq_hz: float = Form(150.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply high-pass filter."""
+    try:
+        from transforms.eq import high_pass_filter
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_highpass_{freq_hz}hz.wav"
+        
+        high_pass_filter(input_file, freq_hz, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"High-pass filter applied at {freq_hz} Hz"
+        })
+    except Exception as e:
+        logger.error(f"High-pass filter failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/eq/lowpass")
+async def manipulate_eq_lowpass(
+    input_path: str = Form(...),
+    freq_hz: float = Form(6000.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply low-pass filter."""
+    try:
+        from transforms.eq import low_pass_filter
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_lowpass_{freq_hz}hz.wav"
+        
+        low_pass_filter(input_file, freq_hz, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Low-pass filter applied at {freq_hz} Hz"
+        })
+    except Exception as e:
+        logger.error(f"Low-pass filter failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/eq/boost-highs")
+async def manipulate_eq_boost_highs(
+    input_path: str = Form(...),
+    gain_db: float = Form(6.0),
+    freq_hz: float = Form(3000.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply high-frequency boost."""
+    try:
+        from transforms.eq import boost_highs
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_boost_highs_{gain_db}db.wav"
+        
+        boost_highs(input_file, gain_db, out_file, freq_hz=freq_hz)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"High frequencies boosted by {gain_db} dB"
+        })
+    except Exception as e:
+        logger.error(f"Boost highs failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/eq/boost-lows")
+async def manipulate_eq_boost_lows(
+    input_path: str = Form(...),
+    gain_db: float = Form(6.0),
+    freq_hz: float = Form(200.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply low-frequency boost."""
+    try:
+        from transforms.eq import boost_lows
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_boost_lows_{gain_db}db.wav"
+        
+        boost_lows(input_file, gain_db, out_file, freq_hz=freq_hz)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Low frequencies boosted by {gain_db} dB"
+        })
+    except Exception as e:
+        logger.error(f"Boost lows failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/eq/telephone")
+async def manipulate_eq_telephone(
+    input_path: str = Form(...),
+    low_freq: float = Form(300.0),
+    high_freq: float = Form(3000.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply telephone/band-pass filter."""
+    try:
+        from transforms.eq import telephone_filter
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_telephone.wav"
+        
+        telephone_filter(input_file, out_file, low_freq=low_freq, high_freq=high_freq)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Telephone filter applied ({low_freq}-{high_freq} Hz)"
+        })
+    except Exception as e:
+        logger.error(f"Telephone filter failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/dynamics/compression")
+async def manipulate_compression(
+    input_path: str = Form(...),
+    threshold_db: float = Form(-10.0),
+    ratio: float = Form(10.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply compression."""
+    try:
+        from transforms.dynamics import apply_compression
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_compressed_{threshold_db}db_{ratio}x.wav"
+        
+        apply_compression(input_file, threshold_db, ratio, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Compression applied: {threshold_db} dB threshold, {ratio}:1 ratio"
+        })
+    except Exception as e:
+        logger.error(f"Compression failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/dynamics/limiting")
+async def manipulate_limiting(
+    input_path: str = Form(...),
+    ceiling_db: float = Form(-1.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply brickwall limiting."""
+    try:
+        from transforms.dynamics import apply_limiting
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_limited_{ceiling_db}db.wav"
+        
+        apply_limiting(input_file, ceiling_db, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Brickwall limiting applied at {ceiling_db} dB"
+        })
+    except Exception as e:
+        logger.error(f"Limiting failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/dynamics/multiband")
+async def manipulate_multiband(
+    input_path: str = Form(...),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply multiband compression."""
+    try:
+        from transforms.dynamics import apply_multiband_compression
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_multiband.wav"
+        
+        apply_multiband_compression(input_file, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": "Multiband compression applied"
+        })
+    except Exception as e:
+        logger.error(f"Multiband compression failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 @app.post("/api/manipulate/chain")
 async def manipulate_chain(
     input_path: str = Form(...),

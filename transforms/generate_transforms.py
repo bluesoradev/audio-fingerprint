@@ -11,11 +11,23 @@ import pandas as pd
 from tqdm import tqdm
 
 from .pitch import pitch_shift
-from .speed import time_stretch
+from .speed import time_stretch, speed_change
 from .encode import re_encode
 from .chop import slice_chop
 from .overlay import overlay_vocals
 from .noise import add_noise
+from .eq import (
+    high_pass_filter,
+    low_pass_filter,
+    boost_highs,
+    boost_lows,
+    telephone_filter
+)
+from .dynamics import (
+    apply_compression,
+    apply_limiting,
+    apply_multiband_compression
+)
 from .chain import combine_chain
 
 logging.basicConfig(level=logging.INFO)
@@ -135,6 +147,24 @@ def generate_transforms(
                             add_noise(orig_path, random_seed=global_seed, **param_set, out_path=out_path)
                         elif transform_type == "overlay_vocals":
                             overlay_vocals(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "high_pass_filter":
+                            high_pass_filter(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "low_pass_filter":
+                            low_pass_filter(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "boost_highs":
+                            boost_highs(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "boost_lows":
+                            boost_lows(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "telephone_filter":
+                            telephone_filter(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "apply_compression":
+                            apply_compression(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "apply_limiting":
+                            apply_limiting(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "apply_multiband_compression":
+                            apply_multiband_compression(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "speed_change":
+                            speed_change(orig_path, **param_set, out_path=out_path)
                         else:
                             logger.warning(f"Unknown transform type: {transform_type}")
                             continue

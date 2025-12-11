@@ -16,11 +16,14 @@ originals:
 
 # Transform definitions
 transforms:
-  # Pitch shift transforms
+  # Pitch shift transforms - Phase 1 requirements
   pitch_shift:
     enabled: true
     parameters:
+      # Phase 1: Semitone changes without formant preservation
       - semitones: -3
+        severity: "moderate"
+      - semitones: -2
         severity: "moderate"
       - semitones: -1
         severity: "mild"
@@ -28,12 +31,12 @@ transforms:
         severity: "none"  # Identity (should always match)
       - semitones: 1
         severity: "mild"
+      - semitones: 2
+        severity: "moderate"
       - semitones: 3
         severity: "moderate"
-      - semitones: 6
-        severity: "severe"
   
-  # Time stretch (speed change)
+  # Time stretch (speed change with pitch preservation)
   time_stretch:
     enabled: true
     parameters:
@@ -47,6 +50,33 @@ transforms:
         severity: "mild"  # 10% faster
       - ratio: 1.2
         severity: "moderate"  # 20% faster
+  
+  # Speed change (changes speed and pitch) - Phase 1 requirements
+  speed_change:
+    enabled: true
+    parameters:
+      # Phase 1: Tempo changes without pitch preservation
+      - speed: 0.94  # -6% (0.94x = slower)
+        preserve_pitch: false
+        severity: "moderate"
+      - speed: 0.97  # -3% (0.97x = slower)
+        preserve_pitch: false
+        severity: "mild"
+      - speed: 0.90  # -10% (stress test)
+        preserve_pitch: false
+        severity: "severe"
+      - speed: 1.0
+        preserve_pitch: false
+        severity: "none"
+      - speed: 1.03  # +3% (1.03x = faster)
+        preserve_pitch: false
+        severity: "mild"
+      - speed: 1.06  # +6% (1.06x = faster)
+        preserve_pitch: false
+        severity: "moderate"
+      - speed: 1.10  # +10% (stress test)
+        preserve_pitch: false
+        severity: "severe"
   
   # Re-encoding (compression artifacts)
   re_encode:
@@ -99,10 +129,81 @@ transforms:
         remove_end: 2.0
         severity: "severe"
   
-  # Combined transforms (chains)
+  # EQ manipulations - Phase 1 requirements
+  high_pass_filter:
+    enabled: true
+    parameters:
+      - freq_hz: 150
+        severity: "moderate"
+  
+  low_pass_filter:
+    enabled: true
+    parameters:
+      - freq_hz: 6000
+        severity: "moderate"
+  
+  boost_highs:
+    enabled: true
+    parameters:
+      - gain_db: 6.0
+        freq_hz: 3000
+        severity: "moderate"
+  
+  boost_lows:
+    enabled: true
+    parameters:
+      - gain_db: 6.0
+        freq_hz: 200
+        severity: "moderate"
+  
+  telephone_filter:
+    enabled: true
+    parameters:
+      - low_freq: 300
+        high_freq: 3000
+        severity: "moderate"
+  
+  # Compression/Limiting - Phase 1 requirements
+  apply_compression:
+    enabled: true
+    parameters:
+      - threshold_db: -10.0
+        ratio: 10.0
+        severity: "severe"
+  
+  apply_limiting:
+    enabled: true
+    parameters:
+      - ceiling_db: -1.0
+        severity: "moderate"
+  
+  apply_multiband_compression:
+    enabled: true
+    parameters:
+      - severity: "moderate"
+  
+  # Combined transforms (chains) - Phase 1 requirements
   combine_chain:
     enabled: true
     chains:
+      # Phase 1: Combined Pitch + Tempo
+      - name: "pitch_tempo_pos"
+        severity: "moderate"
+        transforms:
+          - type: "speed_change"
+            params: {speed: 1.03, preserve_pitch: false}  # +3% speed
+          - type: "pitch_shift"
+            params: {semitones: 1}  # +1 semitone
+      
+      - name: "pitch_tempo_neg"
+        severity: "moderate"
+        transforms:
+          - type: "speed_change"
+            params: {speed: 0.96, preserve_pitch: false}  # -4% speed
+          - type: "pitch_shift"
+            params: {semitones: -2}  # -2 semitones
+      
+      # Original chains for backward compatibility
       - name: "mild_combined"
         severity: "mild"
         transforms:

@@ -7,17 +7,23 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-# Try to import embedding generator from parent project
+# Try to import EmbeddingGenerator - first from local copy, then from audio-ai project
 try:
-    import sys
-    parent_dir = Path(__file__).parent.parent.parent / "audio-ai"
-    if parent_dir.exists():
-        sys.path.insert(0, str(parent_dir))
-    from src.stage3_embedding.embedding_generator import EmbeddingGenerator
+    from fingerprint.embedding_generator import EmbeddingGenerator
     HAS_EMBEDDING_GENERATOR = True
+    logger.info("Using local EmbeddingGenerator")
 except ImportError:
-    HAS_EMBEDDING_GENERATOR = False
-    logger.warning("Could not import EmbeddingGenerator from parent project. Will use fallback.")
+    try:
+        import sys
+        parent_dir = Path(__file__).parent.parent.parent / "audio-ai"
+        if parent_dir.exists():
+            sys.path.insert(0, str(parent_dir))
+        from src.stage3_embedding.embedding_generator import EmbeddingGenerator
+        HAS_EMBEDDING_GENERATOR = True
+        logger.info("Using EmbeddingGenerator from audio-ai project")
+    except ImportError:
+        HAS_EMBEDDING_GENERATOR = False
+        logger.warning("Could not import EmbeddingGenerator. Will use fallback.")
 
 
 def compute_file_hash(file_path: Path, algorithm: str = "sha256") -> str:
@@ -55,17 +61,29 @@ def load_fingerprint_model(config_path: Path) -> Dict[str, Any]:
     
     # Initialize embedding generator
     if HAS_EMBEDDING_GENERATOR:
-        generator = EmbeddingGenerator(
-            embedding_dim=embedding_config.get("dimension", 512),
-            sample_rate=audio_config.get("sample_rate", 44100),
-            model_type=model_config.get("type", "mert"),
-            device=model_config.get("device")
-        )
-        logger.info(f"Loaded {generator.active_model_name} model")
+        try:
+            generator = EmbeddingGenerator(
+                embedding_dim=embedding_config.get("dimension", 512),
+                sample_rate=audio_config.get("sample_rate", 44100),
+                model_type=model_config.get("type", "auto"),  # Try "auto" to fallback gracefully
+                device=model_config.get("device"),
+                model_name=model_config.get("model_name")  # Optional MERT model name
+            )
+            logger.info(f"✅ Loaded {generator.active_model_name} model")
+        except Exception as e:
+            logger.error(f"Failed to initialize EmbeddingGenerator: {e}")
+            logger.warning("Falling back to basic embedding generator")
+            generator = FallbackEmbeddingGenerator(
+                embedding_dim=embedding_config.get("dimension", 512),
+                sample_rate=audio_config.get("sample_rate", 44100)
+            )
     else:
         # Fallback: create a minimal wrapper
         logger.warning("Using fallback embedding generator")
-        generator = None
+        generator = FallbackEmbeddingGenerator(
+            embedding_dim=embedding_config.get("dimension", 512),
+            sample_rate=audio_config.get("sample_rate", 44100)
+        )
     
     return {
         "model": generator,

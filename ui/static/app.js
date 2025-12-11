@@ -1095,6 +1095,18 @@ async function applyChainTransform() {
             body: formData
         });
         
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch {
+                const errorText = await response.text();
+                errorMessage = errorText.substring(0, 200);
+            }
+            throw new Error(errorMessage);
+        }
+        
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1165,6 +1177,13 @@ async function testFingerprintRobustness() {
         return;
     }
     
+    const resultDiv = document.getElementById('fingerprintTestResult');
+    const detailsDiv = document.getElementById('fingerprintTestDetails');
+    
+    // Show loading state
+    resultDiv.style.display = 'block';
+    detailsDiv.innerHTML = '<p>🔄 Testing fingerprint match... Please wait...</p>';
+    
     try {
         const formData = new FormData();
         formData.append('original_path', originalFile);
@@ -1175,24 +1194,65 @@ async function testFingerprintRobustness() {
             body: formData
         });
         
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch {
+                const errorText = await response.text();
+                errorMessage = errorText.substring(0, 200);
+            }
+            throw new Error(errorMessage);
+        }
+        
         const result = await response.json();
-        const resultDiv = document.getElementById('fingerprintTestResult');
-        const detailsDiv = document.getElementById('fingerprintTestDetails');
         
         if (result.status === 'success') {
-            resultDiv.style.display = 'block';
+            const matchStatus = result.matched ? 'MATCHED ✓' : 'NOT MATCHED ✗';
+            const matchClass = result.matched ? 'success' : 'error';
+            const similarityPercent = (result.similarity * 100).toFixed(2);
+            const directSim = result.direct_similarity ? (result.direct_similarity * 100).toFixed(2) : null;
+            
             detailsDiv.innerHTML = `
-                <p><strong>Match Status:</strong> <span class="badge badge-${result.matched ? 'success' : 'error'}">${result.matched ? 'MATCHED ✓' : 'NOT MATCHED ✗'}</span></p>
-                <p><strong>Similarity Score:</strong> ${(result.similarity * 100).toFixed(2)}%</p>
-                <p><strong>Rank:</strong> ${result.rank || 'N/A'}</p>
-                <p><strong>Top Match:</strong> ${result.top_match || 'N/A'}</p>
-                ${result.message ? `<p><strong>Details:</strong> ${result.message}</p>` : ''}
+                <div style="margin-bottom: 15px;">
+                    <p><strong>Match Status:</strong> 
+                        <span style="padding: 5px 10px; border-radius: 4px; font-weight: bold; background: ${result.matched ? '#4CAF50' : '#f44336'}; color: white;">
+                            ${matchStatus}
+                        </span>
+                    </p>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                    <div>
+                        <p><strong>Similarity Score:</strong></p>
+                        <p style="font-size: 24px; color: ${result.matched ? '#4CAF50' : '#f44336'}; margin: 5px 0;">
+                            ${similarityPercent}%
+                        </p>
+                        ${directSim ? `<p style="font-size: 12px; color: #666;">Direct: ${directSim}%</p>` : ''}
+                    </div>
+                    <div>
+                        <p><strong>Rank:</strong> ${result.rank || 'N/A'}</p>
+                        <p><strong>Top Match:</strong></p>
+                        <p style="font-size: 12px; color: #666; word-break: break-all;">${result.top_match || 'N/A'}</p>
+                    </div>
+                </div>
+                ${result.message ? `<p style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px;"><strong>Details:</strong> ${result.message}</p>` : ''}
+                <div style="margin-top: 15px; padding: 10px; background: ${result.matched ? '#e8f5e9' : '#ffebee'}; border-radius: 4px;">
+                    <strong>Interpretation:</strong>
+                    ${result.matched 
+                        ? '✅ The fingerprint successfully matched the manipulated audio to the original. The transform did not break fingerprint identification.' 
+                        : '❌ The fingerprint could not match the manipulated audio to the original. The transform may have broken fingerprint identification.'}
+                </div>
             `;
+            
+            addSystemLog(`Fingerprint test: ${matchStatus} (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
         } else {
             resultDiv.style.display = 'block';
             detailsDiv.innerHTML = `<p style="color: #f44336;">Error: ${result.message || 'Test failed'}</p>`;
         }
     } catch (error) {
+        resultDiv.style.display = 'block';
+        detailsDiv.innerHTML = `<p style="color: #f44336;">Error: ${error.message}</p>`;
         showError('Failed to test fingerprint: ' + error.message);
     }
 }

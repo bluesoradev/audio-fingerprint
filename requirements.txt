@@ -23,11 +23,16 @@ pyarrow>=12.0.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
 
-# Web UI
-fastapi>=0.100.0
-uvicorn>=0.23.0
-jinja2>=3.1.0
-python-multipart>=0.0.6
+# Web UI (optional - can be removed if only using desktop app)
+# fastapi>=0.100.0
+# uvicorn>=0.23.0
+# jinja2>=3.1.0
+# python-multipart>=0.0.6
+
+# Desktop UI
+PyQt6>=6.6.0
+PyQt6-Charts>=6.6.0  # Optional: for advanced charts
+sounddevice>=0.4.6  # For audio playback in desktop app
 
 # Utilities
 pyyaml>=6.0
