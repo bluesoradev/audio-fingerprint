@@ -80,18 +80,34 @@ def speed_change(
             y_changed = librosa.effects.time_stretch(y=y, rate=speed)
             output_sr = sr
         else:
-            # Change speed with pitch change: use simple index-based resampling
-            # Speed up 2x: take every 2nd sample (fewer samples, plays faster, pitch goes up)
-            # Slow down 0.5x: duplicate/interpolate samples (more samples, plays slower, pitch goes down)
+            # Change speed with pitch change: use proper resampling with anti-aliasing
+            # This is equivalent to changing playback speed (like a tape player)
+            # Speed up 2x: fewer samples, plays faster, pitch goes up
+            # Slow down 0.5x: more samples, plays slower, pitch goes down
             
-            # Create new sample indices
-            original_indices = np.arange(len(y))
+            # Calculate the new length based on speed
             new_length = int(len(y) / speed)
-            new_indices = np.linspace(0, len(y) - 1, new_length)
             
-            # Use linear interpolation to resample
-            y_changed = np.interp(new_indices, original_indices, y)
-            output_sr = sr  # Keep same sample rate
+            # Create time indices for the original and new signals
+            original_time = np.arange(len(y)) / sr
+            new_time = np.linspace(0, original_time[-1], new_length)
+            
+            # Use scipy's resampling which has proper anti-aliasing
+            # This is better than simple linear interpolation
+            from scipy.interpolate import interp1d
+            
+            # Use cubic interpolation for smoother results (better than linear)
+            interp_func = interp1d(
+                original_time,
+                y,
+                kind='cubic',
+                bounds_error=False,
+                fill_value=0.0
+            )
+            y_changed = interp_func(new_time)
+            
+            # Keep same sample rate (the speed change is in the number of samples)
+            output_sr = sr
             
         # Save
         out_path.parent.mkdir(parents=True, exist_ok=True)

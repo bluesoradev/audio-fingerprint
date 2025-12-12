@@ -4,28 +4,57 @@ File management page for browsing and uploading files.
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
-    QFileDialog, QGroupBox, QTextEdit, QFrame, QMessageBox
+    QFileDialog, QGroupBox, QTextEdit, QFrame, QMessageBox, QLineEdit
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPainter, QColor, QPen, QBrush, QPixmap
 from pathlib import Path
 import shutil
 from datetime import datetime
 
 
+class CloudUploadIcon(QLabel):
+    """Icon widget using file.png image."""
+    
+    def __init__(self, project_root: Path):
+        super().__init__()
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setStyleSheet("background-color: transparent;")
+        self.setScaledContents(False)
+        
+        # Load the image file
+        image_path = project_root / "file.png"
+        if image_path.exists():
+            pixmap = QPixmap(str(image_path))
+            if not pixmap.isNull():
+                # Scale to appropriate size (80x80 or maintain aspect ratio)
+                scaled_pixmap = pixmap.scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                self.setPixmap(scaled_pixmap)
+                self.setMinimumSize(80, 80)
+            else:
+                # Image failed to load
+                self.setMinimumSize(80, 80)
+                self.setText("⚠")
+        else:
+            # Fallback: set minimum size even if image not found
+            self.setMinimumSize(80, 80)
+            self.setText("⚠")
+
+
 class DragDropArea(QFrame):
     """Drag and drop file upload area."""
     
-    def __init__(self, upload_callback=None):
+    def __init__(self, upload_callback=None, project_root=None):
         super().__init__()
         self.upload_callback = upload_callback
+        self.project_root = project_root or Path.cwd()
         self.setAcceptDrops(True)
         self.setStyleSheet("""
             QFrame {
-                border: 2px dashed #3d3d3d;
+                border: none;
                 border-radius: 8px;
                 background-color: #2d2d2d;
-                min-height: 200px;
+                min-height: 250px;
             }
         """)
         self.init_ui()
@@ -33,51 +62,50 @@ class DragDropArea(QFrame):
     def init_ui(self):
         """Initialize drag-drop area UI."""
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(15)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setSpacing(8)
+        layout.setContentsMargins(20, 10, 20, 20)
         
-        # Cloud upload icon
-        icon_label = QLabel("☁️")
-        icon_label.setStyleSheet("font-size: 48px;")
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(icon_label)
+        # Image at the top
+        icon_widget = CloudUploadIcon(self.project_root)
+        layout.addWidget(icon_widget, 0, Qt.AlignmentFlag.AlignCenter)
         
-        # Text
-        text_label = QLabel("Drag & Drop Files Here")
-        text_label.setStyleSheet("""
+        # Text container - all text below image
+        # Main text: "Drag & drop files here"
+        main_text = QLabel("Drag & drop files here")
+        main_text.setStyleSheet("""
             QLabel {
-                color: #c8c8c8;
-                font-size: 18px;
+                color: #ffffff;
+                font-size: 16px;
                 font-weight: 500;
+                background-color: transparent;
             }
         """)
-        text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(text_label)
+        main_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_text.setWordWrap(False)
+        layout.addWidget(main_text)
         
-        subtitle = QLabel("Or click to browse your local file system for audio and experiment data.")
-        subtitle.setStyleSheet("color: #9ca3af; font-size: 13px;")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setWordWrap(True)
-        layout.addWidget(subtitle)
+        # Secondary text with clickable link
+    #    secondary_text = QLabel("or click to <a href='#' style='color: #93c5fd;'>Browse Files</a> from your system")
+    # #    secondary_text.setStyleSheet("""
+    #        secondary_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    #        secondary_text.setOpenExternalLinks(False)
+    #        secondary_text.linkActivated.connect(self._on_browse_clicked)
+    #        secondary_text.setWordWrap(False)
+    #        layout.addWidget(secondary_text)
         
-        # Browse button
-        self.browse_btn = QPushButton("Browse Files")
-        self.browse_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3d3d3d;
-                color: #c8c8c8;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #427eea;
-                color: white;
+        # Support text
+        support_text = QLabel("Supports audio, document, and experiment data files.")
+        support_text.setStyleSheet("""
+            QLabel {
+                color: #9ca3af;
+                font-size: 12px;
+                background-color: transparent;
             }
         """)
-        self.browse_btn.setMaximumWidth(150)
-        self.browse_btn.clicked.connect(self._on_browse_clicked)
-        layout.addWidget(self.browse_btn, 0, Qt.AlignmentFlag.AlignCenter)
+        support_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        support_text.setWordWrap(False)
+        layout.addWidget(support_text)
     
     def _on_browse_clicked(self):
         """Handle browse button click."""
@@ -90,6 +118,12 @@ class DragDropArea(QFrame):
             if files and self.upload_callback:
                 self.upload_callback(files)
     
+    def mousePressEvent(self, event):
+        """Handle mouse click to open file browser."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._on_browse_clicked()
+        super().mousePressEvent(event)
+    
     def dragEnterEvent(self, event):
         """Handle drag enter event."""
         if event.mimeData().hasUrls():
@@ -97,10 +131,10 @@ class DragDropArea(QFrame):
             # Visual feedback - highlight border
             self.setStyleSheet("""
                 QFrame {
-                    border: 2px dashed #427eea;
+                    border: none;
                     border-radius: 8px;
                     background-color: #2d2d2d;
-                    min-height: 200px;
+                    min-height: 250px;
                 }
             """)
     
@@ -109,10 +143,10 @@ class DragDropArea(QFrame):
         # Reset border style
         self.setStyleSheet("""
             QFrame {
-                border: 2px dashed #3d3d3d;
+                border: none;
                 border-radius: 8px;
                 background-color: #2d2d2d;
-                min-height: 200px;
+                min-height: 250px;
             }
         """)
     
@@ -121,10 +155,10 @@ class DragDropArea(QFrame):
         # Reset border style
         self.setStyleSheet("""
             QFrame {
-                border: 2px dashed #3d3d3d;
+                border: none;
                 border-radius: 8px;
                 background-color: #2d2d2d;
-                min-height: 200px;
+                min-height: 250px;
             }
         """)
         
@@ -163,32 +197,51 @@ class FilesPage(QWidget):
         subtitle.setStyleSheet("color: #9ca3af; font-size: 14px; margin-bottom: 10px;")
         layout.addWidget(subtitle)
         
-        # Breadcrumb
+        # Breadcrumb and search bar
         breadcrumb_layout = QHBoxLayout()
-        breadcrumb = QLabel("Home / Projects / Audio-Robustness-Lab")
+        breadcrumb = QLabel("Home > Projects > Audio-Robustness-Lab > Files")
         breadcrumb.setStyleSheet("color: #9ca3af; font-size: 12px;")
         breadcrumb_layout.addWidget(breadcrumb)
         breadcrumb_layout.addStretch()
         
+        # Search bar
+        search_input = QLineEdit()
+        search_input.setPlaceholderText("Q Search files...")
+        search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2d2d2d;
+                border: 1px solid #3d3d3d;
+                border-radius: 6px;
+                padding: 6px 12px;
+                color: #9ca3af;
+                font-size: 13px;
+                min-width: 200px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #427eea;
+            }
+        """)
+        breadcrumb_layout.addWidget(search_input)
+        
         new_folder_btn = QPushButton("New Folder")
         new_folder_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3d3d3d;
-                color: #c8c8c8;
+                background-color: #427eea;
+                color: white;
                 padding: 6px 12px;
                 border-radius: 4px;
                 font-size: 13px;
+                margin-left: 10px;
             }
             QPushButton:hover {
-                background-color: #427eea;
-                color: white;
+                background-color: #3464ba;
             }
         """)
         breadcrumb_layout.addWidget(new_folder_btn)
         layout.addLayout(breadcrumb_layout)
         
         # Drag & Drop area
-        self.drag_drop_area = DragDropArea(upload_callback=self.upload_files)
+        self.drag_drop_area = DragDropArea(upload_callback=self.upload_files, project_root=self.project_root)
         layout.addWidget(self.drag_drop_area)
         
         # Main content area (File Browser + File Details)
@@ -220,8 +273,8 @@ class FilesPage(QWidget):
         browser_layout.addWidget(browser_subtitle)
         
         self.file_table = QTableWidget()
-        self.file_table.setColumnCount(5)
-        self.file_table.setHorizontalHeaderLabels(["Name", "Type", "Size", "Last Modified", "Actions"])
+        self.file_table.setColumnCount(4)
+        self.file_table.setHorizontalHeaderLabels(["Name", "Type", "Size", "Last Modified"])
         self.file_table.horizontalHeader().setStretchLastSection(True)
         self.file_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.file_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -234,7 +287,7 @@ class FilesPage(QWidget):
                 color: #ffffff;
             }
             QTableWidget::item {
-                padding: 8px;
+                padding: 10px;
                 color: #ffffff;
             }
             QTableWidget::item:selected {
@@ -244,7 +297,7 @@ class FilesPage(QWidget):
             QHeaderView::section {
                 background-color: #252525;
                 color: #ffffff;
-                padding: 8px;
+                padding: 10px;
                 border: none;
                 border-bottom: 1px solid #3d3d3d;
                 font-weight: bold;
@@ -272,6 +325,10 @@ class FilesPage(QWidget):
                 background: transparent;
             }
         """)
+        self.file_table.verticalHeader().setVisible(False)
+        self.file_table.setShowGrid(False)
+        # Hide the corner button (white square in header)
+        self.file_table.setCornerButtonEnabled(False)
         self.file_table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         browser_layout.addWidget(self.file_table)
         main_content.addWidget(browser_group, 2)
@@ -321,13 +378,20 @@ class FilesPage(QWidget):
         files = []
         for directory in directories:
             if directory.exists():
-                for ext in ["*.wav", "*.mp3", "*.json", "*.csv", "*.yaml", "*.yml", "*.pth", "*.pt", "*.zip"]:
+                for ext in ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.json", "*.csv", "*.yaml", "*.yml", "*.pth", "*.pt", "*.zip"]:
                     files.extend(directory.glob(ext))
         
-        self.file_table.setRowCount(len(files))
-        for i, file_path in enumerate(sorted(files, key=lambda x: x.stat().st_mtime, reverse=True)[:50]):
+        # Sort files by modification time (newest first) and limit to 100
+        sorted_files = sorted(files, key=lambda x: x.stat().st_mtime, reverse=True)[:100]
+        
+        # Set row count to actual number of files
+        self.file_table.setRowCount(len(sorted_files))
+        
+        for i, file_path in enumerate(sorted_files):
             # Name
-            self.file_table.setItem(i, 0, QTableWidgetItem(file_path.name))
+            name_item = QTableWidgetItem(file_path.name)
+            name_item.setData(Qt.ItemDataRole.UserRole, str(file_path))
+            self.file_table.setItem(i, 0, name_item)
             
             # Type
             ext = file_path.suffix[1:].upper() if file_path.suffix else "Unknown"
@@ -361,82 +425,64 @@ class FilesPage(QWidget):
             mod_time = datetime.fromtimestamp(file_path.stat().st_mtime)
             self.file_table.setItem(i, 3, QTableWidgetItem(mod_time.strftime("%Y-%m-%d")))
             
-            # Actions
-            select_btn = QPushButton("Select")
-            select_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #3d3d3d;
-                    color: #ffffff;
-                    padding: 6px 12px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    border: none;
-                    min-width: 60px;
-                }
-                QPushButton:hover {
-                    background-color: #427eea;
-                    color: #ffffff;
-                }
-            """)
-            select_btn.clicked.connect(lambda checked, row=i: self._on_select_file(row))
-            self.file_table.setCellWidget(i, 4, select_btn)
+            # Set row height
+            self.file_table.setRowHeight(i, 40)
         
+        # Resize columns to fit content
         self.file_table.resizeColumnsToContents()
-        # Ensure Actions column has minimum width
-        if self.file_table.columnCount() > 4:
-            self.file_table.setColumnWidth(4, 100)
+        
+        # Set minimum column widths
+        self.file_table.setColumnWidth(0, max(200, self.file_table.columnWidth(0)))
+        self.file_table.setColumnWidth(1, max(120, self.file_table.columnWidth(1)))
+        self.file_table.setColumnWidth(2, max(100, self.file_table.columnWidth(2)))
+        self.file_table.setColumnWidth(3, max(120, self.file_table.columnWidth(3)))
+        
+        # Select first row by default if available
+        if self.file_table.rowCount() > 0:
+            self.file_table.selectRow(0)
+            self._on_selection_changed()
     
     def _on_selection_changed(self):
-        """Update button styles when selection changes."""
-        selected_rows = set()
-        for index in self.file_table.selectionModel().selectedRows():
-            selected_rows.add(index.row())
-        
-        for row in range(self.file_table.rowCount()):
-            btn = self.file_table.cellWidget(row, 4)
-            if btn:
-                if row in selected_rows:
-                    btn.setStyleSheet("""
-                        QPushButton {
-                            background-color: #427eea;
-                            color: #ffffff;
-                            padding: 6px 12px;
-                            border-radius: 4px;
-                            font-size: 12px;
-                            border: none;
-                            min-width: 60px;
-                        }
-                        QPushButton:hover {
-                            background-color: #3464ba;
-                            color: #ffffff;
-                        }
-                    """)
-                else:
-                    btn.setStyleSheet("""
-                        QPushButton {
-                            background-color: #3d3d3d;
-                            color: #ffffff;
-                            padding: 6px 12px;
-                            border-radius: 4px;
-                            font-size: 12px;
-                            border: none;
-                            min-width: 60px;
-                        }
-                        QPushButton:hover {
-                            background-color: #427eea;
-                            color: #ffffff;
-                        }
-                    """)
+        """Update file details when selection changes."""
+        selected_rows = self.file_table.selectionModel().selectedRows()
+        if selected_rows:
+            row = selected_rows[0].row()
+            name_item = self.file_table.item(row, 0)
+            if name_item:
+                file_path_str = name_item.data(Qt.ItemDataRole.UserRole)
+                if not file_path_str:
+                    return
+                
+                file_name = name_item.text()
+                type_item = self.file_table.item(row, 1)
+                size_item = self.file_table.item(row, 2)
+                mod_item = self.file_table.item(row, 3)
+                
+                file_type = type_item.text() if type_item else "Unknown"
+                file_size = size_item.text() if size_item else "Unknown"
+                last_modified = mod_item.text() if mod_item else "Unknown"
+                
+                # Get actual file path
+                try:
+                    file_path = Path(file_path_str)
+                    actual_path = str(file_path) if file_path.exists() else f"/Audio-Robustness-Lab/experiments/{file_name}"
+                except:
+                    actual_path = f"/Audio-Robustness-Lab/experiments/{file_name}"
+                
+                # Update file details
+                details_text = f"""Name: {file_name}
+Type: {file_type}
+Size: {file_size}
+Last Modified: {last_modified}
+Path: {actual_path}
+Owner: System
+Permissions: Read, Write"""
+                self.file_details.setPlainText(details_text)
     
     def _on_select_file(self, row):
         """Handle file selection button click."""
         self.file_table.selectRow(row)
-        # Update file details
-        file_item = self.file_table.item(row, 0)
-        if file_item:
-            file_name = file_item.text()
-            # TODO: Load and display file details
-            self.file_details.setPlainText(f"Selected: {file_name}")
+        self._on_selection_changed()
     
     def upload_files(self, file_paths):
         """Upload files to the data directory."""

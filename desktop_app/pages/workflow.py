@@ -91,11 +91,11 @@ class WorkflowPage(QWidget):
                 font-size: 16px;
                 font-weight: bold;
                 color: #ffffff;
-                border: 1px solid #3d3d3d;
-                border-radius: 8px;
+                border: none;
+                border-radius: 0px;
                 margin-top: 10px;
                 padding-top: 15px;
-                background-color: #2d2d2d;
+                background-color: transparent;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -157,52 +157,18 @@ class WorkflowPage(QWidget):
             }
         """)
         self.progress_label = QLabel("0% Complete")
-        self.progress_label.setStyleSheet("color: #ffffff; min-width: 80px;")
+        self.progress_label.setStyleSheet("color: #ffffff; min-width: 100px;")
         
         controls_layout.addWidget(self.run_btn)
         controls_layout.addWidget(self.cancel_btn)
         controls_layout.addStretch()
         controls_layout.addWidget(self.progress_label)
         controls_layout.addWidget(self.progress_bar)
-        controls_layout.setStretchFactor(self.progress_bar, 1)
+        controls_layout.setStretchFactor(self.progress_bar, 2)
         
         layout.addWidget(controls_group)
         
-        # Workflow steps (scrollable)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background-color: #1e1e1e;
-            }
-            QScrollBar:vertical {
-                background-color: #1e1e1e;
-                width: 8px;
-                border: none;
-                border-radius: 4px;
-                margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #3d3d3d;
-                border-radius: 4px;
-                min-height: 30px;
-                margin: 2px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #4d4d4d;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                background: transparent;
-            }
-        """)
-        scroll_widget = QWidget()
-        scroll_widget.setStyleSheet("background-color: #1e1e1e;")
-        scroll_layout = QVBoxLayout(scroll_widget)
-        
+        # Workflow steps
         steps_group = QGroupBox("Workflow Steps")
         steps_group.setStyleSheet("""
             QGroupBox {
@@ -222,12 +188,18 @@ class WorkflowPage(QWidget):
                 color: #ffffff;
             }
         """)
-        steps_layout = QVBoxLayout(steps_group)
+        steps_group_layout = QVBoxLayout(steps_group)
+        
+        # Create scrollable content widget
+        steps_content = QWidget()
+        steps_layout = QVBoxLayout(steps_content)
+        steps_layout.setSpacing(10)
+        steps_layout.setContentsMargins(0, 0, 0, 0)
         
         # Step 1: Create Test Audio
         self.step1_group = self._create_step_group(
             "Step 1: Create Test Audio",
-            {"num_files": (QSpinBox, 2, 1, 10),
+            {"num_files": (QSpinBox, 1, 1, 10),
              "duration": (QDoubleSpinBox, 5.0, 1.0, 60.0),
              "output_dir": (QLineEdit, "data/test_audio")}
         )
@@ -241,21 +213,66 @@ class WorkflowPage(QWidget):
         )
         steps_layout.addWidget(self.step2_group)
         
-        # Step 3-7: Placeholder steps
-        for i, step_name in enumerate([
+        # Step 3: Ingest Files
+        self.step3_group = self._create_step_group(
             "Step 3: Ingest Files",
-            "Step 4: Generate Transforms",
-            "Step 5: Build Index",
-            "Step 6: Run Queries",
-            "Step 7: Analyze Results"
-        ], 3):
-            step_group = self._create_step_group(step_name, {})
-            steps_layout.addWidget(step_group)
+            {"manifest_file": (QLineEdit, "data/manifests/test_manifest.csv"),
+             "sample_rate": (QSpinBox, 44100, 8000, 192000)}
+        )
+        steps_layout.addWidget(self.step3_group)
         
-        scroll_layout.addWidget(steps_group)
-        scroll_layout.addStretch()
-        scroll.setWidget(scroll_widget)
-        layout.addWidget(scroll)
+        # Step 4: Build Index
+        self.step4_group = self._create_step_group(
+            "Step 4: Build Index",
+            {"audio_dir": (QLineEdit, "data/test_audio"),
+             "output_index": (QLineEdit, "data/indexes/test_index.faiss")}
+        )
+        steps_layout.addWidget(self.step4_group)
+        
+        # Step 5: Run Queries
+        self.step5_group = self._create_step_group(
+            "Step 5: Run Queries",
+            {"manifest_file": (QLineEdit, "data/manifests/test_manifest.csv"),
+             "index_file": (QLineEdit, "data/indexes/test_index.faiss"),
+             "output_results": (QLineEdit, "data/results/query_results.json")}
+        )
+        steps_layout.addWidget(self.step5_group)
+        
+        steps_layout.addStretch()
+        
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(steps_content)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background-color: #1e1e1e;
+                width: 8px;
+                border: none;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #3d3d3d;
+                border-radius: 4px;
+                min-height: 30px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #4d4d4d;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: transparent;
+            }
+        """)
+        
+        steps_group_layout.addWidget(scroll_area)
+        layout.addWidget(steps_group, 1)
         
         # Live log
         log_group = QGroupBox("Live Workflow Log")
@@ -310,113 +327,224 @@ class WorkflowPage(QWidget):
                 border: 1px solid #3d3d3d;
                 border-radius: 4px;
                 margin-top: 10px;
-                padding-top: 15px;
+                padding-top: 20px;
                 background-color: #2d2d2d;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                left: 15px;
+                padding: 0 8px;
                 color: #ffffff;
             }
         """)
         layout = QHBoxLayout(group)
+        layout.setContentsMargins(20, 25, 20, 20)
+        layout.setSpacing(20)
         
-        form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         form_widgets = {}
         
-        for field_name, (widget_class, default, *args) in fields.items():
+        # Create a vertical layout for form fields
+        form_container = QWidget()
+        form_container.setStyleSheet("background-color: transparent;")
+        form_layout = QVBoxLayout(form_container)
+        form_layout.setSpacing(15)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        
+        field_list = list(fields.items())
+        
+        # First row: two fields side by side (if we have at least 2 fields)
+        if len(field_list) >= 2:
+            first_row = QHBoxLayout()
+            first_row.setSpacing(20)
+            first_row.setContentsMargins(0, 0, 0, 0)
+            
+            for idx in range(2):
+                field_name, (widget_class, default, *args) = field_list[idx]
+                label_text = field_name.replace("_", " ").title() + ":"
+                label = QLabel(label_text)
+                label.setStyleSheet("color: #ffffff; min-width: 90px; font-size: 13px;")
+                
+                if widget_class == QLineEdit:
+                    widget = QLineEdit(str(default))
+                    widget.setStyleSheet("""
+                        QLineEdit {
+                            background-color: #353535;
+                            color: #ffffff;
+                            border: 1px solid #3d3d3d;
+                            border-radius: 4px;
+                            padding: 12px 20px;
+                            min-width: 150px;
+                            font-size: 13px;
+                        }
+                        QLineEdit:focus {
+                            border: 1px solid #427eea;
+                        }
+                    """)
+                elif widget_class == QSpinBox:
+                    widget = QSpinBox()
+                    widget.setRange(*args)
+                    widget.setValue(int(default))
+                    widget.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+                    widget.setStyleSheet("""
+                        QSpinBox {
+                            background-color: #353535;
+                            color: #ffffff;
+                            border: 1px solid #3d3d3d;
+                            border-radius: 4px;
+                            padding: 12px 20px;
+                            min-width: 80px;
+                            font-size: 13px;
+                        }
+                        QSpinBox:focus {
+                            border: 1px solid #427eea;
+                        }
+                    """)
+                elif widget_class == QDoubleSpinBox:
+                    widget = QDoubleSpinBox()
+                    widget.setRange(*args)
+                    widget.setValue(float(default))
+                    widget.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+                    widget.setStyleSheet("""
+                        QDoubleSpinBox {
+                            background-color: #353535;
+                            color: #ffffff;
+                            border: 1px solid #3d3d3d;
+                            border-radius: 4px;
+                            padding: 12px 20px;
+                            min-width: 80px;
+                            font-size: 13px;
+                        }
+                        QDoubleSpinBox:focus {
+                            border: 1px solid #427eea;
+                        }
+                    """)
+                else:
+                    widget = widget_class()
+                
+                form_widgets[field_name] = widget
+                
+                field_widget = QWidget()
+                field_layout = QHBoxLayout(field_widget)
+                field_layout.setContentsMargins(0, 0, 0, 0)
+                field_layout.setSpacing(12)
+                field_layout.addWidget(label)
+                field_layout.addWidget(widget, 1)
+                first_row.addWidget(field_widget, 1)
+            
+            form_layout.addLayout(first_row)
+        
+        # Second row: remaining fields (one per row)
+        for idx in range(2, len(field_list)):
+            field_name, (widget_class, default, *args) = field_list[idx]
             label_text = field_name.replace("_", " ").title() + ":"
             label = QLabel(label_text)
-            label.setStyleSheet("color: #ffffff;")
+            label.setStyleSheet("color: #ffffff; min-width: 90px; font-size: 13px;")
             
             if widget_class == QLineEdit:
                 widget = QLineEdit(str(default))
                 widget.setStyleSheet("""
                     QLineEdit {
-                        background-color: #1e1e1e;
+                        background-color: #353535;
                         color: #ffffff;
                         border: 1px solid #3d3d3d;
                         border-radius: 4px;
-                        padding: 6px;
+                        padding: 12px 20px;
                         min-width: 200px;
+                        font-size: 13px;
+                    }
+                    QLineEdit:focus {
+                        border: 1px solid #427eea;
                     }
                 """)
             elif widget_class == QSpinBox:
                 widget = QSpinBox()
                 widget.setRange(*args)
                 widget.setValue(int(default))
+                widget.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
                 widget.setStyleSheet("""
                     QSpinBox {
-                        background-color: #ffffff;
-                        color: #000000;
+                        background-color: #353535;
+                        color: #ffffff;
                         border: 1px solid #3d3d3d;
                         border-radius: 4px;
-                        padding: 6px;
+                        padding: 12px 20px;
                         min-width: 80px;
+                        font-size: 13px;
                     }
-                    QSpinBox::up-button, QSpinBox::down-button {
-                        width: 20px;
-                        background-color: #f0f0f0;
+                    QSpinBox:focus {
+                        border: 1px solid #427eea;
                     }
                 """)
             elif widget_class == QDoubleSpinBox:
                 widget = QDoubleSpinBox()
                 widget.setRange(*args)
                 widget.setValue(float(default))
+                widget.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
                 widget.setStyleSheet("""
                     QDoubleSpinBox {
-                        background-color: #ffffff;
-                        color: #000000;
+                        background-color: #353535;
+                        color: #ffffff;
                         border: 1px solid #3d3d3d;
                         border-radius: 4px;
-                        padding: 6px;
+                        padding: 12px 20px;
                         min-width: 80px;
+                        font-size: 13px;
                     }
-                    QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-                        width: 20px;
-                        background-color: #f0f0f0;
+                    QDoubleSpinBox:focus {
+                        border: 1px solid #427eea;
                     }
                 """)
             else:
                 widget = widget_class()
             
-            form_layout.addRow(label, widget)
             form_widgets[field_name] = widget
+            
+            field_widget = QWidget()
+            field_widget.setStyleSheet("background-color: transparent;")
+            field_layout = QHBoxLayout(field_widget)
+            field_layout.setContentsMargins(0, 0, 0, 0)
+            field_layout.setSpacing(12)
+            field_layout.addWidget(label)
+            field_layout.addWidget(widget, 1)
+            form_layout.addWidget(field_widget)
         
-        layout.addLayout(form_layout)
+        layout.addWidget(form_container, 1)
         layout.addStretch()
         
-        start_btn = QPushButton("Start")
+        start_btn = QPushButton("▶ Start")
         start_btn.setStyleSheet("""
             QPushButton {
                 background-color: #427eea;
                 color: #ffffff;
-                padding: 8px 16px;
+                padding: 10px 20px;
                 border-radius: 4px;
                 font-size: 13px;
+                font-weight: 500;
                 border: none;
-                min-width: 70px;
+                min-width: 90px;
             }
             QPushButton:hover {
                 background-color: #3464ba;
             }
+            QPushButton:pressed {
+                background-color: #2a5098;
+            }
         """)
-        cancel_btn = QPushButton("Cancel")
+        cancel_btn = QPushButton("✕ Cancel")
         cancel_btn.setEnabled(False)
         cancel_btn.setStyleSheet("""
             QPushButton {
-                background-color: #ef4444;
+                background-color: #3d3d3d;
                 color: #ffffff;
-                padding: 8px 16px;
+                padding: 10px 20px;
                 border-radius: 4px;
                 font-size: 13px;
+                font-weight: 500;
                 border: none;
-                min-width: 70px;
+                min-width: 90px;
             }
             QPushButton:hover {
-                background-color: #dc2626;
+                background-color: #4d4d4d;
             }
             QPushButton:disabled {
                 background-color: #3d3d3d;
@@ -425,7 +553,8 @@ class WorkflowPage(QWidget):
         """)
         
         btn_layout = QVBoxLayout()
-        btn_layout.setSpacing(5)
+        btn_layout.setSpacing(8)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.addWidget(start_btn)
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)

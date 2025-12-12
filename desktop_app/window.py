@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QFrame, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QColor, QBrush, QPen
+from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QColor, QBrush, QPen, QPolygon
 from pathlib import Path
 import sys
 
@@ -133,25 +133,6 @@ class HeaderBar(QWidget):
         layout.setContentsMargins(20, 10, 20, 10)
         layout.setSpacing(15)
         
-        # Search bar
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Q Search...")
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #2d2d2d;
-                border: 1px solid #3d3d3d;
-                border-radius: 6px;
-                padding: 8px 12px;
-                color: #9ca3af;
-                font-size: 14px;
-                min-width: 300px;
-            }
-            QLineEdit:focus {
-                border: 1px solid #427eea;
-            }
-        """)
-        layout.addWidget(self.search_input)
-        
         layout.addStretch()
         
         # Notifications button - custom bell icon
@@ -208,8 +189,42 @@ class FooterBar(QWidget):
         layout.addStretch()
         
         # Copyright
-        copyright_label = QLabel("© 2025 Audio Robustness Lab. All rights reserved.")
+        copyright_label = QLabel("© 2025 Workflow Maestro. All rights reserved.")
         layout.addWidget(copyright_label)
+
+
+class WorkflowMaestroLogo(QWidget):
+    """Workflow Maestro logo - blue square with 4 white squares."""
+    
+    def __init__(self):
+        super().__init__()
+        self.setFixedSize(24, 24)
+    
+    def paintEvent(self, event):
+        """Draw the logo."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Blue square background
+        painter.setBrush(QBrush(QColor(66, 126, 234)))  # Blue
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(0, 0, 24, 24, 4, 4)
+        
+        # Four white squares inside (2x2 grid)
+        painter.setBrush(QBrush(QColor(255, 255, 255)))
+        square_size = 6
+        spacing = 2
+        start_x = 5
+        start_y = 5
+        
+        # Top left
+        painter.drawRect(start_x, start_y, square_size, square_size)
+        # Top right
+        painter.drawRect(start_x + square_size + spacing, start_y, square_size, square_size)
+        # Bottom left
+        painter.drawRect(start_x, start_y + square_size + spacing, square_size, square_size)
+        # Bottom right
+        painter.drawRect(start_x + square_size + spacing, start_y + square_size + spacing, square_size, square_size)
 
 
 class NavigationIconWidget(QWidget):
@@ -232,90 +247,101 @@ class NavigationIconWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         if self.icon_type == "dashboard":
-            # Three colored bars (green, yellow, red)
-            bar_width = 4
-            bar_spacing = 2
-            x_start = 2
-            y_base = 18
+            # Four rounded rectangles in a 2x2 grid (dashboard icon) - outline style
+            rect_size = 7
+            spacing = 2
+            start_x = 3
+            start_y = 3
             
-            # Green bar (tallest)
-            painter.setBrush(QBrush(QColor(34, 197, 94)))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRect(x_start, y_base - 12, bar_width, 12)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(QColor(255, 255, 255), 1.5))  # White outline
             
-            # Yellow bar (medium)
-            painter.setBrush(QBrush(QColor(234, 179, 8)))
-            painter.drawRect(x_start + bar_width + bar_spacing, y_base - 8, bar_width, 8)
-            
-            # Red bar (shortest)
-            painter.setBrush(QBrush(QColor(239, 68, 68)))
-            painter.drawRect(x_start + (bar_width + bar_spacing) * 2, y_base - 6, bar_width, 6)
+            # Draw 2x2 grid of rounded rectangles
+            for i in range(2):
+                for j in range(2):
+                    x = start_x + j * (rect_size + spacing)
+                    y = start_y + i * (rect_size + spacing)
+                    painter.drawRoundedRect(int(x), int(y), rect_size, rect_size, 2, 2)
         
         elif self.icon_type == "workflow":
-            # Gray gear icon
-            painter.setPen(QPen(QColor(156, 163, 175), 1.5))
+            # Three horizontal lines with vertical lines extending from center (sliders/equalizer)
+            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            center = self.rect().center()
-            painter.translate(center)
-            # Simple gear shape
-            for i in range(8):
-                painter.rotate(45)
-                painter.drawRect(-1, -8, 2, 6)
-            painter.resetTransform()
+            
+            # Top line with vertical line
+            line_y1 = 5
+            painter.drawLine(3, line_y1, 17, line_y1)
+            painter.drawLine(10, line_y1, 10, line_y1 - 3)  # Vertical line up
+            
+            # Middle line with vertical line (longer)
+            line_y2 = 10
+            painter.drawLine(3, line_y2, 17, line_y2)
+            painter.drawLine(10, line_y2, 10, line_y2 - 4)  # Vertical line up (longer)
+            
+            # Bottom line with vertical line
+            line_y3 = 15
+            painter.drawLine(3, line_y3, 17, line_y3)
+            painter.drawLine(10, line_y3, 10, line_y3 - 3)  # Vertical line up
         
         elif self.icon_type == "manipulate":
-            # Purple musical note
-            painter.setBrush(QBrush(QColor(147, 51, 234)))  # Purple
-            painter.setPen(Qt.PenStyle.NoPen)
-            # Note head
-            painter.drawEllipse(8, 8, 6, 6)
-            # Note stem
-            painter.drawRect(13, 2, 2, 10)
+            # Musical note - outline style
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(QColor(255, 255, 255), 1.5))  # White outline
+            # Note head (oval outline)
+            painter.drawEllipse(7, 9, 8, 6)
+            # Note stem (vertical line)
+            painter.drawLine(14, 3, 14, 9)
+            # Note flag (curved line extending right)
+            painter.drawLine(14, 3, 17, 1)
         
         elif self.icon_type == "files":
-            # Yellow folder
-            folder_color = QColor(234, 179, 8)  # Yellow
-            painter.setBrush(QBrush(folder_color))
-            painter.setPen(QPen(QColor(217, 119, 6), 1))
-            # Folder shape
-            painter.drawRect(4, 6, 12, 10)
-            # Folder tab
-            painter.drawRect(4, 6, 8, 3)
+            # Folder icon - outline style
+            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            # Folder body (rectangle outline)
+            painter.drawRect(4, 7, 12, 9)
+            # Folder tab (smaller rectangle on top left, slightly open)
+            painter.drawRect(4, 7, 8, 3)
+            # Tab connection line
+            painter.drawLine(12, 7, 12, 10)
         
         elif self.icon_type == "results":
-            # White line graph with red trending line
-            # Axes
-            painter.setPen(QPen(QColor(200, 200, 200), 1))
-            painter.drawLine(2, 16, 18, 16)  # X-axis
-            painter.drawLine(2, 4, 2, 16)    # Y-axis
-            # Red trending line
-            painter.setPen(QPen(QColor(239, 68, 68), 2))
-            painter.drawLine(2, 14, 6, 10)
-            painter.drawLine(6, 10, 10, 8)
-            painter.drawLine(10, 8, 14, 6)
-            painter.drawLine(14, 6, 18, 4)
+            # Three vertical bars of increasing height (outline style)
+            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            # Three bars from left to right with increasing height
+            bar_width = 3
+            bar_spacing = 3
+            x_start = 4
+            y_base = 16
+            
+            # First bar (shortest)
+            bar1_height = 4
+            painter.drawRect(x_start, y_base - bar1_height, bar_width, bar1_height)
+            
+            # Second bar (medium)
+            bar2_height = 7
+            painter.drawRect(x_start + (bar_width + bar_spacing), y_base - bar2_height, bar_width, bar2_height)
+            
+            # Third bar (tallest)
+            bar3_height = 10
+            painter.drawRect(x_start + (bar_width + bar_spacing) * 2, y_base - bar3_height, bar_width, bar3_height)
         
         elif self.icon_type == "config":
-            # Gray gear icon (same as workflow)
-            painter.setPen(QPen(QColor(156, 163, 175), 1.5))
+            # Two horizontal lines with circles at left end (sliders/filters)
+            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            center = self.rect().center()
-            painter.translate(center)
-            for i in range(8):
-                painter.rotate(45)
-                painter.drawRect(-1, -8, 2, 6)
-            painter.resetTransform()
-        
-        elif self.icon_type == "logout":
-            # Brown door/logout icon
-            door_color = QColor(161, 98, 7)  # Brown
-            painter.setBrush(QBrush(door_color))
-            painter.setPen(QPen(door_color, 1))
-            # Door shape
-            painter.drawRect(4, 4, 8, 12)
-            # Door handle
-            painter.setBrush(QBrush(QColor(200, 200, 200)))
-            painter.drawEllipse(10, 10, 2, 2)
+            
+            # Top line with circle
+            line_y1 = 7
+            circle_radius = 2
+            painter.drawEllipse(3, line_y1 - circle_radius, circle_radius * 2, circle_radius * 2)
+            painter.drawLine(7, line_y1, 17, line_y1)
+            
+            # Bottom line with circle
+            line_y2 = 13
+            painter.drawEllipse(3, line_y2 - circle_radius, circle_radius * 2, circle_radius * 2)
+            painter.drawLine(7, line_y2, 17, line_y2)
 
 
 class NavigationItem(QWidget):
@@ -326,13 +352,14 @@ class NavigationItem(QWidget):
         self.icon_type = icon_type
         self.text = text
         self.is_selected = False
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.init_ui()
     
     def init_ui(self):
         """Initialize the navigation item UI."""
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(12)
         
         self.icon = NavigationIconWidget(self.icon_type)
         layout.addWidget(self.icon)
@@ -347,14 +374,18 @@ class NavigationItem(QWidget):
         """Set selection state."""
         self.is_selected = selected
         if selected:
-            self.setStyleSheet("background-color: #427eea; border: 1px dashed #9ca3af; border-radius: 4px;")
-            self.label.setStyleSheet("color: white; font-size: 14px;")
+            self.setStyleSheet("background-color: #3d3d3d; border-radius: 6px;")
+            self.label.setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 500;")
             self.icon.is_selected = True
         else:
             self.setStyleSheet("background-color: transparent; border: none;")
             self.label.setStyleSheet("color: #c8c8c8; font-size: 14px;")
             self.icon.is_selected = False
         self.icon.update()
+    
+    def mousePressEvent(self, event):
+        """Handle mouse press."""
+        super().mousePressEvent(event)
 
 
 class MainWindow(QMainWindow):
@@ -364,7 +395,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         # Set window properties
-        self.setWindowTitle("Audio Robustness Lab")
+        self.setWindowTitle("Workflow Maestro")
         self.setMinimumSize(1400, 900)
         
         # Project root
@@ -378,10 +409,6 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
-        # Create header bar
-        self.header_bar = HeaderBar()
-        main_layout.addWidget(self.header_bar)
         
         # Content area (sidebar + pages)
         content_layout = QHBoxLayout()
@@ -421,8 +448,8 @@ class MainWindow(QMainWindow):
     def _create_sidebar(self):
         """Create the left sidebar navigation."""
         sidebar = QWidget()
-        sidebar.setMaximumWidth(220)
-        sidebar.setMinimumWidth(200)
+        sidebar.setMaximumWidth(250)
+        sidebar.setMinimumWidth(220)
         sidebar.setStyleSheet("""
             QWidget {
                 background-color: #252525;
@@ -430,8 +457,31 @@ class MainWindow(QMainWindow):
         """)
         
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(8, 10, 8, 10)
-        layout.setSpacing(4)
+        layout.setContentsMargins(12, 15, 12, 15)
+        layout.setSpacing(8)
+        
+        # Workflow Maestro title (no icon)
+        logo_layout = QHBoxLayout()
+        logo_layout.setSpacing(8)
+        logo_layout.setContentsMargins(0, 0, 0, 0)
+        
+        title_label = QLabel("Workflow Maestro")
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #ffffff;
+                font-size: 16px;
+                font-weight: 600;
+            }
+        """)
+        logo_layout.addWidget(title_label)
+        
+        # Left arrow icon (for collapsing)
+        arrow_label = QLabel("←")
+        arrow_label.setStyleSheet("color: #9ca3af; font-size: 14px;")
+        logo_layout.addWidget(arrow_label)
+        logo_layout.addStretch()
+        
+        layout.addLayout(logo_layout)
         
         # Navigation items
         nav_items = [
@@ -449,19 +499,6 @@ class MainWindow(QMainWindow):
             item.mousePressEvent = lambda e, idx=len(self.nav_items): self._on_nav_item_clicked(idx)
             layout.addWidget(item)
             self.nav_items.append(item)
-        
-        # Separator
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet("color: #3d3d3d;")
-        separator.setFixedHeight(10)
-        layout.addWidget(separator)
-        
-        # Logout
-        logout_item = NavigationItem("logout", "Logout")
-        logout_item.mousePressEvent = lambda e: self._on_logout_clicked()
-        layout.addWidget(logout_item)
-        self.nav_items.append(logout_item)
         
         layout.addStretch()
         

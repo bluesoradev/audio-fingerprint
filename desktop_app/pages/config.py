@@ -106,36 +106,12 @@ class ConfigPage(QWidget):
         
         main_layout.addWidget(header_widget)
         
-        # Scrollable content area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background-color: #1e1e1e;
-            }
-            QScrollBar:vertical {
-                background-color: #2d2d2d;
-                width: 12px;
-                border: none;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #3d3d3d;
-                border-radius: 6px;
-                min-height: 20px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #4d4d4d;
-            }
-        """)
-        
-        # Content widget
+        # Content widget with scrolling
         content_widget = QWidget()
         content_widget.setStyleSheet("background-color: #1e1e1e;")
         layout = QVBoxLayout(content_widget)
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 0, 30, 30)
+        layout.setSpacing(15)
+        layout.setContentsMargins(30, 0, 30, 20)
         
         # General Settings
         general_group = QGroupBox("General Settings")
@@ -222,7 +198,7 @@ class ConfigPage(QWidget):
         
         input_dir_label = QLabel("Audio Input Directory:")
         input_dir_label.setStyleSheet(form_label_style)
-        self.input_dir_edit = QLineEdit(str(self.project_root / "data" / "originals"))
+        self.input_dir_edit = QLineEdit("D:\\work folder\\kevino\\testm3\\data\\origina")
         self.input_dir_edit.setStyleSheet("""
             QLineEdit {
                 background-color: #2d2d2d;
@@ -243,7 +219,7 @@ class ConfigPage(QWidget):
         
         output_dir_label = QLabel("Output Directory:")
         output_dir_label.setStyleSheet(form_label_style)
-        self.output_dir_edit = QLineEdit(str(self.project_root / "data" / "transformed"))
+        self.output_dir_edit = QLineEdit("D:\\work folder\\kevino\\testm3\\data\\transfo")
         self.output_dir_edit.setStyleSheet(self.input_dir_edit.styleSheet())
         paths_form.addRow(output_dir_label, self.output_dir_edit)
         
@@ -276,7 +252,7 @@ class ConfigPage(QWidget):
         desktop_label.setStyleSheet("color: #c8c8c8; font-size: 14px;")
         desktop_row.addWidget(desktop_label)
         desktop_row.addStretch()
-        self.desktop_alert_toggle = ToggleSwitch(False)
+        self.desktop_alert_toggle = ToggleSwitch(True)  # ON in design
         desktop_row.addWidget(self.desktop_alert_toggle)
         notif_layout.addLayout(desktop_row)
         notif_layout.addSpacing(12)
@@ -424,57 +400,43 @@ class ConfigPage(QWidget):
         save_btn.clicked.connect(self.save_settings)
         button_layout.addWidget(save_btn)
         
-        layout.addStretch()
+        layout.addLayout(button_layout)
         
-        # Set content widget to scroll area
-        scroll.setWidget(content_widget)
-        main_layout.addWidget(scroll, 1)
-        
-        # Action buttons (fixed at bottom)
-        button_widget = QWidget()
-        button_widget.setStyleSheet("background-color: #1e1e1e;")
-        button_layout = QHBoxLayout(button_widget)
-        button_layout.setContentsMargins(30, 15, 30, 30)
-        button_layout.setSpacing(0)
-        
-        button_layout.addStretch()
-        
-        reset_btn = QPushButton("Reset to Defaults")
-        reset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3d3d3d;
-                color: #c8c8c8;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-size: 14px;
-                font-weight: 500;
+        # Create scroll area for content
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(content_widget)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: #1e1e1e;
             }
-            QPushButton:hover {
+            QScrollBar:vertical {
+                background-color: #1e1e1e;
+                width: 8px;
+                border: none;
+                border-radius: 4px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #3d3d3d;
+                border-radius: 4px;
+                min-height: 30px;
+                margin: 2px;
+            }
+            QScrollBar::handle:vertical:hover {
                 background-color: #4d4d4d;
             }
-        """)
-        reset_btn.clicked.connect(self.reset_to_defaults)
-        button_layout.addWidget(reset_btn)
-        
-        save_btn = QPushButton("Save Changes")
-        save_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #427eea;
-                color: white;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-size: 14px;
-                font-weight: 500;
-                margin-left: 10px;
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
             }
-            QPushButton:hover {
-                background-color: #3464ba;
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: transparent;
             }
         """)
-        save_btn.clicked.connect(self.save_settings)
-        button_layout.addWidget(save_btn)
         
-        main_layout.addWidget(button_widget)
+        # Add scroll area to main layout
+        main_layout.addWidget(scroll_area, 1)
     
     def load_settings(self):
         """Load settings from config file."""
@@ -493,7 +455,7 @@ class ConfigPage(QWidget):
         self.input_dir_edit.setText(str(self.project_root / "data" / "originals"))
         self.output_dir_edit.setText(str(self.project_root / "data" / "transformed"))
         self.email_notif_toggle.setChecked(True)
-        self.desktop_alert_toggle.setChecked(False)
+        self.desktop_alert_toggle.setChecked(True)
         self.sound_alert_toggle.setChecked(True)
         self.prefix_edit.setText("exp_run_")
         self.sample_rate_spin.setValue(44100)
