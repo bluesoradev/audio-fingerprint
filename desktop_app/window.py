@@ -13,11 +13,9 @@ import sys
 
 # Import page widgets
 from desktop_app.pages.dashboard import DashboardPage
-from desktop_app.pages.workflow import WorkflowPage
 from desktop_app.pages.manipulate import ManipulatePage
 from desktop_app.pages.files import FilesPage
 from desktop_app.pages.results import ResultsPage
-from desktop_app.pages.config import ConfigPage
 from desktop_app.theme import apply_dark_theme
 
 
@@ -263,26 +261,6 @@ class NavigationIconWidget(QWidget):
                     y = start_y + i * (rect_size + spacing)
                     painter.drawRoundedRect(int(x), int(y), rect_size, rect_size, 2, 2)
         
-        elif self.icon_type == "workflow":
-            # Three horizontal lines with vertical lines extending from center (sliders/equalizer)
-            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            
-            # Top line with vertical line
-            line_y1 = 5
-            painter.drawLine(3, line_y1, 17, line_y1)
-            painter.drawLine(10, line_y1, 10, line_y1 - 3)  # Vertical line up
-            
-            # Middle line with vertical line (longer)
-            line_y2 = 10
-            painter.drawLine(3, line_y2, 17, line_y2)
-            painter.drawLine(10, line_y2, 10, line_y2 - 4)  # Vertical line up (longer)
-            
-            # Bottom line with vertical line
-            line_y3 = 15
-            painter.drawLine(3, line_y3, 17, line_y3)
-            painter.drawLine(10, line_y3, 10, line_y3 - 3)  # Vertical line up
-        
         elif self.icon_type == "manipulate":
             # Musical note - outline style
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -326,22 +304,6 @@ class NavigationIconWidget(QWidget):
             # Third bar (tallest)
             bar3_height = 10
             painter.drawRect(x_start + (bar_width + bar_spacing) * 2, y_base - bar3_height, bar_width, bar3_height)
-        
-        elif self.icon_type == "config":
-            # Two horizontal lines with circles at left end (sliders/filters)
-            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            
-            # Top line with circle
-            line_y1 = 7
-            circle_radius = 2
-            painter.drawEllipse(3, line_y1 - circle_radius, circle_radius * 2, circle_radius * 2)
-            painter.drawLine(7, line_y1, 17, line_y1)
-            
-            # Bottom line with circle
-            line_y2 = 13
-            painter.drawEllipse(3, line_y2 - circle_radius, circle_radius * 2, circle_radius * 2)
-            painter.drawLine(7, line_y2, 17, line_y2)
 
 
 class NavigationItem(QWidget):
@@ -486,11 +448,9 @@ class MainWindow(QMainWindow):
         # Navigation items
         nav_items = [
             ("dashboard", "Dashboard"),
-            ("workflow", "Workflow"),
             ("manipulate", "Manipulate Audio"),
             ("files", "Files"),
             ("results", "Results"),
-            ("config", "Configuration"),
         ]
         
         self.nav_items = []
@@ -519,70 +479,28 @@ class MainWindow(QMainWindow):
         """Handle logout button click."""
         self.close()
     
-    def _on_navigation_changed(self, index):
-        """Handle navigation item selection."""
-        if index >= 6:  # Help or Logout
-            return
-        
-        page_map = {
-            0: "dashboard",
-            1: "workflow",
-            2: "manipulate",
-            3: "files",
-            4: "results",
-            5: "config",
-        }
-        
-        if index in page_map:
-            page_key = page_map[index]
-            page_index = list(self.pages.keys()).index(page_key)
-            self.stacked_widget.setCurrentIndex(page_index)
-            
-            # Update status bar
-            page_names = {
-                "dashboard": "Dashboard Overview",
-                "workflow": "Workflow Management",
-                "manipulate": "Audio Manipulation",
-                "files": "File Management",
-                "results": "Experiment Results",
-                "config": "Configuration",
-            }
-            self.statusBar().showMessage(f"{page_names[page_key]} - Ready")
-    
     def _create_pages(self):
         """Create all application pages."""
         self.pages["dashboard"] = DashboardPage(self.project_root)
-        self.pages["workflow"] = WorkflowPage(self.project_root)
         self.pages["manipulate"] = ManipulatePage(self.project_root)
         self.pages["files"] = FilesPage(self.project_root)
         self.pages["results"] = ResultsPage(self.project_root)
-        self.pages["config"] = ConfigPage(self.project_root)
         
         # Add pages to stacked widget
-        page_order = ["dashboard", "workflow", "manipulate", "files", "results", "config"]
+        page_order = ["dashboard", "manipulate", "files", "results"]
         for page_key in page_order:
             self.stacked_widget.addWidget(self.pages[page_key])
     
     def _on_navigation_changed(self, index):
         """Handle navigation item selection."""
-        # Skip separator and help/logout items
-        if index >= 6:  # After Configuration
-            if index == 7:  # Help & Support
-                # TODO: Show help dialog
-                return
-            elif index == 8:  # Logout
-                # TODO: Handle logout
-                self.close()
-                return
+        if index >= 4:  # Out of range
             return
         
         page_map = {
             0: "dashboard",
-            1: "workflow",
-            2: "manipulate",
-            3: "files",
-            4: "results",
-            5: "config",
+            1: "manipulate",
+            2: "files",
+            3: "results",
         }
         
         if index in page_map:
@@ -593,10 +511,8 @@ class MainWindow(QMainWindow):
             # Update status bar
             page_names = {
                 "dashboard": "Dashboard Overview",
-                "workflow": "Workflow Management",
                 "manipulate": "Audio Manipulation",
                 "files": "File Management",
                 "results": "Experiment Results",
-                "config": "Configuration",
             }
             self.statusBar().showMessage(f"{page_names[page_key]} - Ready")

@@ -197,49 +197,6 @@ class FilesPage(QWidget):
         subtitle.setStyleSheet("color: #9ca3af; font-size: 14px; margin-bottom: 10px;")
         layout.addWidget(subtitle)
         
-        # Breadcrumb and search bar
-        breadcrumb_layout = QHBoxLayout()
-        breadcrumb = QLabel("Home > Projects > Audio-Robustness-Lab > Files")
-        breadcrumb.setStyleSheet("color: #9ca3af; font-size: 12px;")
-        breadcrumb_layout.addWidget(breadcrumb)
-        breadcrumb_layout.addStretch()
-        
-        # Search bar
-        search_input = QLineEdit()
-        search_input.setPlaceholderText("Q Search files...")
-        search_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #2d2d2d;
-                border: 1px solid #3d3d3d;
-                border-radius: 6px;
-                padding: 6px 12px;
-                color: #9ca3af;
-                font-size: 13px;
-                min-width: 200px;
-            }
-            QLineEdit:focus {
-                border: 1px solid #427eea;
-            }
-        """)
-        breadcrumb_layout.addWidget(search_input)
-        
-        new_folder_btn = QPushButton("New Folder")
-        new_folder_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #427eea;
-                color: white;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 13px;
-                margin-left: 10px;
-            }
-            QPushButton:hover {
-                background-color: #3464ba;
-            }
-        """)
-        breadcrumb_layout.addWidget(new_folder_btn)
-        layout.addLayout(breadcrumb_layout)
-        
         # Drag & Drop area
         self.drag_drop_area = DragDropArea(upload_callback=self.upload_files, project_root=self.project_root)
         layout.addWidget(self.drag_drop_area)

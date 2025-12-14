@@ -3,8 +3,8 @@ Dashboard page showing overview statistics and recent experiments.
 """
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QWidget, QScrollArea,
-    QGroupBox, QFrame
+    QTableWidget, QTableWidgetItem, QHeaderView, QWidget,
+    QGroupBox
 )
 from PyQt6.QtCore import Qt, QTimer, QPoint
 from PyQt6.QtGui import QFont, QPainter, QColor, QPen, QBrush, QPolygon
@@ -12,80 +12,6 @@ from pathlib import Path
 import json
 from datetime import datetime, timedelta
 import random
-
-
-class NotificationIconWidget(QWidget):
-    """Custom notification icon widget."""
-    
-    def __init__(self, icon_type):
-        super().__init__()
-        self.icon_type = icon_type  # "success", "info", "warning", "error"
-        self.setFixedSize(24, 24)
-    
-    def paintEvent(self, event):
-        """Draw the notification icon."""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        center = self.rect().center()
-        radius = 10
-        
-        if self.icon_type == "success":
-            # White circle outline with white checkmark
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
-            painter.drawEllipse(center.x() - radius, center.y() - radius, radius * 2, radius * 2)
-            
-            # White checkmark
-            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            # Draw checkmark
-            painter.drawLine(center.x() - 4, center.y(), center.x() - 1, center.y() + 3)
-            painter.drawLine(center.x() - 1, center.y() + 3, center.x() + 4, center.y() - 3)
-        
-        elif self.icon_type == "info":
-            # White circle outline with white 'i'
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(QColor(255, 255, 255), 1.5))
-            painter.drawEllipse(center.x() - radius + 1, center.y() - radius + 1, radius * 2, radius * 2)
-            
-            # White 'i' - properly centered and smaller
-            painter.setPen(QPen(QColor(255, 255, 255), 1))
-            font = QFont()
-            font.setPointSize(11)
-            font.setBold(True)
-            painter.setFont(font)
-            # Use drawText with alignment flags for proper centering
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "i")
-        
-        elif self.icon_type == "warning":
-            # Yellow triangle with black exclamation
-            painter.setBrush(QBrush(QColor(234, 179, 8)))  # Yellow
-            painter.setPen(QPen(QColor(161, 98, 7), 1))  # Dark yellow border
-            # Draw triangle
-            triangle = [
-                QPoint(center.x(), center.y() - radius),
-                QPoint(center.x() - radius, center.y() + radius),
-                QPoint(center.x() + radius, center.y() + radius)
-            ]
-            polygon = QPolygon(triangle)
-            painter.drawPolygon(polygon)
-            
-            # Black exclamation mark
-            painter.setPen(QPen(QColor(0, 0, 0), 2))
-            painter.drawLine(center.x(), center.y() - 4, center.x(), center.y() + 2)
-            painter.drawEllipse(center.x() - 1, center.y() + 4, 2, 2)
-        
-        elif self.icon_type == "error":
-            # Red circle outline with red 'x'
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(QColor(239, 68, 68), 1.5))  # Red outline
-            painter.drawEllipse(center.x() - radius, center.y() - radius, radius * 2, radius * 2)
-            
-            # Red 'x'
-            painter.setPen(QPen(QColor(239, 68, 68), 1.5))
-            painter.drawLine(center.x() - 4, center.y() - 4, center.x() + 4, center.y() + 4)
-            painter.drawLine(center.x() - 4, center.y() + 4, center.x() + 4, center.y() - 4)
 
 
 class TrendGraph(QWidget):
@@ -129,6 +55,91 @@ class TrendGraph(QWidget):
             
             for i in range(len(points) - 1):
                 painter.drawLine(points[i][0], points[i][1], points[i+1][0], points[i+1][1])
+
+
+class LineChartWidget(QWidget):
+    """Line chart widget for displaying data as a line graph."""
+    
+    def __init__(self, labels, values, color):
+        super().__init__()
+        self.labels = labels
+        self.values = values
+        self.color = color
+        self.setStyleSheet("background-color: transparent;")
+    
+    def paintEvent(self, event):
+        """Draw the line chart."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        width = self.width()
+        height = self.height()
+        
+        # Draw axes
+        margin_left = 30
+        margin_right = 10
+        margin_top = 20
+        margin_bottom = 30
+        chart_width = width - margin_left - margin_right
+        chart_height = height - margin_top - margin_bottom
+        
+        # Y-axis labels (0, 25, 50, 75, 100)
+        painter.setPen(QPen(QColor(156, 163, 175), 1))
+        painter.setFont(QFont("Arial", 9))
+        for i, y_label in enumerate([0, 25, 50, 75, 100]):
+            y_pos = margin_top + chart_height - (i * chart_height / 4)
+            painter.drawText(5, int(y_pos + 5), f"{y_label}")
+            # Draw grid line
+            painter.setPen(QPen(QColor(61, 61, 61), 1))
+            painter.drawLine(margin_left, int(y_pos), width - margin_right, int(y_pos))
+            painter.setPen(QPen(QColor(156, 163, 175), 1))
+        
+        # Draw line chart
+        if len(self.labels) > 0 and len(self.values) > 0:
+            max_value = max(self.values) if self.values else 100
+            min_value = min(self.values) if self.values else 0
+            if max_value == 0:
+                max_value = 100
+            value_range = max_value - min_value if max_value != min_value else 1
+            
+            # Calculate points for the line
+            points = []
+            label_positions = []
+            
+            for i, (label, value) in enumerate(zip(self.labels, self.values)):
+                # X position: evenly spaced across chart width
+                x = margin_left + (i / (len(self.labels) - 1)) * chart_width if len(self.labels) > 1 else margin_left + chart_width / 2
+                
+                # Y position: scale value to chart height
+                y = margin_top + chart_height - ((value - min_value) / value_range) * chart_height
+                
+                points.append((int(x), int(y)))
+                label_positions.append((int(x), label))
+            
+            # Draw the line
+            if len(points) > 1:
+                painter.setPen(QPen(self.color, 2))
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                
+                for i in range(len(points) - 1):
+                    painter.drawLine(points[i][0], points[i][1], points[i+1][0], points[i+1][1])
+            
+            # Draw markers (circles) at each data point
+            painter.setBrush(QBrush(self.color))
+            painter.setPen(QPen(self.color, 2))
+            for x, y in points:
+                painter.drawEllipse(x - 4, y - 4, 8, 8)
+            
+            # Draw labels
+            painter.setPen(QPen(QColor(200, 200, 200), 1))
+            painter.setFont(QFont("Arial", 10))
+            for x, label in label_positions:
+                label_width = painter.fontMetrics().horizontalAdvance(label)
+                painter.drawText(
+                    int(x - label_width / 2),
+                    int(height - margin_bottom + 20),
+                    label
+                )
 
 
 class BarChartWidget(QWidget):
@@ -359,11 +370,6 @@ class DashboardPage(QWidget):
         self.total_runs_card = StatCard("Total Runs", 0, 0, "positive", "blue", total_runs_trend)
         stats_layout.addWidget(self.total_runs_card, 1)
         
-        # Active Experiments - blue graph, upward trend with oscillation
-        active_exp_trend = [50, 70, 65, 80, 75, 85, 88]
-        self.active_exp_card = StatCard("Active Experiments", 0, 0, "positive", "blue", active_exp_trend)
-        stats_layout.addWidget(self.active_exp_card, 1)
-        
         # Failed Runs - green graph, downward trend
         failed_runs_trend = [90, 85, 80, 60, 55, 50, 45]
         self.failed_runs_card = StatCard("Failed Runs", 0, 0, "negative", "green", failed_runs_trend)
@@ -510,9 +516,9 @@ class DashboardPage(QWidget):
         recall_subtitle = QLabel("Average recall scores for different audio transformations.")
         recall_subtitle.setStyleSheet("color: #9ca3af; font-size: 13px; margin-bottom: 10px;")
         recall_chart_layout.addWidget(recall_subtitle)
-        recall_chart = BarChartWidget(
+        recall_chart = LineChartWidget(
             labels=["Raw", "Noi", "Rev", "EQ", "Pit"],
-            values=[75, 80, 70, 65, 72],
+            values=[95, 100, 85, 80, 88],
             color=QColor(251, 146, 60)  # Orange
         )
         recall_chart.setMinimumHeight(180)
@@ -527,9 +533,9 @@ class DashboardPage(QWidget):
         rank_subtitle = QLabel("Trend of rank scores over recent experiment batches.")
         rank_subtitle.setStyleSheet("color: #9ca3af; font-size: 13px; margin-bottom: 10px;")
         rank_chart_layout.addWidget(rank_subtitle)
-        rank_chart = BarChartWidget(
+        rank_chart = LineChartWidget(
             labels=["Rat", "Rat", "Rat", "Rat", "Rat"],
-            values=[78, 80, 79, 81, 77],
+            values=[95, 99, 99, 99, 95],
             color=QColor(168, 85, 247)  # Purple
         )
         rank_chart.setMinimumHeight(180)
@@ -539,121 +545,9 @@ class DashboardPage(QWidget):
         
         left_layout.addLayout(charts_layout, 1)
         
-        main_content.addLayout(left_layout, 2)
-        
-        # Right side: Notifications and Quick Actions
-        right_layout = QVBoxLayout()
-        right_layout.setSpacing(15)
-        
-        # Recent Notifications
-        notif_group = QGroupBox("Recent Notifications")
-        notif_group.setStyleSheet(table_group.styleSheet())
-        notif_layout = QVBoxLayout(notif_group)
-        notif_subtitle = QLabel("Important system alerts and activity")
-        notif_subtitle.setStyleSheet("color: #9ca3af; font-size: 13px; margin-bottom: 10px;")
-        notif_layout.addWidget(notif_subtitle)
-        
-        self.notif_list = QWidget()
-        self.notif_list.setStyleSheet("background-color: #1e1e1e;")
-        self.notif_list_layout = QVBoxLayout(self.notif_list)
-        self.notif_list_layout.setSpacing(8)
-        self.notif_list_layout.setContentsMargins(0, 0, 0, 0)
-        self.notif_list_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.notif_list_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        
-        scroll = QScrollArea()
-        scroll.setWidget(self.notif_list)
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background-color: #1e1e1e;
-            }
-            QScrollBar:vertical {
-                background-color: #1e1e1e;
-                width: 10px;
-                border: none;
-                border-radius: 5px;
-                margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #4d4d4d;
-                border-radius: 5px;
-                min-height: 40px;
-                margin: 1px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #5d5d5d;
-            }
-            QScrollBar::handle:vertical:pressed {
-                background-color: #6d6d6d;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                background: transparent;
-            }
-        """)
-        notif_layout.addWidget(scroll)
-        right_layout.addWidget(notif_group, 1)
-        
-        main_content.addLayout(right_layout, 1)
+        main_content.addLayout(left_layout, 1)
         
         layout.addLayout(main_content, 1)
-    
-    def _create_notification_item(self, icon_type, message, time_ago, is_last=False):
-        """Create a notification item."""
-        container = QWidget()
-        container.setStyleSheet("background-color: transparent;")
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(0)
-        
-        # Notification item
-        item = QWidget()
-        item.setStyleSheet("background-color: transparent;")
-        item_layout = QHBoxLayout(item)
-        item_layout.setContentsMargins(15, 8, 15, 8)
-        item_layout.setSpacing(18)
-        
-        # Custom icon widget - vertically centered with text
-        icon_widget = NotificationIconWidget(icon_type)
-        item_layout.addWidget(icon_widget, 0, Qt.AlignmentFlag.AlignVCenter)
-        
-        text_layout = QVBoxLayout()
-        text_layout.setSpacing(2)
-        text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        
-        message_label = QLabel(message)
-        message_label.setStyleSheet("color: #ffffff; font-size: 13px;")
-        message_label.setWordWrap(True)
-        message_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        text_layout.addWidget(message_label)
-        
-        time_label = QLabel(time_ago)
-        time_label.setStyleSheet("color: #9ca3af; font-size: 11px;")
-        time_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        text_layout.addWidget(time_label)
-        
-        item_layout.addLayout(text_layout, 1)
-        container_layout.addWidget(item)
-        
-        # Separator line (not for last item)
-        if not is_last:
-            separator = QFrame()
-            separator.setFrameShape(QFrame.Shape.HLine)
-            separator.setStyleSheet("""
-                QFrame {
-                    background-color: #3d3d3d;
-                    border: none;
-                    max-height: 1px;
-                }
-            """)
-            container_layout.addWidget(separator)
-        
-        return container
     
     def load_data(self):
         """Load dashboard data."""
@@ -692,7 +586,6 @@ class DashboardPage(QWidget):
         
         # Update stat cards with mock data to match design
         self.total_runs_card.update_value(1234, 12.5)
-        self.active_exp_card.update_value(15, 0.0)
         self.failed_runs_card.update_value(3, -5.2)
         self.latency_card.update_value("235 ms", 1.1)
         
@@ -790,34 +683,6 @@ class DashboardPage(QWidget):
             self.runs_table.setCellWidget(i, 5, view_btn)
         
         # Don't resize columns - use static widths set above
-        
-        # Update notifications
-        # Clear existing notifications
-        for i in reversed(range(self.notif_list_layout.count())):
-            item = self.notif_list_layout.itemAt(i)
-            if item:
-                widget = item.widget()
-                if widget:
-                    widget.setParent(None)
-                else:
-                    # Remove layout items like stretch
-                    self.notif_list_layout.removeItem(item)
-        
-        # Add mock notifications to match design
-        notifications = [
-            ("success", "Experiment 'Voice Isolation Filter Test' completed successfully.", "2 minutes ago"),
-            ("info", "New audio file 'speech_sample.wav' uploaded.", "15 minutes ago"),
-            ("error", "Workflow 'Noise Reduction Algorithm V2' failed at preprocessing stage.", "30 minutes ago"),
-            ("info", "Scheduled maintenance window: 2023-10-28 02:00-04:00 UTC", "1 hour ago"),
-            ("success", "System backup completed.", "2 hours ago"),
-        ]
-        
-        for i, (icon_type, message, time_ago) in enumerate(notifications):
-            is_last = (i == len(notifications) - 1)
-            notif_item = self._create_notification_item(icon_type, message, time_ago, is_last)
-            self.notif_list_layout.addWidget(notif_item)
-        
-        self.notif_list_layout.addStretch()
     
     def _get_metrics_summary(self, metrics_file: Path) -> str:
         """Get summary metrics from metrics.json."""

@@ -633,94 +633,306 @@ class ManipulatePage(QWidget):
     def _play_audio_sounddevice(self, file_path: Path, stop_event: threading.Event, position_attr: str, duration: float, lock: Lock):
         """Play audio using sounddevice."""
         try:
-            data, sample_rate = sf.read(str(file_path))
+            # Read audio file
+            data, file_sample_rate = sf.read(str(file_path))
+            
+            # Convert to mono if stereo
+            if len(data.shape) > 1 and data.shape[1] > 1:
+                data = data.mean(axis=1)
+            
+            # Use file's sample rate for playback
+            playback_sample_rate = int(file_sample_rate)
+            
             with lock:
                 start_pos = getattr(self, position_attr) / 1000.0  # Convert ms to seconds
-            start_sample = int(start_pos * sample_rate)
+            start_sample = int(start_pos * file_sample_rate)
             
             if start_sample < len(data):
                 data_to_play = data[start_sample:]
                 
-                # Play in chunks to allow stopping and position tracking
-                chunk_duration = 0.1  # 100ms chunks
-                chunk_samples = int(sample_rate * chunk_duration)
+                if len(data_to_play) == 0:
+                    return
                 
-                current_pos = start_pos
-                for i in range(0, len(data_to_play), chunk_samples):
+                # Get start time for position tracking
+                playback_start_time = time.time()
+                actual_start_pos = start_pos
+                audio_length_seconds = len(data_to_play) / file_sample_rate
+                
+                # Stop any existing playback first (important to prevent multiple streams)
+                try:
+                    sd.stop()
+                except:
+                    pass
+                
+                # Check if we should still play (might have been stopped while stopping previous)
+                if stop_event.is_set():
+                    return
+                
+                # Play entire remaining audio at once (non-blocking)
+                sd.play(data_to_play, playback_sample_rate)
+                
+                # Track position while playing
+                while not stop_event.is_set():
+                    # Check stop event first before any operations
                     if stop_event.is_set():
                         break
-                    chunk = data_to_play[i:i+chunk_samples]
-                    if len(chunk) == 0:
-                        break
                     
-                    # Play chunk
-                    sd.play(chunk, sample_rate, blocking=True)
+                    # Calculate elapsed time
+                    elapsed = time.time() - playback_start_time
+                    current_pos = actual_start_pos + elapsed
                     
                     # Update position
-                    current_pos = start_pos + (i + len(chunk)) / sample_rate
                     with lock:
-                        setattr(self, position_attr, current_pos * 1000)
+                        setattr(self, position_attr, min(current_pos * 1000, duration * 1000))
                     
-                    if current_pos >= duration:
-                        with lock:
-                            setattr(self, position_attr, duration * 1000)
+                    # Check if playback finished (based on elapsed time)
+                    if elapsed >= audio_length_seconds or current_pos >= duration:
                         break
+                    
+                    # Sleep in smaller chunks to check stop_event more frequently
+                    for _ in range(5):  # 5 x 10ms = 50ms total
+                        if stop_event.is_set():
+                            break
+                        time.sleep(0.01)
+                
+                # Stop playback immediately if requested
+                if stop_event.is_set():
+                    try:
+                        sd.stop()
+                    except:
+                        pass
+                else:
+                    # Replace blocking sd.wait() with polling loop
+                    # This allows us to check stop_event even while "waiting"
+                    while True:
+                        if stop_event.is_set():
+                            # Stop was requested during wait
+                            try:
+                                sd.stop()
+                            except:
+                                pass
+                            break
+                        
+                        # Check if playback is still active with short timeout
+                        try:
+                            # Use short timeout to check stop_event frequently (every 50ms)
+                            sd.wait(timeout=0.05)
+                            # If wait returns, playback finished naturally
+                            break
+                        except:
+                            # Playback might have finished or error occurred
+                            break
+                
+                # Final position update
+                with lock:
+                    if not stop_event.is_set():
+                        setattr(self, position_attr, duration * 1000)
         except Exception as e:
             print(f"Error playing audio: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                sd.stop()
+            except:
+                pass
         finally:
-            stop_event.clear()
+            # Ensure playing state is cleared when thread finishes
+            if position_attr == 'original_position':
+                self.original_playing = False
+                self.original_play_btn.set_playing(False)
+            elif position_attr == 'transformed_position':
+                self.transformed_playing = False
+                self.transformed_play_btn.set_playing(False)
     
     def _play_audio_pydub(self, file_path: Path, stop_event: threading.Event, position_attr: str, duration: float, lock: Lock):
         """Play audio using pydub."""
+        import subprocess
+        import os
+        
         try:
             audio = AudioSegment.from_file(str(file_path))
+            
+            # Ensure correct sample rate (44100 Hz)
+            if audio.frame_rate != 44100:
+                audio = audio.set_frame_rate(44100)
+            
+            # Convert to mono if stereo
+            if audio.channels > 1:
+                audio = audio.set_channels(1)
+            
             with lock:
                 start_pos_ms = getattr(self, position_attr)
             
             if start_pos_ms < len(audio):
                 audio_to_play = audio[start_pos_ms:]
                 
-                # Play in chunks for position tracking
-                chunk_ms = 100  # 100ms chunks
-                for i in range(0, len(audio_to_play), chunk_ms):
-                    if stop_event.is_set():
-                        break
-                    chunk = audio_to_play[i:i+chunk_ms]
-                    if len(chunk) == 0:
-                        break
-                    play(chunk)
+                if len(audio_to_play) == 0:
+                    return
+                
+                # Export to temporary WAV file for playback
+                import tempfile
+                temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+                temp_path = temp_file.name
+                temp_file.close()
+                
+                try:
+                    audio_to_play.export(temp_path, format="wav")
                     
-                    # Update position
+                    # Use sounddevice if available (better control)
+                    if HAS_SOUNDDEVICE:
+                        data, sr = sf.read(temp_path)
+                        if len(data.shape) > 1:
+                            data = data.mean(axis=1)
+                        
+                        playback_start_time = time.time()
+                        actual_start_pos = start_pos_ms / 1000.0
+                        audio_length_seconds = len(data) / sr
+                        
+                        try:
+                            sd.stop()
+                        except:
+                            pass
+                        
+                        sd.play(data, sr)
+                        
+                        while not stop_event.is_set():
+                            # Check stop event first
+                            if stop_event.is_set():
+                                break
+                            
+                            elapsed = time.time() - playback_start_time
+                            current_pos_ms = start_pos_ms + (elapsed * 1000)
+                            
+                            with lock:
+                                setattr(self, position_attr, min(current_pos_ms, len(audio)))
+                            
+                            if elapsed >= audio_length_seconds:
+                                break
+                            
+                            # Sleep in smaller chunks to check stop_event more frequently
+                            for _ in range(5):  # 5 x 10ms = 50ms total
+                                if stop_event.is_set():
+                                    break
+                                time.sleep(0.01)
+                        
+                        # Stop immediately if requested
+                        if stop_event.is_set():
+                            try:
+                                sd.stop()
+                            except:
+                                pass
+                        else:
+                            # Replace blocking sd.wait() with polling loop
+                            # This allows us to check stop_event even while "waiting"
+                            while True:
+                                if stop_event.is_set():
+                                    # Stop was requested during wait
+                                    try:
+                                        sd.stop()
+                                    except:
+                                        pass
+                                    break
+                                
+                                # Check if playback is still active with short timeout
+                                try:
+                                    # Use short timeout to check stop_event frequently (every 50ms)
+                                    sd.wait(timeout=0.05)
+                                    # If wait returns, playback finished naturally
+                                    break
+                                except:
+                                    # Playback might have finished or error occurred
+                                    break
+                    else:
+                        # Fallback: use pydub play (can't be stopped easily)
+                        start_time = time.time()
+                        play(audio_to_play)
+                        
+                        # Update position
+                        elapsed_ms = (time.time() - start_time) * 1000
+                        with lock:
+                            if not stop_event.is_set():
+                                setattr(self, position_attr, min(start_pos_ms + elapsed_ms, len(audio)))
+                    
+                    # Final position update
                     with lock:
-                        setattr(self, position_attr, start_pos_ms + i + len(chunk))
-                        if getattr(self, position_attr) >= len(audio):
+                        if not stop_event.is_set():
                             setattr(self, position_attr, len(audio))
-                            break
+                finally:
+                    # Clean up temp file
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
         except Exception as e:
             print(f"Error playing audio: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
-            stop_event.clear()
+            # Ensure playing state is cleared when thread finishes
+            if position_attr == 'original_position':
+                self.original_playing = False
+                self.original_play_btn.set_playing(False)
+            elif position_attr == 'transformed_position':
+                self.transformed_playing = False
+                self.transformed_play_btn.set_playing(False)
     
     def toggle_original_playback(self):
         """Toggle original audio playback."""
         if not self.original_audio_path or not self.original_audio_path.exists():
             return
         
-        if self.original_playing:
-            # Stop playback
+        # Check current playing state - check flag first, then verify thread
+        is_currently_playing = self.original_playing
+        
+        if is_currently_playing:
+            # PAUSE: Set stop flag and keep it set (don't clear it here!)
             self.original_stop_event.set()
-            if self.original_thread and self.original_thread.is_alive():
-                self.original_thread.join(timeout=1.0)
+            
+            # Update state immediately for UI responsiveness
             self.original_playing = False
             self.original_play_btn.set_playing(False)
-        else:
-            # Stop transformed if playing
-            if self.transformed_playing:
-                self.toggle_transformed_playback()
             
-            # Start playback
+            # Stop sounddevice immediately and aggressively (non-blocking)
+            if HAS_SOUNDDEVICE:
+                try:
+                    sd.stop()
+                    sd.stop()  # Call again to ensure it stops
+                except:
+                    pass
+            
+            # Keep stop event set - it will be cleared when starting new playback
+            # This ensures the playback thread sees the stop signal
+        else:
+            # Don't start if thread is still running (prevent multiple threads)
+            if self.original_thread and self.original_thread.is_alive():
+                return
+            
+            # Stop transformed if playing (but don't wait)
+            if self.transformed_playing:
+                self.transformed_stop_event.set()
+                self.transformed_playing = False
+                self.transformed_play_btn.set_playing(False)
+                if HAS_SOUNDDEVICE:
+                    try:
+                        sd.stop()
+                    except:
+                        pass
+            
+            # Ensure sounddevice is stopped before starting (non-blocking)
+            if HAS_SOUNDDEVICE:
+                try:
+                    sd.stop()
+                except:
+                    pass
+            
+            # PLAY: Clear stop event BEFORE starting (this is the only place we clear it)
             self.original_stop_event.clear()
+            
+            # Start playback - update state immediately
+            self.original_playing = True
+            self.original_play_btn.set_playing(True)
             self.original_start_time = time.time()
+            
             if HAS_SOUNDDEVICE:
                 self.original_thread = threading.Thread(
                     target=self._play_audio_sounddevice,
@@ -734,32 +946,69 @@ class ManipulatePage(QWidget):
                     daemon=True
                 )
             else:
+                self.original_playing = False
+                self.original_play_btn.set_playing(False)
                 return
             
             self.original_thread.start()
-            self.original_playing = True
-            self.original_play_btn.set_playing(True)
     
     def toggle_transformed_playback(self):
         """Toggle transformed audio playback."""
         if not self.transformed_audio_path or not self.transformed_audio_path.exists():
             return
         
-        if self.transformed_playing:
-            # Stop playback
+        # Check current playing state - check flag first, then verify thread
+        is_currently_playing = self.transformed_playing
+        
+        if is_currently_playing:
+            # PAUSE: Set stop flag and keep it set (don't clear it here!)
             self.transformed_stop_event.set()
-            if self.transformed_thread and self.transformed_thread.is_alive():
-                self.transformed_thread.join(timeout=1.0)
+            
+            # Update state immediately for UI responsiveness
             self.transformed_playing = False
             self.transformed_play_btn.set_playing(False)
-        else:
-            # Stop original if playing
-            if self.original_playing:
-                self.toggle_original_playback()
             
-            # Start playback
+            # Stop sounddevice immediately and aggressively (non-blocking)
+            if HAS_SOUNDDEVICE:
+                try:
+                    sd.stop()
+                    sd.stop()  # Call again to ensure it stops
+                except:
+                    pass
+            
+            # Keep stop event set - it will be cleared when starting new playback
+            # This ensures the playback thread sees the stop signal
+        else:
+            # Don't start if thread is still running (prevent multiple threads)
+            if self.transformed_thread and self.transformed_thread.is_alive():
+                return
+            
+            # Stop original if playing (but don't wait)
+            if self.original_playing:
+                self.original_stop_event.set()
+                self.original_playing = False
+                self.original_play_btn.set_playing(False)
+                if HAS_SOUNDDEVICE:
+                    try:
+                        sd.stop()
+                    except:
+                        pass
+            
+            # Ensure sounddevice is stopped before starting (non-blocking)
+            if HAS_SOUNDDEVICE:
+                try:
+                    sd.stop()
+                except:
+                    pass
+            
+            # PLAY: Clear stop event BEFORE starting (this is the only place we clear it)
             self.transformed_stop_event.clear()
+            
+            # Start playback - update state immediately
+            self.transformed_playing = True
+            self.transformed_play_btn.set_playing(True)
             self.transformed_start_time = time.time()
+            
             if HAS_SOUNDDEVICE:
                 self.transformed_thread = threading.Thread(
                     target=self._play_audio_sounddevice,
@@ -773,11 +1022,11 @@ class ManipulatePage(QWidget):
                     daemon=True
                 )
             else:
+                self.transformed_playing = False
+                self.transformed_play_btn.set_playing(False)
                 return
             
             self.transformed_thread.start()
-            self.transformed_playing = True
-            self.transformed_play_btn.set_playing(True)
     
     def update_positions(self):
         """Update position displays (called by timer)."""
