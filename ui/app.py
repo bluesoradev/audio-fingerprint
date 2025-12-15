@@ -1425,21 +1425,314 @@ async def test_fingerprint(
         orig_mean = np.mean(embeddings_orig, axis=0) if len(embeddings_orig) > 1 else embeddings_orig[0]
         direct_similarity = float(np.dot(query_emb, orig_mean))  # Cosine similarity for normalized vectors
         
-        return JSONResponse({
+        final_matched = matched or direct_similarity > 0.7
+        final_similarity = float(max(similarity, direct_similarity))
+        
+        # Automatically generate report after test
+        try:
+            report_data = auto_generate_test_report(
+                original_file=original_file,
+                manipulated_file=manipulated_file,
+                test_result={
+                    "matched": final_matched,
+                    "similarity": final_similarity,
+                    "direct_similarity": float(direct_similarity),
+                    "rank": rank,
+                    "top_match": top_match,
+                    "original_id": orig_id
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to auto-generate report: {e}")
+            report_data = None
+        
+        response_data = {
             "status": "success",
-            "matched": matched or direct_similarity > 0.7,  # Consider matched if similarity > 0.7
-            "similarity": float(max(similarity, direct_similarity)),
+            "matched": final_matched,
+            "similarity": final_similarity,
             "direct_similarity": float(direct_similarity),
             "rank": rank,
             "top_match": top_match,
-            "message": f"Fingerprint test: {'MATCHED ✓' if (matched or direct_similarity > 0.7) else 'NOT MATCHED ✗'} (similarity: {max(similarity, direct_similarity):.3f})"
-        })
+            "message": f"Fingerprint test: {'MATCHED ✓' if final_matched else 'NOT MATCHED ✗'} (similarity: {final_similarity:.3f})"
+        }
+        
+        if report_data:
+            response_data["report_id"] = report_data.get("report_id")
+            response_data["report_path"] = report_data.get("report_path")
+        
+        return JSONResponse(response_data)
         
     except Exception as e:
         logger.error(f"Fingerprint test failed: {e}")
         import traceback
         traceback.print_exc()
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+def auto_generate_test_report(original_file: Path, manipulated_file: Path, test_result: dict) -> dict:
+    """Automatically generate a report from a single fingerprint test."""
+    # Create report directory
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_id = f"test_{timestamp}"
+    report_dir = REPORTS_DIR / report_id
+    report_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Determine phase based on transform type (simple heuristic)
+    manip_name = manipulated_file.stem.lower()
+    phase = "phase1"  # Default to phase1
+    
+    # Phase 2 indicators
+    phase2_keywords = ["overlay", "percussion", "melodic", "crop", "middle", "end_segment", "bass_only", "remove_highs", "vinyl", "crackle"]
+    if any(keyword in manip_name for keyword in phase2_keywords):
+        phase = "phase2"
+    
+    # Create metrics structure
+    metrics = {
+        "summary": {
+            "total_queries": 1,
+            "total_transforms": 1,
+            "transform_types": [manipulated_file.stem],
+            "severities": ["moderate"],
+            "phase": phase
+        },
+        "overall": {
+            "recall": {
+                "recall_at_1": 1.0 if test_result["matched"] else 0.0,
+                "recall_at_5": 1.0 if test_result["matched"] else 0.0,
+                "recall_at_10": 1.0 if test_result["matched"] else 0.0
+            },
+            "rank": {
+                "mean_rank": float(test_result["rank"]) if test_result["rank"] else 1.0,
+                "median_rank": float(test_result["rank"]) if test_result["rank"] else 1.0
+            },
+            "similarity": {
+                "mean_similarity_correct": test_result["similarity"],
+                "median_similarity_correct": test_result["similarity"]
+            },
+            "latency": {
+                "mean_latency_ms": 0.0,
+                "p95_latency_ms": 0.0
+            }
+        },
+        "per_transform": {
+            manipulated_file.stem: {
+                "recall": {
+                    "recall_at_1": 1.0 if test_result["matched"] else 0.0,
+                    "recall_at_5": 1.0 if test_result["matched"] else 0.0,
+                    "recall_at_10": 1.0 if test_result["matched"] else 0.0
+                },
+                "rank": {
+                    "mean_rank": float(test_result["rank"]) if test_result["rank"] else 1.0
+                },
+                "similarity": {
+                    "mean_similarity_correct": test_result["similarity"]
+                }
+            }
+        },
+        "per_severity": {
+            "moderate": {
+                "count": 1,
+                "recall": {
+                    "recall_at_1": 1.0 if test_result["matched"] else 0.0,
+                    "recall_at_5": 1.0 if test_result["matched"] else 0.0,
+                    "recall_at_10": 1.0 if test_result["matched"] else 0.0
+                },
+                "rank": {
+                    "mean_rank": float(test_result["rank"]) if test_result["rank"] else 1.0
+                },
+                "similarity": {
+                    "mean_similarity_correct": test_result["similarity"]
+                }
+            }
+        },
+        "pass_fail": {
+            "total": 1,
+            "passed": 1 if test_result["matched"] else 0,
+            "failed": 0 if test_result["matched"] else 1
+        },
+        "test_details": {
+            "original_file": str(original_file.relative_to(PROJECT_ROOT)),
+            "manipulated_file": str(manipulated_file.relative_to(PROJECT_ROOT)),
+            "matched": test_result["matched"],
+            "similarity": test_result["similarity"],
+            "rank": test_result["rank"],
+            "top_match": test_result["top_match"],
+            "timestamp": timestamp,
+            "phase": phase
+        }
+    }
+    
+    # Save metrics
+    metrics_file = report_dir / "metrics.json"
+    with open(metrics_file, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    
+    # Create summary CSV
+    summary_data = [{
+        "severity": "moderate",
+        "count": 1,
+        "recall_at_1": 1.0 if test_result["matched"] else 0.0,
+        "recall_at_5": 1.0 if test_result["matched"] else 0.0,
+        "recall_at_10": 1.0 if test_result["matched"] else 0.0,
+        "mean_rank": float(test_result["rank"]) if test_result["rank"] else 1.0,
+        "mean_similarity": test_result["similarity"],
+        "mean_latency_ms": 0.0
+    }]
+    
+    summary_file = report_dir / "suite_summary.csv"
+    pd.DataFrame(summary_data).to_csv(summary_file, index=False)
+    
+    # Create final_report directory
+    final_report_dir = report_dir / "final_report"
+    final_report_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy metrics and summary to final_report
+    shutil.copy(metrics_file, final_report_dir / "metrics.json")
+    shutil.copy(summary_file, final_report_dir / "suite_summary.csv")
+    
+    # Generate simple HTML report
+    html_report = generate_simple_html_report(metrics, test_result, original_file, manipulated_file, phase)
+    html_file = final_report_dir / "report.html"
+    with open(html_file, 'w', encoding='utf-8') as f:
+        f.write(html_report)
+    
+    logger.info(f"Auto-generated test report: {report_id} (Phase: {phase})")
+    
+    return {
+        "report_id": report_id,
+        "report_path": str(report_dir.relative_to(PROJECT_ROOT)),
+        "phase": phase
+    }
+
+
+def generate_simple_html_report(metrics: dict, test_result: dict, original_file: Path, manipulated_file: Path, phase: str) -> str:
+    """Generate a simple HTML report for a single test."""
+    matched_status = "✅ MATCHED" if test_result["matched"] else "❌ NOT MATCHED"
+    status_color = "#10b981" if test_result["matched"] else "#f87171"
+    
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fingerprint Test Report - {metrics['test_details']['timestamp']}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e1e;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        h1 {{
+            color: #ffffff;
+            border-bottom: 2px solid #427eea;
+            padding-bottom: 10px;
+        }}
+        .status-box {{
+            background: #2d2d2d;
+            border: 2px solid {status_color};
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }}
+        .metrics-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }}
+        .metric-card {{
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 6px;
+            padding: 15px;
+        }}
+        .metric-label {{
+            color: #9ca3af;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }}
+        .metric-value {{
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: bold;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }}
+        th, td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #3d3d3d;
+        }}
+        th {{
+            background: #2d2d2d;
+            color: #ffffff;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fingerprint Robustness Test Report</h1>
+        <p><strong>Phase:</strong> {phase.upper()}</p>
+        <p><strong>Test Date:</strong> {metrics['test_details']['timestamp']}</p>
+        
+        <div class="status-box">
+            <h2 style="color: {status_color}; margin: 0;">{matched_status}</h2>
+            <p style="color: #9ca3af; margin: 10px 0 0 0;">
+                Similarity: {(test_result['similarity'] * 100):.1f}% | 
+                Rank: {test_result['rank'] if test_result['rank'] else 'N/A'} | 
+                Top Match: {test_result['top_match'] or 'N/A'}
+            </p>
+        </div>
+        
+        <h2>Test Details</h2>
+        <table>
+            <tr><th>Original File</th><td>{metrics['test_details']['original_file']}</td></tr>
+            <tr><th>Manipulated File</th><td>{metrics['test_details']['manipulated_file']}</td></tr>
+            <tr><th>Match Status</th><td>{matched_status}</td></tr>
+            <tr><th>Similarity Score</th><td>{(test_result['similarity'] * 100):.2f}%</td></tr>
+            <tr><th>Rank</th><td>{test_result['rank'] if test_result['rank'] else 'N/A'}</td></tr>
+        </table>
+        
+        <h2>Metrics Summary</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Recall@1</div>
+                <div class="metric-value">{(metrics['overall']['recall']['recall_at_1'] * 100):.1f}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Recall@5</div>
+                <div class="metric-value">{(metrics['overall']['recall']['recall_at_5'] * 100):.1f}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Recall@10</div>
+                <div class="metric-value">{(metrics['overall']['recall']['recall_at_10'] * 100):.1f}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Mean Rank</div>
+                <div class="metric-value">{metrics['overall']['rank']['mean_rank']:.2f}</div>
+            </div>
+        </div>
+        
+        <h2>Pass/Fail Status</h2>
+        <table>
+            <tr><th>Total Tests</th><td>{metrics['pass_fail']['total']}</td></tr>
+            <tr><th>Passed</th><td style="color: #10b981;">{metrics['pass_fail']['passed']}</td></tr>
+            <tr><th>Failed</th><td style="color: #f87171;">{metrics['pass_fail']['failed']}</td></tr>
+        </table>
+    </div>
+</body>
+</html>
+"""
+    return html
 
 
 @app.get("/api/runs")
@@ -1449,7 +1742,7 @@ async def list_runs():
     
     if REPORTS_DIR.exists():
         for report_dir in REPORTS_DIR.iterdir():
-            if report_dir.is_dir() and report_dir.name.startswith("run_"):
+            if report_dir.is_dir() and (report_dir.name.startswith("run_") or report_dir.name.startswith("test_")):
                 metrics_file = report_dir / "metrics.json"
                 summary_file = report_dir / "suite_summary.csv"
                 

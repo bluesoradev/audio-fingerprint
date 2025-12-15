@@ -1912,6 +1912,17 @@ async function testFingerprintRobustness() {
             `;
             
             addSystemLog(`Fingerprint test: ${matchStatus} (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
+            
+            // Auto-reload deliverables if report was generated
+            if (result.report_id) {
+                addSystemLog(`Report auto-generated: ${result.report_id}`, 'info');
+                // Reload deliverables after a short delay
+                setTimeout(() => {
+                    if (document.getElementById('deliverables').classList.contains('active')) {
+                        loadDeliverables();
+                    }
+                }, 2000);
+            }
         } else {
             resultDiv.className = 'test-results error';
             detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">Error: ${result.message || 'Test failed'}</pre>`;
@@ -2326,6 +2337,7 @@ async function viewRunDetails(runId) {
         const result = await response.json();
         
         const reportViewerDiv = document.getElementById('reportViewer');
+        const visualReportViewerDiv = document.getElementById('visualReportViewer');
         
         if (!reportViewerDiv) {
             console.error('reportViewer element not found');
@@ -2382,6 +2394,11 @@ async function viewRunDetails(runId) {
         
         html += '</div>';
         reportViewerDiv.innerHTML = html;
+        
+        // Also display in visual report viewer
+        if (visualReportViewerDiv) {
+            displayVisualReport(result, runId, visualReportViewerDiv);
+        }
     } catch (error) {
         console.error('Failed to load run details:', error);
         const reportViewerDiv = document.getElementById('reportViewer');
@@ -2393,4 +2410,79 @@ async function viewRunDetails(runId) {
             `;
         }
     }
+}
+
+function displayVisualReport(result, runId, container) {
+    if (!result.metrics) {
+        container.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 40px;">No metrics available for this report.</p>';
+        return;
+    }
+    
+    const metrics = result.metrics;
+    const testDetails = metrics.test_details || {};
+    const overall = metrics.overall || {};
+    const recall = overall.recall || {};
+    const rank = overall.rank || {};
+    const similarity = overall.similarity || {};
+    const passFail = metrics.pass_fail || {};
+    
+    const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
+    const statusColor = matched ? '#10b981' : '#f87171';
+    const statusText = matched ? '✅ MATCHED' : '❌ NOT MATCHED';
+    
+    let html = `
+        <div style="background: #1e1e1e; padding: 25px; border-radius: 8px; border: 2px solid ${statusColor};">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="color: ${statusColor}; margin: 0; font-size: 32px;">${statusText}</h2>
+                <p style="color: #9ca3af; margin: 10px 0 0 0;">Report ID: ${runId}</p>
+                ${testDetails.phase ? `<p style="color: #9ca3af; margin: 5px 0 0 0;">Phase: ${testDetails.phase.toUpperCase()}</p>` : ''}
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
+                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #427eea; text-align: center;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@1</div>
+                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((recall.recall_at_1 || 0) * 100).toFixed(1)}%</div>
+                </div>
+                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #10b981; text-align: center;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@5</div>
+                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((recall.recall_at_5 || 0) * 100).toFixed(1)}%</div>
+                </div>
+                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #f59e0b; text-align: center;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@10</div>
+                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((recall.recall_at_10 || 0) * 100).toFixed(1)}%</div>
+                </div>
+                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #8b5cf6; text-align: center;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Similarity</div>
+                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((similarity.mean_similarity_correct || testDetails.similarity || 0) * 100).toFixed(1)}%</div>
+                </div>
+            </div>
+            
+            ${testDetails.original_file ? `
+            <div style="background: #2d2d2d; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Original File</div>
+                <div style="color: #ffffff; font-size: 14px; word-break: break-all;">${testDetails.original_file}</div>
+            </div>
+            ` : ''}
+            
+            ${testDetails.manipulated_file ? `
+            <div style="background: #2d2d2d; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Transformed File</div>
+                <div style="color: #ffffff; font-size: 14px; word-break: break-all;">${testDetails.manipulated_file}</div>
+            </div>
+            ` : ''}
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                <div style="background: #2d2d2d; padding: 15px; border-radius: 6px;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Mean Rank</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: bold;">${(rank.mean_rank || testDetails.rank || 0).toFixed(2)}</div>
+                </div>
+                <div style="background: #2d2d2d; padding: 15px; border-radius: 6px;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Test Status</div>
+                    <div style="color: ${statusColor}; font-size: 24px; font-weight: bold;">${passFail.passed || 0} / ${passFail.total || 0} Passed</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
 }
