@@ -2199,66 +2199,15 @@ async def test_fingerprint(
         final_matched = matched or direct_similarity > 0.7
         final_similarity = float(max(similarity, direct_similarity))
         
-        # Automatically generate BOTH Phase 1 and Phase 2 reports
-        report_data_phase1 = None
-        report_data_phase2 = None
-        
-        test_result = {
-            "matched": final_matched,
-            "similarity": final_similarity,
-            "direct_similarity": float(direct_similarity),
-            "rank": rank,
-            "top_match": top_match,
-            "original_id": orig_id
-        }
-        
-        try:
-            # Generate Phase 1 report
-            report_data_phase1 = auto_generate_test_reports(
-                original_file=original_file,
-                manipulated_file=manipulated_file,
-                test_result=test_result,
-                phase="phase1"
-            )
-            logger.info(f"Auto-generated Phase 1 report: {report_data_phase1.get('report_id')}")
-        except Exception as e:
-            logger.warning(f"Failed to auto-generate Phase 1 report: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        try:
-            # Generate Phase 2 report
-            report_data_phase2 = auto_generate_test_reports(
-                original_file=original_file,
-                manipulated_file=manipulated_file,
-                test_result=test_result,
-                phase="phase2"
-            )
-            logger.info(f"Auto-generated Phase 2 report: {report_data_phase2.get('report_id')}")
-        except Exception as e:
-            logger.warning(f"Failed to auto-generate Phase 2 report: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        response_data = {
+        return JSONResponse({
             "status": "success",
             "matched": final_matched,
             "similarity": final_similarity,
             "direct_similarity": float(direct_similarity),
             "rank": rank,
             "top_match": top_match,
-            "message": f"Fingerprint test: {'MATCHED ✓' if final_matched else 'NOT MATCHED ✗'} (similarity: {final_similarity:.3f})"
-        }
-        
-        # Include both report IDs
-        if report_data_phase1:
-            response_data["report_id_phase1"] = report_data_phase1.get("report_id")
-            response_data["report_path_phase1"] = report_data_phase1.get("report_path")
-        if report_data_phase2:
-            response_data["report_id_phase2"] = report_data_phase2.get("report_id")
-            response_data["report_path_phase2"] = report_data_phase2.get("report_path")
-        
-        return JSONResponse(response_data)
+            "original_id": orig_id
+        })
         
     except Exception as e:
         logger.error(f"Fingerprint test failed: {e}")

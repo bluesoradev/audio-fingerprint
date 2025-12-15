@@ -973,20 +973,7 @@
                     </div>
 
                     <div class="workflow-step">
-                        <h3>3. Transform Chain Builder</h3>
-                        <div class="form-group">
-                            <label>Transform Chain</label>
-                            <textarea id="chainList" readonly style="height: 100px; font-family: monospace; font-size: 12px;">No transforms in chain yet.</textarea>
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-top: 10px;">
-                            <button class="btn" onclick="addToChain()">Add to Chain</button>
-                            <button class="btn" onclick="clearChain()">Clear Chain</button>
-                            <button class="btn btn-success" onclick="applyChainTransform()">Apply Chain</button>
-                        </div>
-                    </div>
-
-                    <div class="workflow-step">
-                        <h3>4. Test Fingerprint Robustness</h3>
+                        <h3>3. Test Fingerprint Robustness</h3>
                         <p style="color: #9ca3af; margin-bottom: 15px;">
                             Test if transformed audio can be matched to original.
                         </p>
@@ -1003,7 +990,7 @@
                     
                     <!-- Test Results Section -->
                     <div class="workflow-step">
-                        <h3>5. Test Results</h3>
+                        <h3>4. Test Results</h3>
                         <div id="testResults" class="test-results" style="display: none; margin-top: 15px; min-height: 200px;">
                             <div id="testResultsContent" style="padding: 15px;">
                                 <p style="color: #9ca3af;">Run a fingerprint test to see results here.</p>
@@ -1024,14 +1011,27 @@
                     <!-- Transformation Controls Section -->
                     <div class="group-box" style="margin-bottom: 20px;">
                         <h3>1. Select Audio File</h3>
+                        
+                        <!-- Browser existing files -->
                         <div class="form-group">
-                            <label>Original Audio File</label>
+                            <label>Browse Audio Files</label>
                             <select id="deliverablesAudioSelect" class="form-control" onchange="loadDeliverablesAudioInfo(this.value)">
                                 <option value="">-- Select Audio File --</option>
                             </select>
                         </div>
-                        <div id="deliverablesAudioInfo" style="margin-top: 10px; padding: 10px; background: #2d2d2d; border-radius: 4px;">
-                            <p style="color: #9ca3af; margin: 0; font-size: 12px;">No file selected</p>
+                        
+                        <!-- Upload new file -->
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label>Or Upload Audio File</label>
+                            <div class="upload-area" id="deliverablesUploadArea" ondrop="handleDeliverablesDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('deliverablesFileInput').click()">
+                                <p>📁 Drag and drop audio file here or click to browse</p>
+                                <input type="file" id="deliverablesFileInput" style="display: none;" accept="audio/*" onchange="handleDeliverablesFileSelect(event)">
+                            </div>
+                        </div>
+                        
+                        <div id="deliverablesAudioInfo" style="display: none; margin-top: 15px; padding: 15px; background: #1e1e1e; border-radius: 5px; border: 1px solid #3d3d3d;">
+                            <p><strong>Selected:</strong> <span id="deliverablesSelectedFileName"></span></p>
+                            <p><strong>Path:</strong> <span id="deliverablesSelectedFilePath"></span></p>
                         </div>
                     </div>
 

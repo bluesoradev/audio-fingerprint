@@ -1915,19 +1915,6 @@ async function testFingerprintRobustness() {
             `;
             
             addSystemLog(`Fingerprint test: ${matchStatus} (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
-            
-            // Auto-reload deliverables if reports were generated
-            if (result.report_id_phase1 || result.report_id_phase2) {
-                const phase1Msg = result.report_id_phase1 ? `Phase 1: ${result.report_id_phase1}` : '';
-                const phase2Msg = result.report_id_phase2 ? `Phase 2: ${result.report_id_phase2}` : '';
-                addSystemLog(`✅ Reports auto-generated: ${phase1Msg} ${phase2Msg}`, 'success');
-                // Reload deliverables after a short delay
-                setTimeout(() => {
-                    if (document.getElementById('deliverables')) {
-                        loadDeliverables();
-                    }
-                }, 2000);
-            }
         } else {
             resultDiv.className = 'test-results error';
             detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">Error: ${result.message || 'Test failed'}</pre>`;
@@ -2756,21 +2743,41 @@ let deliverablesSelectedAudioFile = null;
 // Load audio files into deliverables select
 async function loadDeliverablesAudioFiles() {
     try {
-        const response = await fetch(`${API_BASE}/files/audio?directory=test_audio`);
-        const result = await response.json();
-        
         const select = document.getElementById('deliverablesAudioSelect');
         if (!select) return;
         
         select.innerHTML = '<option value="">-- Select Audio File --</option>';
         
-        if (result.files && result.files.length > 0) {
-            result.files.forEach(file => {
-                const option = document.createElement('option');
-                option.value = `data/test_audio/${file}`;
-                option.textContent = file;
-                select.appendChild(option);
-            });
+        // Load from test_audio directory
+        try {
+            const response = await fetch(`${API_BASE}/files/audio?directory=test_audio`);
+            const result = await response.json();
+            if (result.files && result.files.length > 0) {
+                result.files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = `data/test_audio/${file}`;
+                    option.textContent = file;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load test_audio files:', error);
+        }
+        
+        // Also load from originals directory
+        try {
+            const response2 = await fetch(`${API_BASE}/files/audio?directory=originals`);
+            const result2 = await response2.json();
+            if (result2.files && result2.files.length > 0) {
+                result2.files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = `data/originals/${file}`;
+                    option.textContent = file;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            // Ignore errors loading originals
         }
     } catch (error) {
         console.error('Failed to load audio files:', error);
@@ -2782,7 +2789,7 @@ function loadDeliverablesAudioInfo(filePath) {
         deliverablesSelectedAudioFile = null;
         const infoDiv = document.getElementById('deliverablesAudioInfo');
         if (infoDiv) {
-            infoDiv.innerHTML = '<p style="color: #9ca3af; margin: 0; font-size: 12px;">No file selected</p>';
+            infoDiv.style.display = 'none';
         }
         updateDeliverablesTransformState();
         return;
@@ -2790,11 +2797,74 @@ function loadDeliverablesAudioInfo(filePath) {
     
     deliverablesSelectedAudioFile = filePath;
     const infoDiv = document.getElementById('deliverablesAudioInfo');
-    if (infoDiv) {
+    const fileNameSpan = document.getElementById('deliverablesSelectedFileName');
+    const filePathSpan = document.getElementById('deliverablesSelectedFilePath');
+    
+    if (infoDiv && fileNameSpan && filePathSpan) {
         const fileName = filePath.split('/').pop();
-        infoDiv.innerHTML = `<p style="color: #4ade80; margin: 0; font-size: 12px;">✓ Selected: ${fileName}</p>`;
+        fileNameSpan.textContent = fileName;
+        filePathSpan.textContent = filePath;
+        infoDiv.style.display = 'block';
     }
     updateDeliverablesTransformState();
+}
+
+// Deliverables file upload handlers
+function handleDeliverablesDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const uploadArea = document.getElementById('deliverablesUploadArea');
+    if (uploadArea) uploadArea.classList.remove('dragover');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        handleDeliverablesFileUpload(files[0]);
+    }
+}
+
+function handleDeliverablesFileSelect(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
+        handleDeliverablesFileUpload(files[0]);
+    }
+}
+
+async function handleDeliverablesFileUpload(file) {
+    if (!file.type.startsWith('audio/')) {
+        showError('Please select an audio file');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('directory', 'test_audio');
+        
+        const response = await fetch(`${API_BASE}/upload/audio`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(`File uploaded: ${result.path}`);
+            addSystemLog(`Audio file uploaded: ${result.path}`, 'success');
+            
+            // Reload file list and select the uploaded file
+            await loadDeliverablesAudioFiles();
+            const select = document.getElementById('deliverablesAudioSelect');
+            if (select) {
+                // Extract relative path from result.path (e.g., "data/test_audio/filename.mp3")
+                const relativePath = result.path.startsWith('data/') ? result.path : `data/test_audio/${result.path.split('/').pop()}`;
+                select.value = relativePath;
+                loadDeliverablesAudioInfo(relativePath);
+            }
+        } else {
+            showError(result.message || 'Upload failed');
+        }
+    } catch (error) {
+        showError('Failed to upload file: ' + error.message);
+    }
 }
 
 // Update slider displays for deliverables
