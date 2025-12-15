@@ -3457,8 +3457,8 @@ function parseLogForProgress(logMessage, currentActivePhase) {
         progressText = `${current}/${total}`;
     } else {
         // Try to parse other progress formats
-        // Pattern: "Processing file 3 of 10" or "Step 5 of 7"
-        const filePattern = /(\d+)\s*(?:of|/)\s*(\d+)/i;
+        // Pattern: "Processing file 3 of 10" or "Step 5 of 7" or "3/10"
+        const filePattern = /(\d+)\s*(?:of|\/)\s*(\d+)/i;
         const fileMatch = originalMessage.match(filePattern);
         if (fileMatch) {
             const current = parseInt(fileMatch[1]);
