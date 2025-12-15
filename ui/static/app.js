@@ -1984,6 +1984,180 @@ function updateTestDisplays(originalPath, transformedPath) {
     }
 }
 
+// Generate Deliverables
+async function generateDeliverables() {
+    const manifestSelect = document.getElementById('deliverablesManifest');
+    const statusDiv = document.getElementById('deliverablesStatus');
+    const statusText = document.getElementById('deliverablesStatusText');
+    const generateBtn = document.getElementById('generateDeliverablesBtn');
+    
+    if (!manifestSelect || !statusDiv || !statusText || !generateBtn) {
+        showError('Deliverables UI elements not found');
+        return;
+    }
+    
+    const manifestPath = manifestSelect.value;
+    
+    if (!confirm(`This will generate comprehensive Phase 1 and Phase 2 deliverables.\n\nThis may take a while depending on the number of audio files.\n\nManifest: ${manifestPath}\n\nContinue?`)) {
+        return;
+    }
+    
+    generateBtn.disabled = true;
+    generateBtn.textContent = '⏳ Generating...';
+    statusDiv.style.display = 'block';
+    statusText.textContent = 'Starting generation...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('manifest_path', manifestPath);
+        formData.append('phase', 'both');
+        
+        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'started') {
+            statusText.textContent = 'Generation started. Check logs for progress...';
+            startProcessMonitoring(result.command_id, 'Generating deliverables...', 'Generate Deliverables');
+            addSystemLog(`Started generating deliverables: ${manifestPath}`, 'info');
+            
+            // Poll for completion and reload deliverables
+            const checkInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch(`${API_BASE}/process/${result.command_id}/status`);
+                    const status = await statusRes.json();
+                    
+                    if (status.status === 'completed') {
+                        clearInterval(checkInterval);
+                        statusText.textContent = '✅ Generation complete!';
+                        generateBtn.disabled = false;
+                        generateBtn.textContent = '📦 Generate Phase 1 & Phase 2 Deliverables';
+                        addSystemLog('Deliverables generation completed', 'success');
+                        // Reload deliverables list
+                        setTimeout(() => loadDeliverables(), 2000);
+                    } else if (status.status === 'error') {
+                        clearInterval(checkInterval);
+                        statusText.textContent = '❌ Generation failed';
+                        generateBtn.disabled = false;
+                        generateBtn.textContent = '📦 Generate Phase 1 & Phase 2 Deliverables';
+                        addSystemLog('Deliverables generation failed', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error checking status:', error);
+                }
+            }, 3000);
+        } else {
+            throw new Error(result.message || 'Failed to start generation');
+        }
+    } catch (error) {
+        showError('Failed to start deliverables generation: ' + error.message);
+        generateBtn.disabled = false;
+        generateBtn.textContent = '📦 Generate Phase 1 & Phase 2 Deliverables';
+        statusText.textContent = '❌ Error: ' + error.message;
+    }
+}
+
+async function generatePhase1Only() {
+    const manifestSelect = document.getElementById('deliverablesManifest');
+    const generateBtn = document.getElementById('generatePhase1Btn');
+    
+    if (!manifestSelect || !generateBtn) {
+        showError('UI elements not found');
+        return;
+    }
+    
+    const manifestPath = manifestSelect.value;
+    
+    if (!confirm(`Generate Phase 1 deliverables only?\n\nManifest: ${manifestPath}`)) {
+        return;
+    }
+    
+    generateBtn.disabled = true;
+    generateBtn.textContent = '⏳ Generating Phase 1...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('manifest_path', manifestPath);
+        formData.append('phase', 'phase1');
+        
+        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'started') {
+            startProcessMonitoring(result.command_id, 'Generating Phase 1 deliverables...', 'Generate Phase 1');
+            addSystemLog(`Started generating Phase 1 deliverables: ${manifestPath}`, 'info');
+            
+            setTimeout(() => {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '📊 Generate Phase 1 Only';
+                loadDeliverables();
+            }, 5000);
+        } else {
+            throw new Error(result.message || 'Failed to start');
+        }
+    } catch (error) {
+        showError('Failed to start Phase 1 generation: ' + error.message);
+        generateBtn.disabled = false;
+        generateBtn.textContent = '📊 Generate Phase 1 Only';
+    }
+}
+
+async function generatePhase2Only() {
+    const manifestSelect = document.getElementById('deliverablesManifest');
+    const generateBtn = document.getElementById('generatePhase2Btn');
+    
+    if (!manifestSelect || !generateBtn) {
+        showError('UI elements not found');
+        return;
+    }
+    
+    const manifestPath = manifestSelect.value;
+    
+    if (!confirm(`Generate Phase 2 deliverables only?\n\nManifest: ${manifestPath}`)) {
+        return;
+    }
+    
+    generateBtn.disabled = true;
+    generateBtn.textContent = '⏳ Generating Phase 2...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('manifest_path', manifestPath);
+        formData.append('phase', 'phase2');
+        
+        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'started') {
+            startProcessMonitoring(result.command_id, 'Generating Phase 2 deliverables...', 'Generate Phase 2');
+            addSystemLog(`Started generating Phase 2 deliverables: ${manifestPath}`, 'info');
+            
+            setTimeout(() => {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '📊 Generate Phase 2 Only';
+                loadDeliverables();
+            }, 5000);
+        } else {
+            throw new Error(result.message || 'Failed to start');
+        }
+    } catch (error) {
+        showError('Failed to start Phase 2 generation: ' + error.message);
+        generateBtn.disabled = false;
+        generateBtn.textContent = '📊 Generate Phase 2 Only';
+    }
+}
+
 // Deliverables & Reports
 async function loadDeliverables() {
     try {

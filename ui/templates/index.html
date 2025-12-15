@@ -895,6 +895,34 @@
                         View comprehensive test results and deliverables for Phase 1 (Core Manipulation) and Phase 2 (Structural Manipulation) tests.
                     </p>
                     
+                    <div class="group-box" style="margin-bottom: 20px; background: #1e3a2e; border: 2px solid #10b981;">
+                        <h3 style="color: #10b981; margin-bottom: 10px;">🚀 Generate Deliverables</h3>
+                        <p style="color: #9ca3af; margin-bottom: 15px;">
+                            Generate comprehensive Phase 1 and Phase 2 reports. This will run full experiments on all audio files.
+                        </p>
+                        <div class="form-group">
+                            <label>Manifest File:</label>
+                            <select id="deliverablesManifest" style="width: 100%;">
+                                <option value="data/files_manifest.csv">data/files_manifest.csv (Default)</option>
+                                <option value="data/manifests/test_manifest.csv">data/manifests/test_manifest.csv</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <button class="btn btn-success" onclick="generateDeliverables()" id="generateDeliverablesBtn">
+                                📦 Generate Phase 1 & Phase 2 Deliverables
+                            </button>
+                            <button class="btn" onclick="generatePhase1Only()" id="generatePhase1Btn" style="background: #427eea;">
+                                📊 Generate Phase 1 Only
+                            </button>
+                            <button class="btn" onclick="generatePhase2Only()" id="generatePhase2Btn" style="background: #10b981;">
+                                📊 Generate Phase 2 Only
+                            </button>
+                        </div>
+                        <div id="deliverablesStatus" style="margin-top: 15px; display: none;">
+                            <p style="color: #9ca3af;">Status: <span id="deliverablesStatusText">Ready</span></p>
+                        </div>
+                    </div>
+                    
                     <div class="group-box" style="margin-bottom: 20px;">
                         <h3>Phase 1 & Phase 2 Reports</h3>
                         <div id="deliverablesList" style="margin-top: 20px;">

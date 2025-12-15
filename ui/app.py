@@ -341,6 +341,66 @@ async def run_experiment(
     })
 
 
+@app.post("/api/process/generate-deliverables")
+async def generate_deliverables_api(
+    manifest_path: str = Form("data/files_manifest.csv"),
+    phase: str = Form("both")  # "both", "phase1", "phase2"
+):
+    """Generate Phase 1 and/or Phase 2 deliverables."""
+    command_id = f"deliverables_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    log_queue = queue.Queue()
+    process_logs[command_id] = []
+    process_queues[command_id] = log_queue
+    
+    manifest_file = PROJECT_ROOT / manifest_path
+    
+    if not manifest_file.exists():
+        return JSONResponse({
+            "status": "error",
+            "message": f"Manifest file not found: {manifest_path}"
+        }, status_code=404)
+    
+    if phase == "both":
+        # Generate both phases
+        command = [
+            sys.executable,
+            str(PROJECT_ROOT / "generate_deliverables.py"),
+            "--originals", str(manifest_file)
+        ]
+    elif phase == "phase1":
+        command = [
+            sys.executable,
+            str(PROJECT_ROOT / "run_experiment.py"),
+            "--config", str(PROJECT_ROOT / "config/test_matrix_phase1.yaml"),
+            "--originals", str(manifest_file)
+        ]
+    elif phase == "phase2":
+        command = [
+            sys.executable,
+            str(PROJECT_ROOT / "run_experiment.py"),
+            "--config", str(PROJECT_ROOT / "config/test_matrix_phase2.yaml"),
+            "--originals", str(manifest_file)
+        ]
+    else:
+        return JSONResponse({
+            "status": "error",
+            "message": f"Invalid phase: {phase}. Must be 'both', 'phase1', or 'phase2'"
+        }, status_code=400)
+    
+    thread = threading.Thread(
+        target=run_command_async,
+        args=(command_id, command, log_queue),
+        daemon=True
+    )
+    thread.start()
+    
+    return JSONResponse({
+        "command_id": command_id,
+        "status": "started",
+        "message": f"Generating {phase} deliverables..."
+    })
+
+
 @app.get("/api/process/{command_id}/logs")
 async def get_logs(command_id: str):
     """Get logs for a process."""
