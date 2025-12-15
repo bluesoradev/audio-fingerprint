@@ -82,21 +82,32 @@ def analyze_results(
     for severity, thresh_config in recall_thresholds.items():
         if severity in per_severity:
             severity_recalls = per_severity[severity]["recall"]
+            
+            # Compute recall values and thresholds, ensuring they're floats
+            recall_1_actual = float(severity_recalls.get("recall_at_1", 0.0))
+            recall_1_threshold = float(thresh_config.get("recall_at_1", 0.9))
+            
+            recall_5_actual = float(severity_recalls.get("recall_at_5", 0.0))
+            recall_5_threshold = float(thresh_config.get("recall_at_5", 0.95))
+            
+            recall_10_actual = float(severity_recalls.get("recall_at_10", 0.0))
+            recall_10_threshold = float(thresh_config.get("recall_at_10", 0.98))
+            
             pass_fail[severity] = {
                 "recall_at_1": {
-                    "threshold": thresh_config.get("recall_at_1", 0.9),
-                    "actual": severity_recalls.get("recall_at_1", 0.0),
-                    "passed": severity_recalls.get("recall_at_1", 0.0) >= thresh_config.get("recall_at_1", 0.9),
+                    "threshold": recall_1_threshold,
+                    "actual": recall_1_actual,
+                    "passed": recall_1_actual >= recall_1_threshold,
                 },
                 "recall_at_5": {
-                    "threshold": thresh_config.get("recall_at_5", 0.95),
-                    "actual": severity_recalls.get("recall_at_5", 0.0),
-                    "passed": severity_recalls.get("recall_at_5", 0.0) >= thresh_config.get("recall_at_5", 0.95),
+                    "threshold": recall_5_threshold,
+                    "actual": recall_5_actual,
+                    "passed": recall_5_actual >= recall_5_threshold,
                 },
                 "recall_at_10": {
-                    "threshold": thresh_config.get("recall_at_10", 0.98),
-                    "actual": severity_recalls.get("recall_at_10", 0.0),
-                    "passed": severity_recalls.get("recall_at_10", 0.0) >= thresh_config.get("recall_at_10", 0.98),
+                    "threshold": recall_10_threshold,
+                    "actual": recall_10_actual,
+                    "passed": recall_10_actual >= recall_10_threshold,
                 },
             }
     
@@ -105,8 +116,8 @@ def analyze_results(
     for severity in pass_fail.keys():
         if severity in per_severity:
             severity_similarity = per_severity[severity]["similarity"]
-            mean_sim = severity_similarity.get("mean_similarity_correct", 0.0)
-            sim_threshold = similarity_thresholds.get(f"min_score_{severity}", 0.0)
+            mean_sim = float(severity_similarity.get("mean_similarity_correct", 0.0))
+            sim_threshold = float(similarity_thresholds.get(f"min_score_{severity}", 0.0))
             
             pass_fail[severity]["similarity"] = {
                 "threshold": sim_threshold,
@@ -117,16 +128,24 @@ def analyze_results(
     # Evaluate latency thresholds (overall, not per-severity)
     latency_thresholds = thresholds.get("latency", {})
     pass_fail["overall"] = pass_fail.get("overall", {})
+    
+    # Compute latency values and thresholds, ensuring they're floats
+    mean_latency_actual = float(latency_stats.get("mean_latency_ms", 0.0))
+    mean_latency_threshold = float(latency_thresholds.get("max_mean_ms", 1000))
+    
+    p95_latency_actual = float(latency_stats.get("p95_latency_ms", 0.0))
+    p95_latency_threshold = float(latency_thresholds.get("max_p95_ms", 2000))
+    
     pass_fail["overall"]["latency"] = {
         "mean_ms": {
-            "threshold": latency_thresholds.get("max_mean_ms", 1000),
-            "actual": latency_stats.get("mean_latency_ms", 0.0),
-            "passed": latency_stats.get("mean_latency_ms", 0.0) <= latency_thresholds.get("max_mean_ms", 1000),
+            "threshold": mean_latency_threshold,
+            "actual": mean_latency_actual,
+            "passed": mean_latency_actual <= mean_latency_threshold,  # Latency: lower is better
         },
         "p95_ms": {
-            "threshold": latency_thresholds.get("max_p95_ms", 2000),
-            "actual": latency_stats.get("p95_latency_ms", 0.0),
-            "passed": latency_stats.get("p95_latency_ms", 0.0) <= latency_thresholds.get("max_p95_ms", 2000),
+            "threshold": p95_latency_threshold,
+            "actual": p95_latency_actual,
+            "passed": p95_latency_actual <= p95_latency_threshold,  # Latency: lower is better
         },
     }
     
