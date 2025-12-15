@@ -16,16 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasOriginal = originalDisplay.value && originalDisplay.value.trim() !== '';
         const hasTransformed = transformedDisplay.value && transformedDisplay.value.trim() !== '';
         testBtn.disabled = !(hasOriginal && hasTransformed);
-        console.log('[DOMContentLoaded] Initialized test button state:', {
-            hasOriginal,
-            hasTransformed,
-            disabled: testBtn.disabled
-        });
     }
     
     checkStatus();
     loadDashboard();
     loadDeliverablesAudioFiles(); // Load deliverables audio files on page load
+    loadDeliverables(); // Load deliverables on page load
     setInterval(checkStatus, 5000); // Check status every 5 seconds
 });
 
@@ -684,13 +680,8 @@ function showCompletionAlert(message, type = 'success') {
 }
 
 function addSystemLog(message, type = 'info') {
-    const logsDiv = document.getElementById('systemLogs');
-    const line = document.createElement('div');
-    line.className = `log-line ${type}`;
-    const timestamp = new Date().toLocaleTimeString();
-    line.textContent = `[${timestamp}] ${message}`;
-    logsDiv.appendChild(line);
-    logsDiv.scrollTop = logsDiv.scrollHeight;
+    // Logs section removed - function kept for compatibility but does nothing
+    return;
 }
 
 // Audio Manipulation Functions
@@ -2458,13 +2449,21 @@ async function loadDeliverables() {
                 }
             });
             
+            // Sort each phase by timestamp (most recent first) and take only the most recent one
+            phase1Runs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            phase2Runs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            otherRuns.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            
+            const mostRecentPhase1 = phase1Runs.length > 0 ? [phase1Runs[0]] : [];
+            const mostRecentPhase2 = phase2Runs.length > 0 ? [phase2Runs[0]] : [];
+            
             let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
             
             // Phase 1 Section
             html += '<div class="group-box" style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 2px solid #427eea;">';
             html += '<h4 style="color: #427eea; margin-bottom: 15px; font-size: 1.2em;">📈 Phase 1: Core Manipulation</h4>';
-            if (phase1Runs.length > 0) {
-                phase1Runs.forEach(run => {
+            if (mostRecentPhase1.length > 0) {
+                mostRecentPhase1.forEach(run => {
                     const date = new Date(run.timestamp * 1000).toLocaleString();
                     const reportPath = `${run.path}/final_report/report.html`;
                     const hasReport = run.has_summary || run.has_metrics;
@@ -2497,8 +2496,8 @@ async function loadDeliverables() {
             // Phase 2 Section
             html += '<div class="group-box" style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 2px solid #10b981;">';
             html += '<h4 style="color: #10b981; margin-bottom: 15px; font-size: 1.2em;">📈 Phase 2: Structural Manipulation</h4>';
-            if (phase2Runs.length > 0) {
-                phase2Runs.forEach(run => {
+            if (mostRecentPhase2.length > 0) {
+                mostRecentPhase2.forEach(run => {
                     const date = new Date(run.timestamp * 1000).toLocaleString();
                     const reportPath = `${run.path}/final_report/report.html`;
                     const hasReport = run.has_summary || run.has_metrics;
@@ -2785,8 +2784,6 @@ async function loadDeliverablesAudioFiles() {
 }
 
 function loadDeliverablesAudioInfo(filePath) {
-    console.log('[loadDeliverablesAudioInfo] Called with filePath:', filePath);
-    
     if (!filePath) {
         deliverablesSelectedAudioFile = null;
         const infoDiv = document.getElementById('deliverablesAudioInfo');
@@ -2798,7 +2795,6 @@ function loadDeliverablesAudioInfo(filePath) {
     }
     
     deliverablesSelectedAudioFile = filePath;
-    console.log('[loadDeliverablesAudioInfo] Set deliverablesSelectedAudioFile to:', deliverablesSelectedAudioFile);
     
     const infoDiv = document.getElementById('deliverablesAudioInfo');
     const fileNameSpan = document.getElementById('deliverablesSelectedFileName');
@@ -2809,12 +2805,6 @@ function loadDeliverablesAudioInfo(filePath) {
         fileNameSpan.textContent = fileName;
         filePathSpan.textContent = filePath;
         infoDiv.style.display = 'block';
-    } else {
-        console.warn('[loadDeliverablesAudioInfo] Missing elements:', {
-            infoDiv: !!infoDiv,
-            fileNameSpan: !!fileNameSpan,
-            filePathSpan: !!filePathSpan
-        });
     }
     
     updateDeliverablesTransformState();
@@ -2991,12 +2981,6 @@ function updateDeliverablesTransformState() {
     const countElement = document.getElementById('deliverablesTransformCount');
     const applyBtn = document.getElementById('deliverablesApplyAllBtn');
     
-    console.log('[updateDeliverablesTransformState]', {
-        deliverablesSelectedAudioFile,
-        count,
-        applyBtnFound: !!applyBtn
-    });
-    
     if (countElement) {
         countElement.textContent = `${count} transformation${count !== 1 ? 's' : ''} selected: ${enabledTransforms.join(', ')}`;
     }
@@ -3005,7 +2989,6 @@ function updateDeliverablesTransformState() {
         // Enable button if file is selected (transformations can be added/removed)
         const shouldDisable = !deliverablesSelectedAudioFile;
         applyBtn.disabled = shouldDisable;
-        console.log('[updateDeliverablesTransformState] Button disabled:', shouldDisable, 'File:', deliverablesSelectedAudioFile);
         
         // Update button text to indicate if transformations are selected
         if (deliverablesSelectedAudioFile && count === 0) {
@@ -3202,12 +3185,28 @@ async function applyAllDeliverablesTransforms() {
         
         if (result.status === 'success') {
             showCompletionAlert(`Successfully applied ${enabledTransforms.length} transformation(s) and generated Phase 1 & Phase 2 reports!`);
-            addSystemLog(`Deliverables: Applied ${enabledTransforms.length} transformation(s)`, 'success');
             
-            // Reload deliverables list
-            setTimeout(() => {
-                loadDeliverables();
-            }, 2000);
+            // Reload deliverables list and dashboard immediately and retry if needed
+            const reloadDeliverables = async (retries = 5) => {
+                try {
+                    await loadDeliverables();
+                    loadDashboard(); // Refresh Dashboard section
+                    // Verify reports were loaded
+                    const deliverablesListDiv = document.getElementById('deliverablesList');
+                    if (deliverablesListDiv && deliverablesListDiv.innerHTML.includes('No deliverables found')) {
+                        if (retries > 0) {
+                            setTimeout(() => reloadDeliverables(retries - 1), 2000);
+                        }
+                    }
+                } catch (error) {
+                    if (retries > 0) {
+                        setTimeout(() => reloadDeliverables(retries - 1), 2000);
+                    }
+                }
+            };
+            
+            // Start reloading immediately and retry if needed
+            reloadDeliverables();
         } else {
             throw new Error(result.message || 'Failed to apply transformations');
         }
