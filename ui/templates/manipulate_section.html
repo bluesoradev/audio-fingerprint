@@ -1,0 +1,218 @@
+<!-- Audio Manipulation Section - Completely Rewritten -->
+<div id="manipulate" class="section">
+    <div class="section-header">
+        <h2>🎵 Audio Manipulation & Testing</h2>
+        <p class="section-description">Transform audio files and automatically test fingerprint robustness</p>
+    </div>
+
+    <!-- File Management Panel -->
+    <div class="panel-grid">
+        <div class="panel-card">
+            <h3 class="panel-title">📁 Audio File Management</h3>
+            <div class="file-selector">
+                <label>Select Audio File</label>
+                <select id="audioFileSelector" class="file-select">
+                    <option value="">-- Choose audio file --</option>
+                </select>
+            </div>
+            <div class="file-upload">
+                <label>Or Upload New File</label>
+                <div class="upload-zone" id="uploadZone" 
+                     ondrop="handleFileDrop(event)" 
+                     ondragover="handleDragOver(event)" 
+                     ondragleave="handleDragLeave(event)"
+                     onclick="triggerFileInput()">
+                    <div class="upload-icon">📤</div>
+                    <p>Drag & drop audio file here</p>
+                    <p class="upload-hint">or click to browse</p>
+                    <input type="file" id="fileInput" style="display: none;" accept="audio/*" onchange="handleFileSelect(event)">
+                </div>
+            </div>
+            <div id="fileInfo" class="file-info" style="display: none;">
+                <div class="info-item">
+                    <span class="info-label">File:</span>
+                    <span class="info-value" id="currentFileName">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Path:</span>
+                    <span class="info-value" id="currentFilePath">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Players Panel -->
+        <div class="panel-card">
+            <h3 class="panel-title">🎧 Audio Playback</h3>
+            
+            <!-- Original Audio -->
+            <div class="audio-player-block">
+                <div class="audio-label">
+                    <span>Original Audio</span>
+                    <span id="originalStatus" class="status-badge">Ready</span>
+                </div>
+                <div class="audio-controls">
+                    <button id="originalPlayBtn" class="play-btn" onclick="togglePlayback('original')">
+                        <span id="originalPlayIcon">▶</span>
+                    </button>
+                    <div class="audio-progress">
+                        <audio id="originalAudio" preload="metadata" 
+                               ontimeupdate="updateProgress('original')"
+                               onloadedmetadata="onAudioLoaded('original')"
+                               onended="onAudioEnded('original')"></audio>
+                        <div class="progress-bar">
+                            <div id="originalProgress" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <span id="originalTime" class="time-display">00:00 / 00:00</span>
+                </div>
+            </div>
+
+            <!-- Transformed Audio -->
+            <div class="audio-player-block" style="margin-top: 20px;">
+                <div class="audio-label">
+                    <span>Transformed Audio</span>
+                    <span id="transformedStatus" class="status-badge inactive">Not Available</span>
+                </div>
+                <div class="audio-controls">
+                    <button id="transformedPlayBtn" class="play-btn" onclick="togglePlayback('transformed')" disabled>
+                        <span id="transformedPlayIcon">▶</span>
+                    </button>
+                    <div class="audio-progress">
+                        <audio id="transformedAudio" preload="metadata"
+                               ontimeupdate="updateProgress('transformed')"
+                               onloadedmetadata="onAudioLoaded('transformed')"
+                               onended="onAudioEnded('transformed')"></audio>
+                        <div class="progress-bar">
+                            <div id="transformedProgress" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    <span id="transformedTime" class="time-display">00:00 / 00:00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transform Controls Panel -->
+    <div class="panel-card transform-panel">
+        <h3 class="panel-title">⚙️ Audio Transformations</h3>
+        <div class="transform-grid">
+            <!-- Speed -->
+            <div class="transform-item">
+                <label>⚡ Speed</label>
+                <div class="slider-group">
+                    <input type="range" id="speedControl" min="50" max="200" value="100" 
+                           oninput="updateSliderDisplay('speed', this.value)">
+                    <span id="speedDisplay" class="slider-display">1.00x</span>
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="preservePitchCheck"> Preserve Pitch
+                </label>
+                <button class="transform-btn" onclick="applyTransform('speed')">Apply</button>
+            </div>
+
+            <!-- Pitch -->
+            <div class="transform-item">
+                <label>🎹 Pitch</label>
+                <div class="slider-group">
+                    <input type="range" id="pitchControl" min="-12" max="12" value="0" 
+                           oninput="updateSliderDisplay('pitch', this.value)">
+                    <span id="pitchDisplay" class="slider-display">0 semitones</span>
+                </div>
+                <button class="transform-btn" onclick="applyTransform('pitch')">Apply</button>
+            </div>
+
+            <!-- Reverb -->
+            <div class="transform-item">
+                <label>🎚️ Reverb</label>
+                <div class="slider-group">
+                    <input type="range" id="reverbControl" min="0" max="500" value="50" 
+                           oninput="updateSliderDisplay('reverb', this.value)">
+                    <span id="reverbDisplay" class="slider-display">50 ms</span>
+                </div>
+                <button class="transform-btn" onclick="applyTransform('reverb')">Apply</button>
+            </div>
+
+            <!-- Noise Reduction -->
+            <div class="transform-item">
+                <label>🔊 Noise Reduction</label>
+                <div class="slider-group">
+                    <input type="range" id="noiseControl" min="0" max="100" value="50" 
+                           oninput="updateSliderDisplay('noise', this.value)">
+                    <span id="noiseDisplay" class="slider-display">50%</span>
+                </div>
+                <button class="transform-btn" onclick="applyTransform('noise')">Apply</button>
+            </div>
+
+            <!-- EQ -->
+            <div class="transform-item">
+                <label>🎛️ EQ Adjustment</label>
+                <div class="slider-group">
+                    <input type="range" id="eqControl" min="-20" max="20" value="0" 
+                           oninput="updateSliderDisplay('eq', this.value)">
+                    <span id="eqDisplay" class="slider-display">0 dB</span>
+                </div>
+                <button class="transform-btn" onclick="applyTransform('eq')">Apply</button>
+            </div>
+
+            <!-- Compression -->
+            <div class="transform-item">
+                <label>💾 Compression</label>
+                <select id="codecSelect" class="codec-select" onchange="updateCodec()">
+                    <option value="">None</option>
+                    <option value="mp3">MP3</option>
+                    <option value="aac">AAC</option>
+                    <option value="ogg">OGG</option>
+                </select>
+                <select id="bitrateSelect" class="bitrate-select" disabled>
+                    <option value="64k">64k</option>
+                    <option value="128k" selected>128k</option>
+                    <option value="192k">192k</option>
+                    <option value="256k">256k</option>
+                    <option value="320k">320k</option>
+                </select>
+                <button class="transform-btn" onclick="applyTransform('compression')">Apply</button>
+            </div>
+
+            <!-- Overlay -->
+            <div class="transform-item">
+                <label>🎤 Overlay</label>
+                <input type="file" id="overlayFileInput" accept="audio/*" class="file-input-small">
+                <div class="slider-group">
+                    <input type="range" id="overlayControl" min="-20" max="0" value="-6" 
+                           oninput="updateSliderDisplay('overlay', this.value)">
+                    <span id="overlayDisplay" class="slider-display">-6 dB</span>
+                </div>
+                <button class="transform-btn" onclick="applyTransform('overlay')">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fingerprint Testing Panel -->
+    <div class="panel-card test-panel">
+        <h3 class="panel-title">🔍 Fingerprint Robustness Test</h3>
+        <div class="test-config">
+            <div class="test-inputs">
+                <div class="test-input-item">
+                    <label>Original Audio</label>
+                    <input type="text" id="testOriginalPath" readonly class="test-path-input">
+                </div>
+                <div class="test-input-item">
+                    <label>Transformed Audio</label>
+                    <input type="text" id="testTransformedPath" readonly class="test-path-input">
+                </div>
+            </div>
+            <button id="testFingerprintBtn" class="test-btn" onclick="runFingerprintTest()" disabled>
+                <span class="test-icon">🔍</span>
+                Test Fingerprint Match
+            </button>
+        </div>
+
+        <!-- Test Results Display -->
+        <div id="testResultsContainer" class="test-results-container" style="display: none;">
+            <div id="testResultsContent" class="test-results-content">
+                <!-- Results will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+

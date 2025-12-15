@@ -1915,10 +1915,10 @@ async function testFingerprintRobustness() {
             
             // Auto-reload deliverables if report was generated
             if (result.report_id) {
-                addSystemLog(`Report auto-generated: ${result.report_id}`, 'info');
+                addSystemLog(`✅ Report auto-generated: ${result.report_id} (${result.phase || 'unknown'})`, 'success');
                 // Reload deliverables after a short delay
                 setTimeout(() => {
-                    if (document.getElementById('deliverables').classList.contains('active')) {
+                    if (document.getElementById('deliverables')) {
                         loadDeliverables();
                     }
                 }, 2000);
@@ -2191,17 +2191,16 @@ async function loadDeliverables() {
             result.runs.forEach(run => {
                 const runPath = (run.path || '').toLowerCase();
                 const runId = (run.id || '').toLowerCase();
+                const runPhase = (run.phase || run.summary?.phase || '').toLowerCase();
                 
-                // Check if it's Phase 1 or Phase 2
-                if (runPath.includes('phase1') || runId.includes('phase1') || 
-                    runPath.includes('phase_1') || runId.includes('phase_1')) {
+                // Check phase from run data first, then from path/ID
+                if (runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') || 
+                    runPath.includes('phase_1') || runId.includes('phase_1') || runId.includes('test_') && runId.includes('phase1')) {
                     phase1Runs.push(run);
-                } else if (runPath.includes('phase2') || runId.includes('phase2') || 
-                          runPath.includes('phase_2') || runId.includes('phase_2')) {
+                } else if (runPhase === 'phase2' || runPath.includes('phase2') || runId.includes('phase2') || 
+                          runPath.includes('phase_2') || runId.includes('phase_2') || runId.includes('test_') && runId.includes('phase2')) {
                     phase2Runs.push(run);
                 } else {
-                    // Check final_report directory for phase indicators
-                    const finalReportPath = `${run.path}/final_report/report.html`;
                     otherRuns.push(run);
                 }
             });
@@ -2337,42 +2336,87 @@ async function viewRunDetails(runId) {
         const result = await response.json();
         
         const reportViewerDiv = document.getElementById('reportViewer');
-        const visualReportViewerDiv = document.getElementById('visualReportViewer');
         
         if (!reportViewerDiv) {
             console.error('reportViewer element not found');
             return;
         }
         
-        let html = '<div style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #3d3d3d;">';
-        html += `<h4 style="color: #ffffff; margin-bottom: 15px; border-bottom: 2px solid #427eea; padding-bottom: 10px;">Report: ${runId}</h4>`;
+        const metrics = result.metrics || {};
+        const testDetails = metrics.test_details || {};
+        const overall = metrics.overall || {};
+        const recall = overall.recall || {};
+        const rank = overall.rank || {};
+        const similarity = overall.similarity || {};
+        const passFail = metrics.pass_fail || {};
+        const phase = testDetails.phase || metrics.summary?.phase || 'unknown';
+        
+        const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
+        const statusColor = matched ? '#10b981' : '#f87171';
+        const statusText = matched ? '✅ MATCHED' : '❌ NOT MATCHED';
+        const phaseColor = phase === 'phase1' ? '#427eea' : '#10b981';
+        
+        let html = `
+            <div style="background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%); padding: 25px; border-radius: 12px; border: 2px solid ${phaseColor};">
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <h3 style="color: ${phaseColor}; margin: 0 0 10px 0; font-size: 1.5em;">${phase.toUpperCase()} Report</h3>
+                    <h2 style="color: ${statusColor}; margin: 0; font-size: 2.5em; font-weight: bold;">${statusText}</h2>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                    <div style="background: #2d2d2d; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #427eea;">
+                        <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@1</div>
+                        <div style="color: #ffffff; font-size: 32px; font-weight: bold;">${((recall.recall_at_1 || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                    <div style="background: #2d2d2d; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #10b981;">
+                        <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@5</div>
+                        <div style="color: #ffffff; font-size: 32px; font-weight: bold;">${((recall.recall_at_5 || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                    <div style="background: #2d2d2d; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #f59e0b;">
+                        <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@10</div>
+                        <div style="color: #ffffff; font-size: 32px; font-weight: bold;">${((recall.recall_at_10 || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                    <div style="background: #2d2d2d; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #8b5cf6;">
+                        <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Similarity</div>
+                        <div style="color: ${statusColor}; font-size: 32px; font-weight: bold;">${((similarity.mean_similarity_correct || testDetails.similarity || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                </div>
+                
+                ${testDetails.original_file ? `
+                <div style="background: #2d2d2d; padding: 15px; border-radius: 6px; margin-bottom: 10px;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Original File</div>
+                    <div style="color: #ffffff; font-size: 14px; word-break: break-all;">${testDetails.original_file}</div>
+                </div>
+                ` : ''}
+                
+                ${testDetails.manipulated_file ? `
+                <div style="background: #2d2d2d; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Transformed File</div>
+                    <div style="color: #ffffff; font-size: 14px; word-break: break-all;">${testDetails.manipulated_file}</div>
+                </div>
+                ` : ''}
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <div style="background: #2d2d2d; padding: 15px; border-radius: 6px;">
+                        <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Mean Rank</div>
+                        <div style="color: #ffffff; font-size: 24px; font-weight: bold;">${(rank.mean_rank || testDetails.rank || 0).toFixed(2)}</div>
+                    </div>
+                    <div style="background: #2d2d2d; padding: 15px; border-radius: 6px;">
+                        <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Test Status</div>
+                        <div style="color: ${statusColor}; font-size: 24px; font-weight: bold;">${passFail.passed || 0} / ${passFail.total || 0} Passed</div>
+                    </div>
+                </div>
+            </div>
+        `;
         
         if (result.metrics) {
-            html += '<div style="margin-bottom: 20px;">';
-            html += '<h5 style="color: #427eea; margin-bottom: 10px; font-size: 14px;">📊 Metrics Summary</h5>';
             const summary = result.metrics.summary || {};
-            html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">`;
+            html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #3d3d3d;">';
+            html += '<h5 style="color: #427eea; margin-bottom: 10px; font-size: 14px;">📊 Additional Metrics</h5>';
+            html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">`;
             html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Total Queries</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 18px;">${summary.total_queries || 'N/A'}</p></div>`;
             html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Total Transforms</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 18px;">${summary.total_transforms || 'N/A'}</p></div>`;
             html += `</div>`;
-            
-            if (result.metrics.overall) {
-                html += '<h5 style="color: #427eea; margin-top: 15px; margin-bottom: 10px; font-size: 14px;">🎯 Overall Performance</h5>';
-                const recall = result.metrics.overall.recall || {};
-                const rank = result.metrics.overall.rank || {};
-                const similarity = result.metrics.overall.similarity || {};
-                
-                html += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">`;
-                html += `<div style="padding: 12px; background: #2d2d2d; border-radius: 4px; border-left: 3px solid #427eea;"><strong style="color: #9ca3af; font-size: 11px;">Recall@1</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 20px; font-weight: bold;">${((recall.recall_at_1 || 0) * 100).toFixed(1)}%</p></div>`;
-                html += `<div style="padding: 12px; background: #2d2d2d; border-radius: 4px; border-left: 3px solid #10b981;"><strong style="color: #9ca3af; font-size: 11px;">Recall@5</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 20px; font-weight: bold;">${((recall.recall_at_5 || 0) * 100).toFixed(1)}%</p></div>`;
-                html += `<div style="padding: 12px; background: #2d2d2d; border-radius: 4px; border-left: 3px solid #f59e0b;"><strong style="color: #9ca3af; font-size: 11px;">Recall@10</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 20px; font-weight: bold;">${((recall.recall_at_10 || 0) * 100).toFixed(1)}%</p></div>`;
-                html += `</div>`;
-                
-                html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">`;
-                html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Mean Rank</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 16px;">${(rank.mean_rank || 0).toFixed(2)}</p></div>`;
-                html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Mean Similarity</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 16px;">${((similarity.mean_similarity_correct || 0) * 100).toFixed(1)}%</p></div>`;
-                html += `</div>`;
-            }
             html += '</div>';
         }
         
@@ -2394,11 +2438,6 @@ async function viewRunDetails(runId) {
         
         html += '</div>';
         reportViewerDiv.innerHTML = html;
-        
-        // Also display in visual report viewer
-        if (visualReportViewerDiv) {
-            displayVisualReport(result, runId, visualReportViewerDiv);
-        }
     } catch (error) {
         console.error('Failed to load run details:', error);
         const reportViewerDiv = document.getElementById('reportViewer');
@@ -2410,79 +2449,4 @@ async function viewRunDetails(runId) {
             `;
         }
     }
-}
-
-function displayVisualReport(result, runId, container) {
-    if (!result.metrics) {
-        container.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 40px;">No metrics available for this report.</p>';
-        return;
-    }
-    
-    const metrics = result.metrics;
-    const testDetails = metrics.test_details || {};
-    const overall = metrics.overall || {};
-    const recall = overall.recall || {};
-    const rank = overall.rank || {};
-    const similarity = overall.similarity || {};
-    const passFail = metrics.pass_fail || {};
-    
-    const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
-    const statusColor = matched ? '#10b981' : '#f87171';
-    const statusText = matched ? '✅ MATCHED' : '❌ NOT MATCHED';
-    
-    let html = `
-        <div style="background: #1e1e1e; padding: 25px; border-radius: 8px; border: 2px solid ${statusColor};">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h2 style="color: ${statusColor}; margin: 0; font-size: 32px;">${statusText}</h2>
-                <p style="color: #9ca3af; margin: 10px 0 0 0;">Report ID: ${runId}</p>
-                ${testDetails.phase ? `<p style="color: #9ca3af; margin: 5px 0 0 0;">Phase: ${testDetails.phase.toUpperCase()}</p>` : ''}
-            </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
-                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #427eea; text-align: center;">
-                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@1</div>
-                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((recall.recall_at_1 || 0) * 100).toFixed(1)}%</div>
-                </div>
-                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #10b981; text-align: center;">
-                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@5</div>
-                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((recall.recall_at_5 || 0) * 100).toFixed(1)}%</div>
-                </div>
-                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #f59e0b; text-align: center;">
-                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@10</div>
-                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((recall.recall_at_10 || 0) * 100).toFixed(1)}%</div>
-                </div>
-                <div style="background: #2d2d2d; padding: 20px; border-radius: 6px; border-left: 4px solid #8b5cf6; text-align: center;">
-                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Similarity</div>
-                    <div style="color: #ffffff; font-size: 28px; font-weight: bold;">${((similarity.mean_similarity_correct || testDetails.similarity || 0) * 100).toFixed(1)}%</div>
-                </div>
-            </div>
-            
-            ${testDetails.original_file ? `
-            <div style="background: #2d2d2d; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Original File</div>
-                <div style="color: #ffffff; font-size: 14px; word-break: break-all;">${testDetails.original_file}</div>
-            </div>
-            ` : ''}
-            
-            ${testDetails.manipulated_file ? `
-            <div style="background: #2d2d2d; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Transformed File</div>
-                <div style="color: #ffffff; font-size: 14px; word-break: break-all;">${testDetails.manipulated_file}</div>
-            </div>
-            ` : ''}
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
-                <div style="background: #2d2d2d; padding: 15px; border-radius: 6px;">
-                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Mean Rank</div>
-                    <div style="color: #ffffff; font-size: 24px; font-weight: bold;">${(rank.mean_rank || testDetails.rank || 0).toFixed(2)}</div>
-                </div>
-                <div style="background: #2d2d2d; padding: 15px; border-radius: 6px;">
-                    <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Test Status</div>
-                    <div style="color: ${statusColor}; font-size: 24px; font-weight: bold;">${passFail.passed || 0} / ${passFail.total || 0} Passed</div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = html;
 }

@@ -1310,20 +1310,20 @@ class ManipulatePage(QWidget):
                                         process.wait(timeout=0.5)
                                     except Exception:
                                         pass
-                                break
+                        break
                             
                             # Calculate elapsed time
                             elapsed = time.time() - playback_start_time
                             current_pos_ms = start_pos_ms + (elapsed * 1000)
-                            
-                            # Update position
-                            with lock:
+                    
+                    # Update position
+                    with lock:
                                 setattr(self, position_attr, min(current_pos_ms, len(audio)))
                             
                             # Check if playback finished (based on elapsed time)
                             if elapsed >= audio_length_seconds:
                                 logger.info(f"_play_audio_pydub: Audio finished naturally (elapsed: {elapsed:.2f}s, length: {audio_length_seconds:.2f}s)")
-                                break
+                            break
                             
                             # Check stop event very frequently (every 10ms)
                             time.sleep(0.01)
@@ -1358,7 +1358,7 @@ class ManipulatePage(QWidget):
                             if getattr(self, process_attr, None) == process:
                                 setattr(self, process_attr, None)
                                 logger.debug(f"_play_audio_pydub: Process reference cleared")
-                    except Exception as e:
+        except Exception as e:
                         logger.error(f"_play_audio_pydub: Error in subprocess playback: {e}")
                         if process:
                             try:
@@ -1369,7 +1369,7 @@ class ManipulatePage(QWidget):
                                     process.kill()
                                 except:
                                     pass
-                    finally:
+        finally:
                         # Clean up temp play file
                         if temp_play_path and os.path.exists(temp_play_path):
                             try:
@@ -1519,7 +1519,7 @@ class ManipulatePage(QWidget):
                 self.original_thread.join(timeout=0.2)
                 if self.original_thread.is_alive():
                     logger.warning("toggle_original_playback: Thread still alive after timeout")
-                else:
+        else:
                     logger.debug("toggle_original_playback: Thread finished")
         else:
             # PLAY: Start or resume playback
@@ -1696,7 +1696,7 @@ class ManipulatePage(QWidget):
                 self.transformed_thread.join(timeout=0.2)
                 if self.transformed_thread.is_alive():
                     logger.warning("toggle_transformed_playback: Thread still alive after timeout")
-                else:
+        else:
                     logger.debug("toggle_transformed_playback: Thread finished")
         else:
             # PLAY: Start or resume playback

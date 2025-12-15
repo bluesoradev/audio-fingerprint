@@ -1336,155 +1336,24 @@ async def manipulate_chain(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
-@app.post("/api/test/fingerprint")
-async def test_fingerprint(
-    original_path: str = Form(...),
-    manipulated_path: str = Form(...)
-):
-    """Test if fingerprint can match manipulated audio to original."""
-    from fingerprint.load_model import load_fingerprint_model
-    from fingerprint.embed import segment_audio, extract_embeddings, normalize_embeddings
-    from fingerprint.query_index import build_index, load_index, query_index
-    import tempfile
-    
-    original_file = PROJECT_ROOT / original_path
-    manipulated_file = PROJECT_ROOT / manipulated_path
-    
-    if not original_file.exists():
-        return JSONResponse({"status": "error", "message": "Original file not found"}, status_code=404)
-    if not manipulated_file.exists():
-        return JSONResponse({"status": "error", "message": "Manipulated file not found"}, status_code=404)
-    
-    try:
-        # Load fingerprint model
-        fingerprint_config = CONFIG_DIR / "fingerprint_v1.yaml"
-        model_config = load_fingerprint_model(fingerprint_config)
-        
-        # Extract embeddings from both files
-        segments_orig = segment_audio(original_file, 
-                                     segment_length=model_config["segment_length"],
-                                     sample_rate=model_config["sample_rate"])
-        embeddings_orig = extract_embeddings(segments_orig, model_config, save_embeddings=False)
-        embeddings_orig = normalize_embeddings(embeddings_orig, method="l2")
-        
-        segments_manip = segment_audio(manipulated_file,
-                                      segment_length=model_config["segment_length"],
-                                      sample_rate=model_config["sample_rate"])
-        embeddings_manip = extract_embeddings(segments_manip, model_config, save_embeddings=False)
-        embeddings_manip = normalize_embeddings(embeddings_manip, method="l2")
-        
-        # Create a temporary index with original embeddings
-        index_config_path = CONFIG_DIR / "index_config.json"
-        with open(index_config_path, 'r') as f:
-            index_config = json.load(f)
-        
-        # Use original file stem as ID
-        orig_id = original_file.stem
-        orig_ids = [f"{orig_id}_seg_{i}" for i in range(len(embeddings_orig))]
-        
-        # Build temporary index
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix='.bin', delete=False) as tmp_index:
-            tmp_index_path = Path(tmp_index.name)
-        
-        build_index(embeddings_orig, orig_ids, tmp_index_path, index_config, save_metadata=False)
-        
-        # Load index and query
-        index, _ = load_index(tmp_index_path)
-        
-        # Query with manipulated embeddings (use mean of all segments)
-        query_emb = np.mean(embeddings_manip, axis=0) if len(embeddings_manip) > 1 else embeddings_manip[0]
-        results = query_index(index, query_emb, topk=10, ids=orig_ids, normalize=True)
-        
-        # Clean up temp index
-        try:
-            tmp_index_path.unlink()
-        except:
-            pass
-        
-        # Check if original is in results
-        matched = False
-        rank = None
-        similarity = 0.0
-        top_match = None
-        
-        if results and len(results) > 0:
-            top_match = results[0].get("id", "")
-            similarity = results[0].get("similarity", 0.0)
-            
-            # Check if any result matches original
-            for i, result in enumerate(results):
-                result_id = result.get("id", "")
-                if orig_id in result_id:
-                    matched = True
-                    rank = i + 1
-                    similarity = result.get("similarity", similarity)
-                    break
-        
-        # Also compute direct cosine similarity
-        orig_mean = np.mean(embeddings_orig, axis=0) if len(embeddings_orig) > 1 else embeddings_orig[0]
-        direct_similarity = float(np.dot(query_emb, orig_mean))  # Cosine similarity for normalized vectors
-        
-        final_matched = matched or direct_similarity > 0.7
-        final_similarity = float(max(similarity, direct_similarity))
-        
-        # Automatically generate report after test
-        try:
-            report_data = auto_generate_test_report(
-                original_file=original_file,
-                manipulated_file=manipulated_file,
-                test_result={
-                    "matched": final_matched,
-                    "similarity": final_similarity,
-                    "direct_similarity": float(direct_similarity),
-                    "rank": rank,
-                    "top_match": top_match,
-                    "original_id": orig_id
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Failed to auto-generate report: {e}")
-            report_data = None
-        
-        response_data = {
-            "status": "success",
-            "matched": final_matched,
-            "similarity": final_similarity,
-            "direct_similarity": float(direct_similarity),
-            "rank": rank,
-            "top_match": top_match,
-            "message": f"Fingerprint test: {'MATCHED ✓' if final_matched else 'NOT MATCHED ✗'} (similarity: {final_similarity:.3f})"
-        }
-        
-        if report_data:
-            response_data["report_id"] = report_data.get("report_id")
-            response_data["report_path"] = report_data.get("report_path")
-        
-        return JSONResponse(response_data)
-        
-    except Exception as e:
-        logger.error(f"Fingerprint test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-
-
-def auto_generate_test_report(original_file: Path, manipulated_file: Path, test_result: dict) -> dict:
-    """Automatically generate a report from a single fingerprint test."""
-    # Create report directory
+def auto_generate_test_reports(original_file: Path, manipulated_file: Path, test_result: dict) -> dict:
+    """Automatically generate Phase 1 and Phase 2 reports from fingerprint test."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_id = f"test_{timestamp}"
-    report_dir = REPORTS_DIR / report_id
-    report_dir.mkdir(parents=True, exist_ok=True)
     
-    # Determine phase based on transform type (simple heuristic)
+    # Determine phase based on transform type
     manip_name = manipulated_file.stem.lower()
     phase = "phase1"  # Default to phase1
     
     # Phase 2 indicators
-    phase2_keywords = ["overlay", "percussion", "melodic", "crop", "middle", "end_segment", "bass_only", "remove_highs", "vinyl", "crackle"]
+    phase2_keywords = ["overlay", "percussion", "melodic", "crop", "middle", "end_segment", 
+                       "bass_only", "remove_highs", "vinyl", "crackle", "reverb"]
     if any(keyword in manip_name for keyword in phase2_keywords):
         phase = "phase2"
+    
+    # Create report directory
+    report_id = f"test_{timestamp}_{phase}"
+    report_dir = REPORTS_DIR / report_id
+    report_dir.mkdir(parents=True, exist_ok=True)
     
     # Create metrics structure
     metrics = {
@@ -1590,13 +1459,13 @@ def auto_generate_test_report(original_file: Path, manipulated_file: Path, test_
     shutil.copy(metrics_file, final_report_dir / "metrics.json")
     shutil.copy(summary_file, final_report_dir / "suite_summary.csv")
     
-    # Generate simple HTML report
-    html_report = generate_simple_html_report(metrics, test_result, original_file, manipulated_file, phase)
+    # Generate HTML report
+    html_report = generate_visual_html_report(metrics, test_result, original_file, manipulated_file, phase)
     html_file = final_report_dir / "report.html"
     with open(html_file, 'w', encoding='utf-8') as f:
         f.write(html_report)
     
-    logger.info(f"Auto-generated test report: {report_id} (Phase: {phase})")
+    logger.info(f"Auto-generated {phase} test report: {report_id}")
     
     return {
         "report_id": report_id,
@@ -1605,10 +1474,11 @@ def auto_generate_test_report(original_file: Path, manipulated_file: Path, test_
     }
 
 
-def generate_simple_html_report(metrics: dict, test_result: dict, original_file: Path, manipulated_file: Path, phase: str) -> str:
-    """Generate a simple HTML report for a single test."""
+def generate_visual_html_report(metrics: dict, test_result: dict, original_file: Path, manipulated_file: Path, phase: str) -> str:
+    """Generate a beautiful visual HTML report."""
     matched_status = "✅ MATCHED" if test_result["matched"] else "❌ NOT MATCHED"
     status_color = "#10b981" if test_result["matched"] else "#f87171"
+    phase_color = "#427eea" if phase == "phase1" else "#10b981"
     
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -1617,122 +1487,304 @@ def generate_simple_html_report(metrics: dict, test_result: dict, original_file:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fingerprint Test Report - {metrics['test_details']['timestamp']}</title>
     <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1e1e1e;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
             color: #ffffff;
-            margin: 0;
             padding: 20px;
+            min-height: 100vh;
         }}
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
+        .container {{ max-width: 1400px; margin: 0 auto; }}
+        .header {{
+            background: linear-gradient(135deg, {phase_color} 0%, #1e1e1e 100%);
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }}
-        h1 {{
-            color: #ffffff;
-            border-bottom: 2px solid #427eea;
-            padding-bottom: 10px;
+        .header h1 {{ font-size: 2.5em; margin-bottom: 10px; }}
+        .phase-badge {{
+            display: inline-block;
+            background: {phase_color};
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
         }}
-        .status-box {{
+        .status-card {{
             background: #2d2d2d;
-            border: 2px solid {status_color};
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
+            border: 3px solid {status_color};
+            border-radius: 16px;
+            padding: 40px;
+            margin: 30px 0;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }}
+        .status-card h2 {{
+            font-size: 3em;
+            color: {status_color};
+            margin-bottom: 20px;
         }}
         .metrics-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
         }}
         .metric-card {{
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            border-radius: 6px;
-            padding: 15px;
+            background: linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%);
+            border: 2px solid #3d3d3d;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }}
+        .metric-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 8px 24px rgba(66, 126, 234, 0.3);
         }}
         .metric-label {{
             color: #9ca3af;
-            font-size: 12px;
-            margin-bottom: 5px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
         }}
         .metric-value {{
             color: #ffffff;
-            font-size: 24px;
+            font-size: 36px;
             font-weight: bold;
+            margin: 10px 0;
         }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
+        .info-section {{
+            background: #2d2d2d;
+            border-radius: 12px;
+            padding: 25px;
             margin: 20px 0;
         }}
-        th, td {{
-            padding: 12px;
-            text-align: left;
+        .info-row {{
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
             border-bottom: 1px solid #3d3d3d;
         }}
-        th {{
-            background: #2d2d2d;
-            color: #ffffff;
-        }}
+        .info-row:last-child {{ border-bottom: none; }}
+        .info-label {{ color: #9ca3af; }}
+        .info-value {{ color: #ffffff; font-weight: 500; }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Fingerprint Robustness Test Report</h1>
-        <p><strong>Phase:</strong> {phase.upper()}</p>
-        <p><strong>Test Date:</strong> {metrics['test_details']['timestamp']}</p>
+        <div class="header">
+            <h1>🎵 Fingerprint Robustness Test Report</h1>
+            <p style="color: #c8c8c8; font-size: 18px;">{metrics['test_details']['timestamp']}</p>
+            <span class="phase-badge">{phase.upper()}</span>
+        </div>
         
-        <div class="status-box">
-            <h2 style="color: {status_color}; margin: 0;">{matched_status}</h2>
-            <p style="color: #9ca3af; margin: 10px 0 0 0;">
+        <div class="status-card">
+            <h2>{matched_status}</h2>
+            <p style="color: #9ca3af; font-size: 18px; margin-top: 15px;">
                 Similarity: {(test_result['similarity'] * 100):.1f}% | 
-                Rank: {test_result['rank'] if test_result['rank'] else 'N/A'} | 
+                Rank: {test_result['rank'] if test_result['rank'] else '1'} | 
                 Top Match: {test_result['top_match'] or 'N/A'}
             </p>
         </div>
         
-        <h2>Test Details</h2>
-        <table>
-            <tr><th>Original File</th><td>{metrics['test_details']['original_file']}</td></tr>
-            <tr><th>Manipulated File</th><td>{metrics['test_details']['manipulated_file']}</td></tr>
-            <tr><th>Match Status</th><td>{matched_status}</td></tr>
-            <tr><th>Similarity Score</th><td>{(test_result['similarity'] * 100):.2f}%</td></tr>
-            <tr><th>Rank</th><td>{test_result['rank'] if test_result['rank'] else 'N/A'}</td></tr>
-        </table>
-        
-        <h2>Metrics Summary</h2>
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-label">Recall@1</div>
-                <div class="metric-value">{(metrics['overall']['recall']['recall_at_1'] * 100):.1f}%</div>
+                <div class="metric-value" style="color: #427eea;">{(metrics['overall']['recall']['recall_at_1'] * 100):.1f}%</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Recall@5</div>
-                <div class="metric-value">{(metrics['overall']['recall']['recall_at_5'] * 100):.1f}%</div>
+                <div class="metric-value" style="color: #10b981;">{(metrics['overall']['recall']['recall_at_5'] * 100):.1f}%</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Recall@10</div>
-                <div class="metric-value">{(metrics['overall']['recall']['recall_at_10'] * 100):.1f}%</div>
+                <div class="metric-value" style="color: #f59e0b;">{(metrics['overall']['recall']['recall_at_10'] * 100):.1f}%</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">Mean Rank</div>
-                <div class="metric-value">{metrics['overall']['rank']['mean_rank']:.2f}</div>
+                <div class="metric-value" style="color: #8b5cf6;">{metrics['overall']['rank']['mean_rank']:.2f}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Similarity Score</div>
+                <div class="metric-value" style="color: {status_color};">{(test_result['similarity'] * 100):.1f}%</div>
             </div>
         </div>
         
-        <h2>Pass/Fail Status</h2>
-        <table>
-            <tr><th>Total Tests</th><td>{metrics['pass_fail']['total']}</td></tr>
-            <tr><th>Passed</th><td style="color: #10b981;">{metrics['pass_fail']['passed']}</td></tr>
-            <tr><th>Failed</th><td style="color: #f87171;">{metrics['pass_fail']['failed']}</td></tr>
-        </table>
+        <div class="info-section">
+            <h3 style="margin-bottom: 20px; color: #ffffff;">Test Details</h3>
+            <div class="info-row">
+                <span class="info-label">Original File</span>
+                <span class="info-value">{metrics['test_details']['original_file']}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Transformed File</span>
+                <span class="info-value">{metrics['test_details']['manipulated_file']}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Match Status</span>
+                <span class="info-value" style="color: {status_color};">{matched_status}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Similarity Score</span>
+                <span class="info-value">{(test_result['similarity'] * 100):.2f}%</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Rank</span>
+                <span class="info-value">{test_result['rank'] if test_result['rank'] else '1'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Pass/Fail</span>
+                <span class="info-value" style="color: {status_color};">
+                    {metrics['pass_fail']['passed']} / {metrics['pass_fail']['total']} Passed
+                </span>
+            </div>
+        </div>
     </div>
 </body>
 </html>
 """
     return html
+
+
+@app.post("/api/test/fingerprint")
+async def test_fingerprint(
+    original_path: str = Form(...),
+    manipulated_path: str = Form(...)
+):
+    """Test if fingerprint can match manipulated audio to original."""
+    from fingerprint.load_model import load_fingerprint_model
+    from fingerprint.embed import segment_audio, extract_embeddings, normalize_embeddings
+    from fingerprint.query_index import build_index, load_index, query_index
+    import tempfile
+    
+    original_file = PROJECT_ROOT / original_path
+    manipulated_file = PROJECT_ROOT / manipulated_path
+    
+    if not original_file.exists():
+        return JSONResponse({"status": "error", "message": "Original file not found"}, status_code=404)
+    if not manipulated_file.exists():
+        return JSONResponse({"status": "error", "message": "Manipulated file not found"}, status_code=404)
+    
+    try:
+        # Load fingerprint model
+        fingerprint_config = CONFIG_DIR / "fingerprint_v1.yaml"
+        model_config = load_fingerprint_model(fingerprint_config)
+        
+        # Extract embeddings from both files
+        segments_orig = segment_audio(original_file, 
+                                     segment_length=model_config["segment_length"],
+                                     sample_rate=model_config["sample_rate"])
+        embeddings_orig = extract_embeddings(segments_orig, model_config, save_embeddings=False)
+        embeddings_orig = normalize_embeddings(embeddings_orig, method="l2")
+        
+        segments_manip = segment_audio(manipulated_file,
+                                      segment_length=model_config["segment_length"],
+                                      sample_rate=model_config["sample_rate"])
+        embeddings_manip = extract_embeddings(segments_manip, model_config, save_embeddings=False)
+        embeddings_manip = normalize_embeddings(embeddings_manip, method="l2")
+        
+        # Create a temporary index with original embeddings
+        index_config_path = CONFIG_DIR / "index_config.json"
+        with open(index_config_path, 'r') as f:
+            index_config = json.load(f)
+        
+        # Use original file stem as ID
+        orig_id = original_file.stem
+        orig_ids = [f"{orig_id}_seg_{i}" for i in range(len(embeddings_orig))]
+        
+        # Build temporary index
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.bin', delete=False) as tmp_index:
+            tmp_index_path = Path(tmp_index.name)
+        
+        build_index(embeddings_orig, orig_ids, tmp_index_path, index_config, save_metadata=False)
+        
+        # Load index and query
+        index, _ = load_index(tmp_index_path)
+        
+        # Query with manipulated embeddings (use mean of all segments)
+        query_emb = np.mean(embeddings_manip, axis=0) if len(embeddings_manip) > 1 else embeddings_manip[0]
+        results = query_index(index, query_emb, topk=10, ids=orig_ids, normalize=True)
+        
+        # Clean up temp index
+        try:
+            tmp_index_path.unlink()
+        except:
+            pass
+        
+        # Check if original is in results
+        matched = False
+        rank = None
+        similarity = 0.0
+        top_match = None
+        
+        if results and len(results) > 0:
+            top_match = results[0].get("id", "")
+            similarity = results[0].get("similarity", 0.0)
+            
+            # Check if any result matches original
+            for i, result in enumerate(results):
+                result_id = result.get("id", "")
+                if orig_id in result_id:
+                    matched = True
+                    rank = i + 1
+                    similarity = result.get("similarity", similarity)
+                    break
+        
+        # Also compute direct cosine similarity
+        orig_mean = np.mean(embeddings_orig, axis=0) if len(embeddings_orig) > 1 else embeddings_orig[0]
+        direct_similarity = float(np.dot(query_emb, orig_mean))  # Cosine similarity for normalized vectors
+        
+        final_matched = matched or direct_similarity > 0.7
+        final_similarity = float(max(similarity, direct_similarity))
+        
+        # Automatically generate Phase 1 and Phase 2 reports
+        report_data = None
+        try:
+            report_data = auto_generate_test_reports(
+                original_file=original_file,
+                manipulated_file=manipulated_file,
+                test_result={
+                    "matched": final_matched,
+                    "similarity": final_similarity,
+                    "direct_similarity": float(direct_similarity),
+                    "rank": rank,
+                    "top_match": top_match,
+                    "original_id": orig_id
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to auto-generate reports: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        
+        response_data = {
+            "status": "success",
+            "matched": final_matched,
+            "similarity": final_similarity,
+            "direct_similarity": float(direct_similarity),
+            "rank": rank,
+            "top_match": top_match,
+            "message": f"Fingerprint test: {'MATCHED ✓' if final_matched else 'NOT MATCHED ✗'} (similarity: {final_similarity:.3f})"
+        }
+        
+        if report_data:
+            response_data["report_id"] = report_data.get("report_id")
+            response_data["report_path"] = report_data.get("report_path")
+            response_data["phase"] = report_data.get("phase")
+        
+        return JSONResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"Fingerprint test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
 @app.get("/api/runs")
@@ -1759,6 +1811,7 @@ async def list_runs():
                         with open(metrics_file, 'r') as f:
                             metrics = json.load(f)
                             run_info["summary"] = metrics.get("summary", {})
+                            run_info["phase"] = metrics.get("summary", {}).get("phase") or metrics.get("test_details", {}).get("phase", "unknown")
                     except:
                         pass
                 

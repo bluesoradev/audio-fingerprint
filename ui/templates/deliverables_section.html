@@ -1,0 +1,87 @@
+<!-- Deliverables Section - Completely Rewritten -->
+<div id="deliverables" class="section">
+    <div class="section-header">
+        <h2>📊 Deliverables & Reports</h2>
+        <p class="section-description">Automatically generated Phase 1 and Phase 2 test reports</p>
+    </div>
+
+    <!-- Reports Overview -->
+    <div class="reports-overview">
+        <div class="overview-card phase1-card">
+            <div class="overview-header">
+                <h3>📈 Phase 1: Core Manipulation</h3>
+                <span class="phase-badge phase1-badge">PHASE 1</span>
+            </div>
+            <div class="overview-stats" id="phase1Stats">
+                <div class="stat-item">
+                    <span class="stat-value" id="phase1Count">0</span>
+                    <span class="stat-label">Reports</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="phase1PassRate">-</span>
+                    <span class="stat-label">Pass Rate</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="overview-card phase2-card">
+            <div class="overview-header">
+                <h3>📈 Phase 2: Structural Manipulation</h3>
+                <span class="phase-badge phase2-badge">PHASE 2</span>
+            </div>
+            <div class="overview-stats" id="phase2Stats">
+                <div class="stat-item">
+                    <span class="stat-value" id="phase2Count">0</span>
+                    <span class="stat-label">Reports</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="phase2PassRate">-</span>
+                    <span class="stat-label">Pass Rate</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports List -->
+    <div class="reports-container">
+        <!-- Phase 1 Reports -->
+        <div class="reports-section">
+            <h3 class="reports-section-title">
+                <span class="section-icon">📊</span>
+                Phase 1 Reports
+            </h3>
+            <div id="phase1ReportsList" class="reports-list">
+                <div class="empty-state">
+                    <p>No Phase 1 reports yet. Run fingerprint tests to generate reports automatically.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 2 Reports -->
+        <div class="reports-section">
+            <h3 class="reports-section-title">
+                <span class="section-icon">📊</span>
+                Phase 2 Reports
+            </h3>
+            <div id="phase2ReportsList" class="reports-list">
+                <div class="empty-state">
+                    <p>No Phase 2 reports yet. Run fingerprint tests to generate reports automatically.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Viewer Modal -->
+    <div id="reportViewerModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Report Details</h3>
+                <button class="modal-close" onclick="closeReportViewer()">×</button>
+            </div>
+            <div id="modalBody" class="modal-body">
+                <!-- Report content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
