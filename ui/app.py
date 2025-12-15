@@ -354,11 +354,39 @@ async def generate_deliverables_api(
     
     manifest_file = PROJECT_ROOT / manifest_path
     
+    # Auto-create a manifest if missing by scanning data/originals and data/test_audio
     if not manifest_file.exists():
-        return JSONResponse({
-            "status": "error",
-            "message": f"Manifest file not found: {manifest_path}"
-        }, status_code=404)
+        try:
+            audio_extensions = {".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg"}
+            roots = [PROJECT_ROOT / "data" / "originals", PROJECT_ROOT / "data" / "test_audio"]
+            entries = []
+            idx = 1
+            for root in roots:
+                if root.exists():
+                    for p in sorted(root.iterdir()):
+                        if p.suffix.lower() in audio_extensions and p.is_file():
+                            entries.append({"id": f"track{idx}", "title": p.stem, "path": str(p.relative_to(PROJECT_ROOT)).replace("\\", "/")})
+                            idx += 1
+            if entries:
+                manifest_file.parent.mkdir(parents=True, exist_ok=True)
+                import csv
+                with open(manifest_file, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=["id", "title", "path"])
+                    writer.writeheader()
+                    for row in entries:
+                        writer.writerow(row)
+                logger.info(f"[generate-deliverables] Auto-created manifest with {len(entries)} entries at {manifest_file}")
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": f"Manifest file not found and no audio files to auto-create manifest: {manifest_path}"
+                }, status_code=404)
+        except Exception as e:
+            logger.error(f"[generate-deliverables] Failed to auto-create manifest: {e}")
+            return JSONResponse({
+                "status": "error",
+                "message": f"Manifest file not found: {manifest_path}"
+            }, status_code=404)
     
     if phase == "both":
         # Generate both phases
