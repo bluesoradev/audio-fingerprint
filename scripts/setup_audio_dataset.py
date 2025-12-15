@@ -56,6 +56,11 @@ def create_manifest_from_urls(urls: list, output_path: Path, genre: str = "hip h
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
+    # Delete old CSV file if it exists
+    if output_path.exists():
+        output_path.unlink()
+        logger.info(f"🗑️ Deleted old manifest: {output_path}")
+    
     logger.info(f"Creating manifest with {len(urls)} URLs...")
     
     with open(output_path, 'w', newline='', encoding='utf-8') as f:

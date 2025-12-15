@@ -799,6 +799,18 @@ function updateOverlayFileName() {
     }
 }
 
+function updateDeliverablesOverlayFileName() {
+    const fileInput = document.getElementById('deliverablesOverlayFile');
+    const fileNameDisplay = document.getElementById('deliverablesOverlayFileName');
+    if (fileInput && fileNameDisplay) {
+        if (fileInput.files && fileInput.files.length > 0) {
+            fileNameDisplay.textContent = fileInput.files[0].name;
+        } else {
+            fileNameDisplay.textContent = 'No file chosen';
+        }
+    }
+}
+
 function generateWaveform(container, filePath) {
     // Simple waveform visualization - can be enhanced later
     if (!container) return;
@@ -2508,15 +2520,12 @@ async function loadDeliverables() {
         const response = await fetch(`${API_BASE}/runs`);
         const result = await response.json();
         
+        const phase1Card = document.getElementById('phase1ReportCard');
+        const phase2Card = document.getElementById('phase2ReportCard');
         const deliverablesListDiv = document.getElementById('deliverablesList');
         
-        if (!deliverablesListDiv) {
-            console.error('deliverablesList element not found');
-            return;
-        }
-        
         if (result.runs && result.runs.length > 0) {
-            // Group runs by phase (detect from metrics.summary.phase when available; fall back to id/path hints)
+            // Group runs by phase
             const phase1Runs = [];
             const phase2Runs = [];
             const otherRuns = [];
@@ -2546,129 +2555,136 @@ async function loadDeliverables() {
             phase2Runs.sort(sortByTime);
             otherRuns.sort(sortByTime);
             
-            // Show the most recent per phase; keep the rest in "Other"
-            const mostRecentPhase1 = phase1Runs.length > 0 ? [phase1Runs[0]] : [];
-            const mostRecentPhase2 = phase2Runs.length > 0 ? [phase2Runs[0]] : [];
-            
-            let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
-            
-            // Phase 1 Section
-            html += '<div class="group-box" style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 2px solid #427eea;">';
-            html += '<h4 style="color: #427eea; margin-bottom: 15px; font-size: 1.2em;">📈 Phase 1: Core Manipulation</h4>';
-            if (mostRecentPhase1.length > 0) {
-                mostRecentPhase1.forEach(run => {
-                    const date = new Date(run.timestamp * 1000).toLocaleString();
-                    const reportPath = `${run.path}/final_report/report.html`;
-                    const hasReport = run.has_summary || run.has_metrics;
+            // Update Phase 1 Card
+            if (phase1Card) {
+                const mostRecentPhase1 = phase1Runs.length > 0 ? phase1Runs[0] : null;
+                if (mostRecentPhase1) {
+                    const date = new Date(mostRecentPhase1.timestamp * 1000);
+                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const reportPath = `${mostRecentPhase1.path}/final_report/report.html`;
+                    const hasReport = mostRecentPhase1.has_summary || mostRecentPhase1.has_metrics;
                     
-                    html += `
-                        <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
-                             onmouseover="this.style.borderColor='#427eea'; this.style.background='#2d3d4d';" 
-                             onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div style="flex: 1;">
-                                    <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
-                                    <p style="color: #9ca3af; font-size: 11px; margin: 0 0 8px 0;">${date}</p>
-                                    ${hasReport ? '<span style="background: #10b981; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Complete</span>' : 
-                                      '<span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">In Progress</span>'}
-                                </div>
-                                <div style="display: flex; gap: 8px; margin-left: 10px;">
-                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
-                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #3d3d3d;">Details</button>
-                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
-                                </div>
-                            </div>
-                        </div>
+                    phase1Card.innerHTML = `
+                        <div style="font-size: 48px; margin-bottom: 10px;">${hasReport ? '✅' : '⏳'}</div>
+                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${mostRecentPhase1.id}</p>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${dateStr}</p>
+                        ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${mostRecentPhase1.id}')" style="margin-top: 10px; font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
                     `;
-                });
-            } else {
-                html += '<p style="color: #9ca3af; padding: 20px; text-align: center;">No Phase 1 reports found.<br><small>Run Phase 1 tests to generate reports.</small></p>';
+                } else {
+                    phase1Card.innerHTML = `
+                        <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 1 reports found.</p>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 1 tests to generate reports.</p>
+                    `;
+                }
             }
-            html += '</div>';
             
-            // Phase 2 Section
-            html += '<div class="group-box" style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 2px solid #10b981;">';
-            html += '<h4 style="color: #10b981; margin-bottom: 15px; font-size: 1.2em;">📈 Phase 2: Structural Manipulation</h4>';
-            if (mostRecentPhase2.length > 0) {
-                mostRecentPhase2.forEach(run => {
-                    const date = new Date(run.timestamp * 1000).toLocaleString();
-                    const reportPath = `${run.path}/final_report/report.html`;
-                    const hasReport = run.has_summary || run.has_metrics;
+            // Update Phase 2 Card
+            if (phase2Card) {
+                const mostRecentPhase2 = phase2Runs.length > 0 ? phase2Runs[0] : null;
+                if (mostRecentPhase2) {
+                    const date = new Date(mostRecentPhase2.timestamp * 1000);
+                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const reportPath = `${mostRecentPhase2.path}/final_report/report.html`;
+                    const hasReport = mostRecentPhase2.has_summary || mostRecentPhase2.has_metrics;
                     
-                    html += `
-                        <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
-                             onmouseover="this.style.borderColor='#10b981'; this.style.background='#2d3d2d';" 
-                             onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div style="flex: 1;">
-                                    <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
-                                    <p style="color: #9ca3af; font-size: 11px; margin: 0 0 8px 0;">${date}</p>
-                                    ${hasReport ? '<span style="background: #10b981; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Complete</span>' : 
-                                      '<span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">In Progress</span>'}
-                                </div>
-                                <div style="display: flex; gap: 8px; margin-left: 10px;">
-                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
-                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #3d3d3d;">Details</button>
-                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
-                                </div>
-                            </div>
-                        </div>
+                    phase2Card.innerHTML = `
+                        <div style="font-size: 48px; margin-bottom: 10px;">${hasReport ? '✅' : '⏳'}</div>
+                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${mostRecentPhase2.id}</p>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${dateStr}</p>
+                        ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${mostRecentPhase2.id}')" style="margin-top: 10px; font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
                     `;
-                });
-            } else {
-                html += '<p style="color: #9ca3af; padding: 20px; text-align: center;">No Phase 2 reports found.<br><small>Run Phase 2 tests to generate reports.</small></p>';
+                } else {
+                    phase2Card.innerHTML = `
+                        <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 2 reports found.</p>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 2 tests to generate reports.</p>
+                    `;
+                }
             }
-            html += '</div>';
             
-            html += '</div>';
-            
-            // Other runs section (includes older Phase1/2 and unknowns)
-            if (otherRuns.length > 0 || phase1Runs.length > 1 || phase2Runs.length > 1) {
-                html += '<div class="group-box" style="margin-top: 20px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #3d3d3d;">';
-                html += '<h4 style="color: #9ca3af; margin-bottom: 15px; font-size: 1.1em;">📊 Other Reports</h4>';
+            // Update Other Reports List
+            if (deliverablesListDiv) {
                 const combinedOthers = [...otherRuns, ...phase1Runs.slice(1), ...phase2Runs.slice(1)];
                 combinedOthers.sort(sortByTime);
-                combinedOthers.forEach(run => {
-                    const date = run.timestamp ? new Date(run.timestamp * 1000).toLocaleString() : '';
-                    const reportPath = `${run.path}/final_report/report.html`;
-                    const hasReport = run.has_summary || run.has_metrics;
-                    html += `
-                        <div style="padding: 12px; margin-bottom: 10px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
+                
+                if (combinedOthers.length > 0) {
+                    let html = '';
+                    combinedOthers.forEach(run => {
+                        const date = run.timestamp ? new Date(run.timestamp * 1000) : null;
+                        const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pending';
+                        const reportPath = `${run.path}/final_report/report.html`;
+                        const hasReport = run.has_summary || run.has_metrics;
+                        
+                        // Calculate size (placeholder - would need actual file size)
+                        const sizeStr = '1.2 MB'; // Placeholder
+                        
+                        html += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d;">
+                                <div style="flex: 1;">
                                     <strong style="color: #ffffff; font-size: 13px;">${run.id}</strong>
-                                    <p style="color: #9ca3af; font-size: 10px; margin: 3px 0 0 0;">${date || 'Pending...'}</p>
+                                    <p style="color: #9ca3af; font-size: 11px; margin: 3px 0 0 0;">${dateStr} | ${sizeStr}</p>
                                 </div>
-                                <div style="display: flex; gap: 8px;">
-                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 5px 10px;">View</button>` : ''}
+                                <div style="display: flex; gap: 8px; align-items: center;">
                                     <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #3d3d3d;">Details</button>
-                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
+                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #427eea; color: #ffffff;" title="Download">⬇️</button>` : ''}
                                 </div>
                             </div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
+                        `;
+                    });
+                    deliverablesListDiv.innerHTML = html;
+                } else {
+                    deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No other reports found.</p>';
+                }
             }
-            
-            deliverablesListDiv.innerHTML = html;
         } else {
-            deliverablesListDiv.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #9ca3af;">
-                    <p style="font-size: 16px; margin-bottom: 10px;">No deliverables found</p>
-                    <p style="font-size: 12px;">Run fingerprint robustness tests to automatically generate Phase 1 and Phase 2 reports.</p>
-                </div>
-            `;
+            // No reports found
+            if (phase1Card) {
+                phase1Card.innerHTML = `
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
+                    <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 1 reports found.</p>
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 1 tests to generate reports.</p>
+                `;
+            }
+            if (phase2Card) {
+                phase2Card.innerHTML = `
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
+                    <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 2 reports found.</p>
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 2 tests to generate reports.</p>
+                `;
+            }
+            if (deliverablesListDiv) {
+                deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No other reports found.</p>';
+            }
         }
     } catch (error) {
         console.error('Failed to load deliverables:', error);
+        const phase1Card = document.getElementById('phase1ReportCard');
+        const phase2Card = document.getElementById('phase2ReportCard');
         const deliverablesListDiv = document.getElementById('deliverablesList');
-        if (deliverablesListDiv) {
-            deliverablesListDiv.innerHTML = `
-                <div style="padding: 20px; background: #3a1e1e; border-radius: 6px; border: 1px solid #f87171;">
-                    <p style="color: #f87171; margin: 0;">Error loading deliverables: ${error.message}</p>
-                </div>
+        
+        if (phase1Card) {
+            phase1Card.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
+                <p style="color: #f87171; font-size: 12px; margin: 5px 0;">Error loading reports.</p>
             `;
+        }
+        if (phase2Card) {
+            phase2Card.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
+                <p style="color: #f87171; font-size: 12px; margin: 5px 0;">Error loading reports.</p>
+            `;
+        }
+        if (deliverablesListDiv) {
+            deliverablesListDiv.innerHTML = `<p style="color: #f87171; font-size: 12px;">Error loading reports: ${error.message}</p>`;
         }
     }
 }
@@ -2905,21 +2921,20 @@ async function loadDeliverablesAudioFiles() {
 }
 
 function loadDeliverablesAudioInfo(filePath) {
+    const infoDiv = document.getElementById('deliverablesAudioInfo');
+    const fileNameSpan = document.getElementById('deliverablesSelectedFileName');
+    const filePathSpan = document.getElementById('deliverablesSelectedFilePath');
+    
     if (!filePath) {
         deliverablesSelectedAudioFile = null;
-        const infoDiv = document.getElementById('deliverablesAudioInfo');
-        if (infoDiv) {
-            infoDiv.style.display = 'none';
-        }
+        if (fileNameSpan) fileNameSpan.textContent = '';
+        if (filePathSpan) filePathSpan.textContent = '';
+        if (infoDiv) infoDiv.style.display = 'block';
         updateDeliverablesTransformState();
         return;
     }
     
     deliverablesSelectedAudioFile = filePath;
-    
-    const infoDiv = document.getElementById('deliverablesAudioInfo');
-    const fileNameSpan = document.getElementById('deliverablesSelectedFileName');
-    const filePathSpan = document.getElementById('deliverablesSelectedFilePath');
     
     if (infoDiv && fileNameSpan && filePathSpan) {
         const fileName = filePath.split('/').pop();
@@ -3001,7 +3016,7 @@ function updateDeliverablesSpeedValue(value) {
 function updateDeliverablesPitchValue(value) {
     const display = document.getElementById('deliverablesPitchValue');
     if (display) {
-        display.textContent = value;
+        display.textContent = parseFloat(value).toFixed(1);
     }
     updateDeliverablesTransformState();
 }
@@ -3009,7 +3024,7 @@ function updateDeliverablesPitchValue(value) {
 function updateDeliverablesReverbValue(value) {
     const display = document.getElementById('deliverablesReverbValue');
     if (display) {
-        display.textContent = value;
+        display.textContent = parseFloat(value).toFixed(1) + 'ms';
     }
     updateDeliverablesTransformState();
 }
@@ -3025,7 +3040,7 @@ function updateDeliverablesNoiseValue(value) {
 function updateDeliverablesEQValue(value) {
     const display = document.getElementById('deliverablesEQValue');
     if (display) {
-        display.textContent = value + ' dB';
+        display.textContent = parseFloat(value).toFixed(1) + 'dB';
     }
     updateDeliverablesTransformState();
 }
@@ -3033,25 +3048,29 @@ function updateDeliverablesEQValue(value) {
 function updateDeliverablesOverlayGainValue(value) {
     const display = document.getElementById('deliverablesOverlayGainValue');
     if (display) {
-        display.textContent = value;
+        display.textContent = parseFloat(value).toFixed(1) + 'dB';
     }
     updateDeliverablesTransformState();
 }
 
 function updateDeliverablesSliderDisplay(type, value) {
     const displayMap = {
-        'highpass': { id: 'deliverablesHighpassDisplay', suffix: ' Hz' },
-        'lowpass': { id: 'deliverablesLowpassDisplay', suffix: ' Hz' },
-        'boostHighs': { id: 'deliverablesBoostHighsDisplay', suffix: ' dB' },
-        'boostLows': { id: 'deliverablesBoostLowsDisplay', suffix: ' dB' },
-        'limiting': { id: 'deliverablesLimitingDisplay', suffix: ' dB' },
-        'noiseSNR': { id: 'deliverablesNoiseSNRDisplay', suffix: ' dB' }
+        'highpass': { id: 'deliverablesHighpassDisplay', suffix: 'Hz', decimals: 1 },
+        'lowpass': { id: 'deliverablesLowpassDisplay', suffix: 'Hz', decimals: 1 },
+        'boostHighs': { id: 'deliverablesBoostHighsDisplay', suffix: 'dB', decimals: 1 },
+        'boostLows': { id: 'deliverablesBoostLowsDisplay', suffix: 'dB', decimals: 1 },
+        'limiting': { id: 'deliverablesLimitingDisplay', suffix: 'dB', decimals: 1 },
+        'noiseSNR': { id: 'deliverablesNoiseSNRDisplay', suffix: 'dB', decimals: 1 },
+        'telephoneLow': { id: 'deliverablesTelephoneLowDisplay', suffix: 'Hz', decimals: 1 },
+        'telephoneHigh': { id: 'deliverablesTelephoneHighDisplay', suffix: 'Hz', decimals: 1 }
     };
     const mapping = displayMap[type];
     if (mapping) {
         const display = document.getElementById(mapping.id);
         if (display) {
-            display.textContent = value + mapping.suffix;
+            const numValue = parseFloat(value);
+            const decimals = mapping.decimals || 0;
+            display.textContent = numValue.toFixed(decimals) + mapping.suffix;
         }
     }
     updateDeliverablesTransformState();
@@ -3103,7 +3122,11 @@ function updateDeliverablesTransformState() {
     const applyBtn = document.getElementById('deliverablesApplyAllBtn');
     
     if (countElement) {
-        countElement.textContent = `${count} transformation${count !== 1 ? 's' : ''} selected: ${enabledTransforms.join(', ')}`;
+        if (count > 0) {
+            countElement.textContent = `${count} transformation${count !== 1 ? 's' : ''} selected: ${enabledTransforms.join(', ')}`;
+        } else {
+            countElement.textContent = '0 transformations selected';
+        }
     }
     
     if (applyBtn) {
