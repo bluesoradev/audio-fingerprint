@@ -2334,17 +2334,17 @@ async function applyCropTransform() {
         
         switch(cropType) {
             case '10s':
-                endpoint = '/api/manipulate/crop/10s';
+                endpoint = '/manipulate/crop/10s';
                 break;
             case '5s':
-                endpoint = '/api/manipulate/crop/5s';
+                endpoint = '/manipulate/crop/5s';
                 break;
             case 'middle':
-                endpoint = '/api/manipulate/crop/middle';
+                endpoint = '/manipulate/crop/middle';
                 formData.append('duration', '10.0');
                 break;
             case 'end':
-                endpoint = '/api/manipulate/crop/end';
+                endpoint = '/manipulate/crop/end';
                 formData.append('duration', '10.0');
                 break;
             default:
