@@ -36,8 +36,11 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
         thresholds = test_config.get("thresholds", {})
         similarity_thresholds = thresholds.get("similarity", {})
     
-    # Plot 1: Recall@K by severity
+    # Extract per_transform and per_severity early (needed for multiple plots)
+    per_transform = metrics.get("per_transform", {})
     per_severity = metrics.get("per_severity", {})
+    
+    # Plot 1: Recall@K by severity
     if per_severity:
         fig, ax = plt.subplots()
         
@@ -128,7 +131,6 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
         plt.close()
     
     # Plot 4: Latency by transform type
-    per_transform = metrics.get("per_transform", {})
     if per_transform:
         fig, ax = plt.subplots()
         
