@@ -1234,19 +1234,20 @@ class ManipulatePage(QWidget):
                 else:
                     # Fallback: use subprocess to play audio (can be killed)
                     logger.warning(f"_play_audio_pydub: Using subprocess fallback (no sounddevice)")
-                    
-                    # Export to WAV file for playback
-                    temp_play_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-                    temp_play_path = temp_play_file.name
-                    temp_play_file.close()
-                    audio_to_play.export(temp_play_path, format="wav")
-                    
-                    playback_start_time = time.time()
-                    audio_length_seconds = len(audio_to_play) / 1000.0
-                    
-                    # Play using system player (can be killed)
+
+                    temp_play_path = None
                     process = None
                     try:
+                        # Export to WAV file for playback
+                        temp_play_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+                        temp_play_path = temp_play_file.name
+                        temp_play_file.close()
+                        audio_to_play.export(temp_play_path, format="wav")
+
+                        playback_start_time = time.time()
+                        audio_length_seconds = len(audio_to_play) / 1000.0
+
+                        # Play using system player (can be killed)
                         if platform.system() == "Windows":
                             # Use Windows Media Player or powershell
                             try:
@@ -1280,7 +1281,7 @@ class ManipulatePage(QWidget):
                                 stderr=subprocess.DEVNULL
                             )
                             logger.debug(f"_play_audio_pydub: Using aplay for playback")
-                        
+
                         # Store process reference so we can kill it
                         if stream_attr == 'original_stream':
                             process_attr = 'original_process'
@@ -1288,14 +1289,14 @@ class ManipulatePage(QWidget):
                         else:
                             process_attr = 'transformed_process'
                             process_lock = self.transformed_process_lock
-                        
+
                         with process_lock:
                             setattr(self, process_attr, process)
-                        
+
                         logger.info(f"_play_audio_pydub: Subprocess started (PID: {process.pid})")
-                        
+
                         # Track position while playing - check stop event very frequently
-                        logger.debug(f"_play_audio_pydub: Entering position tracking loop")
+                        logger.debug(f"_play_audio_pydub: Entering subprocess position tracking loop")
                         while process.poll() is None:  # Process still running
                             if stop_event.is_set():
                                 logger.info(f"_play_audio_pydub: Stop event detected, terminating process")
@@ -1310,28 +1311,28 @@ class ManipulatePage(QWidget):
                                         process.wait(timeout=0.5)
                                     except Exception:
                                         pass
-                        break
-                            
-                            
+                                break
+
                             # Calculate elapsed time
                             elapsed = time.time() - playback_start_time
                             current_pos_ms = start_pos_ms + (elapsed * 1000)
-                    
-                    # Update position
-                    with lock:
+
+                            # Update position
+                            with lock:
                                 setattr(self, position_attr, min(current_pos_ms, len(audio)))
-                            
+
                             # Check if playback finished (based on elapsed time)
                             if elapsed >= audio_length_seconds:
                                 logger.info(f"_play_audio_pydub: Audio finished naturally (elapsed: {elapsed:.2f}s, length: {audio_length_seconds:.2f}s)")
-                            break
+                                break
+
                             # Check stop event very frequently (every 10ms)
                             time.sleep(0.01)
-                        
+
                         # Wait for process to finish if not stopped
                         if not stop_event.is_set() and process.poll() is None:
                             process.wait()
-                        
+
                         # Save current position when stopping
                         if stop_event.is_set():
                             with lock:
@@ -1345,7 +1346,20 @@ class ManipulatePage(QWidget):
                             with lock:
                                 setattr(self, position_attr, len(audio))
                             logger.info(f"_play_audio_pydub: Playback FINISHED - position set to end: {len(audio)}ms")
-                        
+
+                    except Exception as e:
+                        logger.error(f"_play_audio_pydub: Error in subprocess playback: {e}")
+                        if process is not None:
+                            try:
+                                if process.poll() is None:
+                                    process.terminate()
+                                    process.wait(timeout=0.5)
+                            except Exception:
+                                try:
+                                    process.kill()
+                                except Exception:
+                                    pass
+                    finally:
                         # Clear process reference
                         if stream_attr == 'original_stream':
                             process_attr = 'original_process'
@@ -1353,23 +1367,12 @@ class ManipulatePage(QWidget):
                         else:
                             process_attr = 'transformed_process'
                             process_lock = self.transformed_process_lock
-                        
+
                         with process_lock:
-                            if getattr(self, process_attr, None) == process:
+                            if getattr(self, process_attr, None) is process:
                                 setattr(self, process_attr, None)
                                 logger.debug(f"_play_audio_pydub: Process reference cleared")
-        except Exception as e:
-                        logger.error(f"_play_audio_pydub: Error in subprocess playback: {e}")
-                        if process:
-                            try:
-                                process.terminate()
-                                process.wait(timeout=0.5)
-                            except:
-                                try:
-                                    process.kill()
-                                except:
-                                    pass
-        finally:
+
                         # Clean up temp play file
                         if temp_play_path and os.path.exists(temp_play_path):
                             try:
@@ -1519,8 +1522,8 @@ class ManipulatePage(QWidget):
                 self.original_thread.join(timeout=0.2)
                 if self.original_thread.is_alive():
                     logger.warning("toggle_original_playback: Thread still alive after timeout")
-        else:
-                    logger.debug("toggle_original_playback: Thread finished")
+            else:
+                logger.debug("toggle_original_playback: Thread finished")
         else:
             # PLAY: Start or resume playback
             logger.info("toggle_original_playback: PLAY button pressed - starting audio")
@@ -1696,8 +1699,8 @@ class ManipulatePage(QWidget):
                 self.transformed_thread.join(timeout=0.2)
                 if self.transformed_thread.is_alive():
                     logger.warning("toggle_transformed_playback: Thread still alive after timeout")
-        else:
-                    logger.debug("toggle_transformed_playback: Thread finished")
+            else:
+                logger.debug("toggle_transformed_playback: Thread finished")
         else:
             # PLAY: Start or resume playback
             # First, ensure any previous thread is completely stopped

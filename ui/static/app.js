@@ -3219,7 +3219,8 @@ async function runPhaseSuite(phase = 'both') {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
-                manifest_path: 'data/manifests/files_manifest.csv',
+                // Use the existing manifest used by the backend by default
+                manifest_path: 'data/files_manifest.csv',
                 phase
             })
         });
