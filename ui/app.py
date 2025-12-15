@@ -732,7 +732,7 @@ async def serve_audio_file(path: str):
 
 
 @app.get("/api/files/plots/{filename}")
-async def serve_plot_image(filename: str, run_id: str = None):
+async def serve_plot_image(filename: str, run_id: Optional[str] = None):
     """Serve plot image files from reports directory."""
     logger.info(f"[Plot API] Requested filename: {filename}, run_id: {run_id}")
     
@@ -740,20 +740,34 @@ async def serve_plot_image(filename: str, run_id: str = None):
     
     # If run_id is provided, use it directly
     if run_id:
-        potential_path = REPORTS_DIR / run_id / "final_report" / "plots" / filename
-        if potential_path.exists():
-            file_path = potential_path
-            logger.info(f"[Plot API] Found file using run_id: {file_path}")
+        # Try multiple possible paths
+        possible_paths = [
+            REPORTS_DIR / run_id / "final_report" / "plots" / filename,
+            REPORTS_DIR / run_id / "plots" / filename,
+            REPORTS_DIR / run_id / filename,
+        ]
+        for potential_path in possible_paths:
+            if potential_path.exists():
+                file_path = potential_path
+                logger.info(f"[Plot API] Found file using run_id: {file_path}")
+                break
     
     # Otherwise, search for the file in the most recent report directory
     if not file_path:
         # Find the most recent run directory
         run_dirs = sorted([d for d in REPORTS_DIR.glob("run_*") if d.is_dir()], reverse=True)
         for report_dir in run_dirs:
-            potential_path = report_dir / "final_report" / "plots" / filename
-            if potential_path.exists():
-                file_path = potential_path
-                logger.info(f"[Plot API] Found file in: {file_path}")
+            possible_paths = [
+                report_dir / "final_report" / "plots" / filename,
+                report_dir / "plots" / filename,
+                report_dir / filename,
+            ]
+            for potential_path in possible_paths:
+                if potential_path.exists():
+                    file_path = potential_path
+                    logger.info(f"[Plot API] Found file in: {file_path}")
+                    break
+            if file_path:
                 break
     
     if file_path and file_path.exists() and file_path.suffix.lower() in [".png", ".jpg", ".jpeg", ".svg"]:
@@ -761,8 +775,29 @@ async def serve_plot_image(filename: str, run_id: str = None):
         media_type = "image/png" if file_path.suffix.lower() == ".png" else "image/jpeg"
         return FileResponse(file_path, media_type=media_type)
     else:
-        logger.warning(f"[Plot API] Plot image not found: {filename}")
-        return JSONResponse({"error": f"Plot image not found: {filename}"}, status_code=404)
+        logger.warning(f"[Plot API] Plot image not found: {filename} (run_id: {run_id})")
+        logger.info(f"[Plot API] Searched in: {REPORTS_DIR}")
+        # Return a transparent 1x1 PNG instead of 404 to prevent broken image icons
+        # This allows the onerror handler in the frontend to show the placeholder message
+        try:
+            from io import BytesIO
+            try:
+                from PIL import Image
+                img = Image.new('RGBA', (1, 1), (0, 0, 0, 0))
+                img_bytes = BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+                return Response(content=img_bytes.read(), media_type="image/png")
+            except ImportError:
+                # If PIL not available, return a minimal valid PNG (1x1 transparent)
+                # PNG header + minimal data
+                minimal_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82'
+                return Response(content=minimal_png, media_type="image/png")
+        except Exception as e:
+            logger.error(f"[Plot API] Error creating placeholder image: {e}")
+            # Return minimal PNG as fallback
+            minimal_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82'
+            return Response(content=minimal_png, media_type="image/png")
 
 
 @app.post("/api/upload/audio")
