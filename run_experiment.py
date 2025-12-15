@@ -270,7 +270,7 @@ def run_full_experiment(
             final_report_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate plots
-            generate_plots(metrics_path, final_report_dir)
+            generate_plots(metrics_path, final_report_dir, config_path)
             
             # Generate HTML
             html_path = final_report_dir / "report.html"

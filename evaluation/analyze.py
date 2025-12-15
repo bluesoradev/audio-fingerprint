@@ -100,6 +100,36 @@ def analyze_results(
                 },
             }
     
+    # Evaluate similarity thresholds (per-severity)
+    similarity_thresholds = thresholds.get("similarity", {})
+    for severity in pass_fail.keys():
+        if severity in per_severity:
+            severity_similarity = per_severity[severity]["similarity"]
+            mean_sim = severity_similarity.get("mean_similarity_correct", 0.0)
+            sim_threshold = similarity_thresholds.get(f"min_score_{severity}", 0.0)
+            
+            pass_fail[severity]["similarity"] = {
+                "threshold": sim_threshold,
+                "actual": mean_sim,
+                "passed": mean_sim >= sim_threshold,
+            }
+    
+    # Evaluate latency thresholds (overall, not per-severity)
+    latency_thresholds = thresholds.get("latency", {})
+    pass_fail["overall"] = pass_fail.get("overall", {})
+    pass_fail["overall"]["latency"] = {
+        "mean_ms": {
+            "threshold": latency_thresholds.get("max_mean_ms", 1000),
+            "actual": latency_stats.get("mean_latency_ms", 0.0),
+            "passed": latency_stats.get("mean_latency_ms", 0.0) <= latency_thresholds.get("max_mean_ms", 1000),
+        },
+        "p95_ms": {
+            "threshold": latency_thresholds.get("max_p95_ms", 2000),
+            "actual": latency_stats.get("p95_latency_ms", 0.0),
+            "passed": latency_stats.get("p95_latency_ms", 0.0) <= latency_thresholds.get("max_p95_ms", 2000),
+        },
+    }
+    
     # Compile full results
     results = {
         "overall": {
