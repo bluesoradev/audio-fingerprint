@@ -1035,9 +1035,9 @@
                     </div>
 
                     <div class="group-box" style="margin-bottom: 20px;">
-                        <h3>2. Configure Transformations</h3>
+                        <h3>2. Configure Transformations (Quick Single Run)</h3>
                         <p style="color: #9ca3af; margin-bottom: 15px; font-size: 12px;">
-                            Configure multiple transformations below. All selected transformations will be applied sequentially when you click "Apply All & Generate Reports".
+                            This is a quick single-run apply. It does <strong>not</strong> generate the full Phase 1/Phase 2 matrix reports—use the "Full Test Suites" buttons below for that.
                         </p>
                         
                         <div class="transform-grid">
@@ -1369,10 +1369,21 @@
 
                         <!-- Single Apply Button -->
                         <div style="margin-top: 30px; text-align: center;">
-                            <button id="deliverablesApplyAllBtn" class="btn btn-success" style="padding: 15px 40px; font-size: 16px; font-weight: bold;" onclick="applyAllDeliverablesTransforms()" disabled>
-                                🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports
+                            <button id="deliverablesApplyAllBtn" class="btn btn-warning" style="padding: 15px 40px; font-size: 16px; font-weight: bold;" onclick="applyAllDeliverablesTransforms()" disabled>
+                                ⚡ Quick Apply (Single Transform Run)
                             </button>
                             <p id="deliverablesTransformCount" style="color: #9ca3af; margin-top: 10px; font-size: 12px;">0 transformations selected</p>
+                            <p style="color:#fbbf24; font-size:12px; margin-top:6px;">Quick run only. Does not produce full Phase 1/Phase 2 matrix reports.</p>
+                        </div>
+                    </div>
+
+                    <div class="group-box" style="margin-bottom: 20px;">
+                        <h3>3. Full Test Suites (Generate Real Phase 1 / Phase 2 Reports)</h3>
+                        <p style="color:#9ca3af; margin-bottom:10px; font-size:12px;">Runs the complete test matrices and produces comprehensive reports.</p>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="btn btn-primary" onclick="runPhaseSuite('phase1')">Run Phase 1 Suite</button>
+                            <button class="btn btn-success" onclick="runPhaseSuite('phase2')">Run Phase 2 Suite</button>
+                            <button class="btn btn-secondary" onclick="runPhaseSuite('both')">Run Both Phases</button>
                         </div>
                     </div>
 

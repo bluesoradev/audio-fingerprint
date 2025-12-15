@@ -2992,13 +2992,13 @@ function updateDeliverablesTransformState() {
         
         // Update button text to indicate if transformations are selected
         if (deliverablesSelectedAudioFile && count === 0) {
-            applyBtn.textContent = '⚠️ Please Enable At Least One Transformation';
+            applyBtn.textContent = '⚠️ Please Enable At Least One Transformation (Quick Apply)';
             applyBtn.style.opacity = '0.7';
         } else if (deliverablesSelectedAudioFile && count > 0) {
-            applyBtn.textContent = '🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports';
+            applyBtn.textContent = '⚡ Quick Apply (Single Transform Run)';
             applyBtn.style.opacity = '1';
         } else {
-            applyBtn.textContent = '🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports';
+            applyBtn.textContent = '⚡ Quick Apply (Single Transform Run)';
             applyBtn.style.opacity = '1';
         }
     } else {
@@ -3006,7 +3006,7 @@ function updateDeliverablesTransformState() {
     }
 }
 
-// Apply all selected transformations and generate reports
+// Apply all selected transformations (quick single run, no full reports)
 async function applyAllDeliverablesTransforms() {
     if (!deliverablesSelectedAudioFile) {
         showError('Please select an audio file first');
@@ -3148,15 +3148,15 @@ async function applyAllDeliverablesTransforms() {
     const applyBtn = document.getElementById('deliverablesApplyAllBtn');
     if (applyBtn) {
         applyBtn.disabled = true;
-        applyBtn.textContent = '⏳ Processing...';
+        applyBtn.textContent = '⏳ Processing quick apply...';
     }
     
     try {
-        // Call backend endpoint to apply all transforms and generate reports
+        // Call backend endpoint to apply all transforms (no full reports)
         const formData = new FormData();
         formData.append('input_path', deliverablesSelectedAudioFile);
         formData.append('transforms', JSON.stringify(enabledTransforms));
-        formData.append('generate_reports', 'true');
+        formData.append('generate_reports', 'false');
         
         // Add overlay file if provided
         const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
@@ -3184,29 +3184,12 @@ async function applyAllDeliverablesTransforms() {
         const result = await response.json();
         
         if (result.status === 'success') {
-            showCompletionAlert(`Successfully applied ${enabledTransforms.length} transformation(s) and generated Phase 1 & Phase 2 reports!`);
-            
-            // Reload deliverables list and dashboard immediately and retry if needed
-            const reloadDeliverables = async (retries = 5) => {
-                try {
-                    await loadDeliverables();
-                    loadDashboard(); // Refresh Dashboard section
-                    // Verify reports were loaded
-                    const deliverablesListDiv = document.getElementById('deliverablesList');
-                    if (deliverablesListDiv && deliverablesListDiv.innerHTML.includes('No deliverables found')) {
-                        if (retries > 0) {
-                            setTimeout(() => reloadDeliverables(retries - 1), 2000);
-                        }
-                    }
-                } catch (error) {
-                    if (retries > 0) {
-                        setTimeout(() => reloadDeliverables(retries - 1), 2000);
-                    }
-                }
-            };
-            
-            // Start reloading immediately and retry if needed
-            reloadDeliverables();
+            showCompletionAlert(`Quick apply succeeded: ${enabledTransforms.length} transformation(s). No full Phase 1/Phase 2 matrix reports generated.`, 'info');
+            // Reload deliverables/dashboard to refresh lists
+            setTimeout(() => {
+                loadDeliverables();
+                loadDashboard();
+            }, 1000);
         } else {
             throw new Error(result.message || 'Failed to apply transformations');
         }
@@ -3216,7 +3199,57 @@ async function applyAllDeliverablesTransforms() {
     } finally {
         if (applyBtn) {
             applyBtn.disabled = false;
-            applyBtn.textContent = '🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports';
+            applyBtn.textContent = '⚡ Quick Apply (Single Transform Run)';
         }
+    }
+}
+
+// Run full Phase 1/Phase 2 suites (uses full test matrices to generate comprehensive reports)
+async function runPhaseSuite(phase = 'both') {
+    try {
+        const btnText = {
+            both: 'Generating Phase 1 & 2…',
+            phase1: 'Generating Phase 1…',
+            phase2: 'Generating Phase 2…'
+        }[phase] || 'Generating…';
+
+        showCompletionAlert(btnText, 'info');
+
+        const resp = await fetch(`${API_BASE}/deliverables`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                manifest_path: 'data/manifests/files_manifest.csv',
+                phase
+            })
+        });
+
+        if (!resp.ok) {
+            let msg = `HTTP ${resp.status}`;
+            try {
+                const data = await resp.json();
+                msg = data.message || msg;
+            } catch {
+                const text = await resp.text();
+                msg = `${msg}: ${text.substring(0, 200)}`;
+            }
+            throw new Error(msg);
+        }
+
+        // Retry load to catch completion
+        const reload = async (retries = 6) => {
+            try {
+                await loadDeliverables();
+                await loadDashboard();
+                if (retries > 0) {
+                    setTimeout(() => reload(retries - 1), 5000);
+                }
+            } catch {
+                if (retries > 0) setTimeout(() => reload(retries - 1), 5000);
+            }
+        };
+        reload();
+    } catch (e) {
+        showError(`Failed to run suite: ${e.message}`);
     }
 }
