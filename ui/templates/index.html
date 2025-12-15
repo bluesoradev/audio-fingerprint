@@ -1018,8 +1018,23 @@
                 <div id="deliverables" class="section">
                     <h2>📈 Deliverables & Reports</h2>
                     <p style="margin-bottom: 20px; color: #9ca3af;">
-                        Automatically generated Phase 1 and Phase 2 test reports. Reports are created automatically when you run fingerprint robustness tests.
+                        <strong>Single-test reports</strong> are generated automatically when you test individual transformations. 
+                        <strong>Comprehensive reports</strong> cover all transformations in Phase 1 and Phase 2 test matrices.
                     </p>
+                    
+                    <div class="group-box" style="margin-bottom: 20px;">
+                        <h3>Generate Comprehensive Reports</h3>
+                        <p style="color: #9ca3af; margin-bottom: 15px;">
+                            Generate complete Phase 1 and Phase 2 reports by running all transformations defined in the test matrices. 
+                            This will test all transformations and generate comprehensive metrics.
+                        </p>
+                        <button class="btn btn-success" onclick="generateComprehensiveReports()" style="padding: 12px 24px; font-size: 14px;">
+                            🚀 Generate Full Phase 1 & Phase 2 Reports
+                        </button>
+                        <p style="color: #fbbf24; margin-top: 10px; font-size: 12px;">
+                            ⚠️ Note: This process may take several minutes to complete. Check the Logs section for progress.
+                        </p>
+                    </div>
                     
                     <div class="group-box" style="margin-bottom: 20px;">
                         <h3>Phase 1 & Phase 2 Reports</h3>

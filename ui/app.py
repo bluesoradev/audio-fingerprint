@@ -1470,6 +1470,37 @@ async def manipulate_chain(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+def determine_transform_phase(manipulated_file_path: Path) -> str:
+    """
+    Determine which phase a transformation belongs to based on file name/type.
+    
+    Phase 2 transformations:
+    - overlay, vocals, percussion, melodic
+    - noise, vinyl, crackle
+    - reverb
+    - crop, 10s, 5s, middle, end
+    
+    Phase 1 transformations (default):
+    - speed, pitch, eq, compression, limiting, multiband, etc.
+    """
+    filename = manipulated_file_path.stem.lower()
+    
+    # Phase 2 transformation keywords
+    phase2_keywords = [
+        'overlay', 'vocals', 'percussion', 'melodic',
+        'noise', 'vinyl', 'crackle',
+        'reverb',
+        'crop', '10s', '5s', 'middle', 'end'
+    ]
+    
+    # Check if it's a Phase 2 transform
+    if any(keyword in filename for keyword in phase2_keywords):
+        return "phase2"
+    
+    # Default to Phase 1 (speed, pitch, eq, compression, limiting, multiband, etc.)
+    return "phase1"
+
+
 def auto_generate_test_reports(original_file: Path, manipulated_file: Path, test_result: dict, phase: str = "phase1") -> dict:
     """Automatically generate Phase 1 or Phase 2 report from fingerprint test."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1867,7 +1898,11 @@ async def test_fingerprint(
         final_matched = matched or direct_similarity > 0.7
         final_similarity = float(max(similarity, direct_similarity))
         
-        # Automatically generate BOTH Phase 1 and Phase 2 reports
+        # Determine which phase this transformation belongs to
+        determined_phase = determine_transform_phase(manipulated_file)
+        logger.info(f"Determined transformation phase: {determined_phase} for file: {manipulated_file.name}")
+        
+        # Only generate report for the appropriate phase
         report_data_phase1 = None
         report_data_phase2 = None
         
@@ -1880,33 +1915,33 @@ async def test_fingerprint(
             "original_id": orig_id
         }
         
-        try:
-            # Generate Phase 1 report
-            report_data_phase1 = auto_generate_test_reports(
-                original_file=original_file,
-                manipulated_file=manipulated_file,
-                test_result=test_result,
-                phase="phase1"
-            )
-            logger.info(f"Auto-generated Phase 1 report: {report_data_phase1.get('report_id')}")
-        except Exception as e:
-            logger.warning(f"Failed to auto-generate Phase 1 report: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        try:
-            # Generate Phase 2 report
-            report_data_phase2 = auto_generate_test_reports(
-                original_file=original_file,
-                manipulated_file=manipulated_file,
-                test_result=test_result,
-                phase="phase2"
-            )
-            logger.info(f"Auto-generated Phase 2 report: {report_data_phase2.get('report_id')}")
-        except Exception as e:
-            logger.warning(f"Failed to auto-generate Phase 2 report: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+        # Generate report only for the determined phase
+        if determined_phase == "phase1":
+            try:
+                report_data_phase1 = auto_generate_test_reports(
+                    original_file=original_file,
+                    manipulated_file=manipulated_file,
+                    test_result=test_result,
+                    phase="phase1"
+                )
+                logger.info(f"Auto-generated Phase 1 report: {report_data_phase1.get('report_id')}")
+            except Exception as e:
+                logger.warning(f"Failed to auto-generate Phase 1 report: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+        elif determined_phase == "phase2":
+            try:
+                report_data_phase2 = auto_generate_test_reports(
+                    original_file=original_file,
+                    manipulated_file=manipulated_file,
+                    test_result=test_result,
+                    phase="phase2"
+                )
+                logger.info(f"Auto-generated Phase 2 report: {report_data_phase2.get('report_id')}")
+            except Exception as e:
+                logger.warning(f"Failed to auto-generate Phase 2 report: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
         
         response_data = {
             "status": "success",

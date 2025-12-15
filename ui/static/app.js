@@ -2479,11 +2479,18 @@ async function loadDeliverables() {
                     const date = new Date(run.timestamp * 1000).toLocaleString();
                     const reportPath = `${run.path}/final_report/report.html`;
                     const hasReport = run.has_summary || run.has_metrics;
+                    // Determine report type: single test (test_*) vs comprehensive (run_*)
+                    const isSingleTest = run.id && run.id.startsWith('test_');
+                    const reportType = isSingleTest ? 'Single Test' : 'Comprehensive';
+                    const reportTypeColor = isSingleTest ? '#fbbf24' : '#10b981';
                     
                     html += `
                         <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
                              onmouseover="this.style.borderColor='#427eea'; this.style.background='#2d3d4d';" 
                              onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                <span style="background: ${reportTypeColor}; color: #000; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">${reportType}</span>
+                            </div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
@@ -2514,10 +2521,18 @@ async function loadDeliverables() {
                     const reportPath = `${run.path}/final_report/report.html`;
                     const hasReport = run.has_summary || run.has_metrics;
                     
+                    // Determine report type: single test (test_*) vs comprehensive (run_*)
+                    const isSingleTest = run.id && run.id.startsWith('test_');
+                    const reportType = isSingleTest ? 'Single Test' : 'Comprehensive';
+                    const reportTypeColor = isSingleTest ? '#fbbf24' : '#10b981';
+                    
                     html += `
                         <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
                              onmouseover="this.style.borderColor='#10b981'; this.style.background='#2d3d2d';" 
                              onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                <span style="background: ${reportTypeColor}; color: #000; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">${reportType}</span>
+                            </div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
@@ -2715,6 +2730,59 @@ async function viewRunDetails(runId) {
                 </div>
             `;
         }
+    }
+}
+
+async function generateComprehensiveReports() {
+    if (!confirm('This will run the full Phase 1 and Phase 2 test matrices covering all transformations. This may take several minutes to complete. Continue?')) {
+        return;
+    }
+    
+    try {
+        showCompletionAlert('🚀 Starting comprehensive report generation... This may take several minutes. Check the Logs section for progress.');
+        addSystemLog('🚀 Starting comprehensive Phase 1 & Phase 2 report generation...', 'info');
+        
+        const formData = new FormData();
+        formData.append('manifest_path', 'data/manifests/files_manifest.csv');
+        formData.append('phase', 'both');
+        
+        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch {
+                const errorText = await response.text();
+                errorMessage = errorText.substring(0, 200);
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert('✅ Comprehensive report generation started! Check the Logs section for progress. Reports will appear in the Deliverables section when complete.');
+            addSystemLog('✅ Comprehensive report generation started. Process ID: ' + (result.process_id || 'N/A'), 'success');
+            
+            // Poll for completion (optional - can be enhanced with WebSocket or polling)
+            // For now, just reload deliverables after a longer delay
+            setTimeout(() => {
+                if (document.getElementById('deliverables')) {
+                    loadDeliverables();
+                }
+            }, 5000);
+        } else {
+            showError(result.message || 'Failed to start report generation');
+            addSystemLog('❌ Failed to start comprehensive report generation: ' + (result.message || 'Unknown error'), 'error');
+        }
+    } catch (error) {
+        showError('Failed to generate comprehensive reports: ' + error.message);
+        addSystemLog('❌ Failed to generate comprehensive reports: ' + error.message, 'error');
+        console.error('Failed to generate comprehensive reports:', error);
     }
 }
 
