@@ -633,16 +633,16 @@
             <div class="sidebar">
                 <h2>Navigation</h2>
                 <ul class="nav-menu">
-                    <li><a href="#" onclick="showSection('dashboard', this); return false;" class="active">📊 Dashboard</a></li>
+                    <li><a href="#" onclick="showSection('deliverables', this); return false;" class="active">📈 Deliverables</a></li>
                     <li><a href="#" onclick="showSection('manipulate', this); return false;">🎵 Manipulate Audio</a></li>
-                    <li><a href="#" onclick="showSection('deliverables', this); return false;">📈 Deliverables</a></li>
+                    <li><a href="#" onclick="showSection('dashboard', this); return false;">📊 Dashboard</a></li>
                     <li><a href="#" onclick="showSection('logs', this); return false;">📋 Logs</a></li>
                 </ul>
             </div>
 
             <div class="content-area">
                 <!-- Dashboard Section -->
-                <div id="dashboard" class="section active">
+                <div id="dashboard" class="section">
                     <h2>Dashboard</h2>
                     <div class="stats-grid" id="dashboardStats"></div>
                     <div id="recentRuns"></div>
@@ -1015,27 +1015,369 @@
                 </div>
 
                 <!-- Deliverables Section -->
-                <div id="deliverables" class="section">
+                <div id="deliverables" class="section active">
                     <h2>📈 Deliverables & Reports</h2>
                     <p style="margin-bottom: 20px; color: #9ca3af;">
-                        <strong>Single-test reports</strong> are generated automatically when you test individual transformations. 
-                        <strong>Comprehensive reports</strong> cover all transformations in Phase 1 and Phase 2 test matrices.
+                        Configure transformations and generate comprehensive Phase 1 and Phase 2 test reports.
                     </p>
                     
+                    <!-- Transformation Controls Section -->
                     <div class="group-box" style="margin-bottom: 20px;">
-                        <h3>Generate Comprehensive Reports</h3>
-                        <p style="color: #9ca3af; margin-bottom: 15px;">
-                            Generate complete Phase 1 and Phase 2 reports by running all transformations defined in the test matrices. 
-                            This will test all transformations and generate comprehensive metrics.
-                        </p>
-                        <button class="btn btn-success" onclick="generateComprehensiveReports()" style="padding: 12px 24px; font-size: 14px;">
-                            🚀 Generate Full Phase 1 & Phase 2 Reports
-                        </button>
-                        <p style="color: #fbbf24; margin-top: 10px; font-size: 12px;">
-                            ⚠️ Note: This process may take several minutes to complete. Check the Logs section for progress.
-                        </p>
+                        <h3>1. Select Audio File</h3>
+                        <div class="form-group">
+                            <label>Original Audio File</label>
+                            <select id="deliverablesAudioSelect" class="form-control" onchange="loadDeliverablesAudioInfo(this.value)">
+                                <option value="">-- Select Audio File --</option>
+                            </select>
+                        </div>
+                        <div id="deliverablesAudioInfo" style="margin-top: 10px; padding: 10px; background: #2d2d2d; border-radius: 4px;">
+                            <p style="color: #9ca3af; margin: 0; font-size: 12px;">No file selected</p>
+                        </div>
                     </div>
-                    
+
+                    <div class="group-box" style="margin-bottom: 20px;">
+                        <h3>2. Configure Transformations</h3>
+                        <p style="color: #9ca3af; margin-bottom: 15px; font-size: 12px;">
+                            Configure multiple transformations below. All selected transformations will be applied sequentially when you click "Apply All & Generate Reports".
+                        </p>
+                        
+                        <div class="transform-grid">
+                            <!-- Speed Control -->
+                            <div class="transform-card">
+                                <h4>⚡ Speed Change</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesSpeedEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Speed Ratio</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesSpeedSlider" min="50" max="200" value="100" oninput="updateDeliverablesSpeedValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesSpeedValue">1.0x</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesPreservePitch"> Preserve Pitch
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Pitch Control -->
+                            <div class="transform-card">
+                                <h4>🎹 Pitch Shift</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesPitchEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Semitones</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesPitchSlider" min="-12" max="12" value="0" oninput="updateDeliverablesPitchValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesPitchValue">0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Reverb -->
+                            <div class="transform-card">
+                                <h4>🎚️ Reverb Delay</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesReverbEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Delay (ms)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesReverbSlider" min="0" max="500" value="50" oninput="updateDeliverablesReverbValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesReverbValue">50</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Noise Reduction -->
+                            <div class="transform-card">
+                                <h4>🔊 Noise Reduction</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesNoiseEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Reduction (%)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesNoiseSlider" min="0" max="100" value="50" oninput="updateDeliverablesNoiseValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesNoiseValue">50%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- EQ Adjustment -->
+                            <div class="transform-card">
+                                <h4>🎛️ EQ Adjustment</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesEQEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Gain (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesEQSlider" min="-20" max="20" value="0" oninput="updateDeliverablesEQValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesEQValue">0 dB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Audio Compression -->
+                            <div class="transform-card">
+                                <h4>💾 Audio Compression</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesCompressionEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Codec</label>
+                                    <select id="deliverablesCodecSelect" onchange="updateDeliverablesBitrateEnabled()">
+                                        <option value="None">None</option>
+                                        <option value="MP3">MP3</option>
+                                        <option value="AAC">AAC</option>
+                                        <option value="OGG">OGG</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Bitrate</label>
+                                    <select id="deliverablesBitrateSelect" disabled>
+                                        <option value="64k">64k</option>
+                                        <option value="128k">128k</option>
+                                        <option value="192k">192k</option>
+                                        <option value="256k">256k</option>
+                                        <option value="320k">320k</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Overlay/Mixing -->
+                            <div class="transform-card">
+                                <h4>🎤 Overlay/Mixing</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesOverlayEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Overlay Audio File (optional)</label>
+                                    <input type="file" id="deliverablesOverlayFile" accept="audio/*">
+                                    <small style="color: #9ca3af;">Leave empty to generate test overlay</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Gain (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesOverlayGainSlider" min="-20" max="0" value="-6" oninput="updateDeliverablesOverlayGainValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesOverlayGainValue">-6</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- High-Pass Filter -->
+                            <div class="transform-card">
+                                <h4>🔊 High-Pass Filter</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesHighpassEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Frequency (Hz)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesHighpassSlider" min="50" max="5000" value="150" oninput="updateDeliverablesSliderDisplay('highpass', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesHighpassDisplay">150 Hz</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Low-Pass Filter -->
+                            <div class="transform-card">
+                                <h4>🔉 Low-Pass Filter</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesLowpassEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Frequency (Hz)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesLowpassSlider" min="500" max="20000" value="6000" oninput="updateDeliverablesSliderDisplay('lowpass', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesLowpassDisplay">6000 Hz</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Boost Highs -->
+                            <div class="transform-card">
+                                <h4>⬆️ Boost Highs</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesBoostHighsEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Gain (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesBoostHighsSlider" min="0" max="20" value="6" oninput="updateDeliverablesSliderDisplay('boostHighs', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesBoostHighsDisplay">6 dB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Boost Lows -->
+                            <div class="transform-card">
+                                <h4>⬇️ Boost Lows</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesBoostLowsEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Gain (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesBoostLowsSlider" min="0" max="20" value="6" oninput="updateDeliverablesSliderDisplay('boostLows', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesBoostLowsDisplay">6 dB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Telephone Filter -->
+                            <div class="transform-card">
+                                <h4>📞 Telephone Filter</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesTelephoneEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Low Freq (Hz)</label>
+                                    <input type="number" id="deliverablesTelephoneLow" value="300" min="100" max="2000" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>High Freq (Hz)</label>
+                                    <input type="number" id="deliverablesTelephoneHigh" value="3000" min="1000" max="8000" class="form-control">
+                                </div>
+                            </div>
+
+                            <!-- Limiting -->
+                            <div class="transform-card">
+                                <h4>🔒 Limiting</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesLimitingEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Ceiling (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesLimitingSlider" min="-10" max="0" value="-1" oninput="updateDeliverablesSliderDisplay('limiting', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesLimitingDisplay">-1 dB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Multiband Compression -->
+                            <div class="transform-card">
+                                <h4>🎚️ Multiband Compression</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesMultibandEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Add Noise -->
+                            <div class="transform-card">
+                                <h4>🌊 Add Noise</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesAddNoiseEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Noise Type</label>
+                                    <select id="deliverablesNoiseTypeSelect">
+                                        <option value="white">White Noise</option>
+                                        <option value="vinyl">Vinyl Crackle</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>SNR (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesNoiseSNRSlider" min="10" max="40" value="20" oninput="updateDeliverablesSliderDisplay('noiseSNR', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesNoiseSNRDisplay">20 dB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Crop Audio -->
+                            <div class="transform-card">
+                                <h4>✂️ Crop Audio</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesCropEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Crop Type</label>
+                                    <select id="deliverablesCropTypeSelect" onchange="updateDeliverablesCropDuration()">
+                                        <option value="10s">10 seconds from start</option>
+                                        <option value="5s">5 seconds from start</option>
+                                        <option value="middle">Middle segment</option>
+                                        <option value="end">End segment</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="deliverablesCropDurationGroup" style="display: none;">
+                                    <label>Duration (seconds)</label>
+                                    <input type="number" id="deliverablesCropDuration" value="10" min="1" max="60" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Single Apply Button -->
+                        <div style="margin-top: 30px; text-align: center;">
+                            <button id="deliverablesApplyAllBtn" class="btn btn-success" style="padding: 15px 40px; font-size: 16px; font-weight: bold;" onclick="applyAllDeliverablesTransforms()" disabled>
+                                🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports
+                            </button>
+                            <p id="deliverablesTransformCount" style="color: #9ca3af; margin-top: 10px; font-size: 12px;">0 transformations selected</p>
+                        </div>
+                    </div>
+
+                    <!-- Reports Section -->
                     <div class="group-box" style="margin-bottom: 20px;">
                         <h3>Phase 1 & Phase 2 Reports</h3>
                         <div id="deliverablesList" style="margin-top: 20px;">

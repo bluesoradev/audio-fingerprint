@@ -1470,35 +1470,336 @@ async def manipulate_chain(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
-def determine_transform_phase(manipulated_file_path: Path) -> str:
-    """
-    Determine which phase a transformation belongs to based on file name/type.
-    
-    Phase 2 transformations:
-    - overlay, vocals, percussion, melodic
-    - noise, vinyl, crackle
-    - reverb
-    - crop, 10s, 5s, middle, end
-    
-    Phase 1 transformations (default):
-    - speed, pitch, eq, compression, limiting, multiband, etc.
-    """
-    filename = manipulated_file_path.stem.lower()
-    
-    # Phase 2 transformation keywords
-    phase2_keywords = [
-        'overlay', 'vocals', 'percussion', 'melodic',
-        'noise', 'vinyl', 'crackle',
-        'reverb',
-        'crop', '10s', '5s', 'middle', 'end'
-    ]
-    
-    # Check if it's a Phase 2 transform
-    if any(keyword in filename for keyword in phase2_keywords):
-        return "phase2"
-    
-    # Default to Phase 1 (speed, pitch, eq, compression, limiting, multiband, etc.)
-    return "phase1"
+@app.post("/api/manipulate/deliverables-batch")
+async def manipulate_deliverables_batch(
+    input_path: str = Form(...),
+    transforms: str = Form(...),  # JSON string of transform list
+    generate_reports: str = Form("false"),
+    overlay_file: UploadFile = File(None)
+):
+    """Apply multiple transformations sequentially and generate Phase 1 & Phase 2 reports."""
+    try:
+        import json
+        import numpy as np
+        import tempfile
+        import shutil
+        
+        transforms_list = json.loads(transforms)
+        input_file = PROJECT_ROOT / input_path
+        
+        if not input_file.exists():
+            return JSONResponse({
+                "status": "error",
+                "message": f"Input file not found: {input_path}"
+            }, status_code=404)
+        
+        # Save overlay file if provided
+        overlay_file_path = None
+        if overlay_file:
+            overlay_dir = PROJECT_ROOT / "data" / "temp_overlays"
+            overlay_dir.mkdir(parents=True, exist_ok=True)
+            overlay_file_path = overlay_dir / overlay_file.filename
+            with open(overlay_file_path, "wb") as f:
+                shutil.copyfileobj(overlay_file.file, f)
+        
+        # Apply transformations sequentially
+        current_file = input_file
+        output_dir = PROJECT_ROOT / "data" / "manipulated"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        temp_files = []
+        
+        for i, transform_config in enumerate(transforms_list):
+            transform_type = transform_config.get('type')
+            
+            # Generate output filename
+            if i == len(transforms_list) - 1:
+                # Last transform - use final output name
+                output_file = output_dir / f"{input_file.stem}_deliverables_{timestamp}.wav"
+            else:
+                # Intermediate transform - use temp name
+                output_file = output_dir / f"{input_file.stem}_temp_{i}_{timestamp}.wav"
+                temp_files.append(output_file)
+            
+            # Apply transformation based on type
+            if transform_type == 'speed':
+                from transforms.speed import speed_change
+                speed_change(
+                    input_path=current_file,
+                    speed=transform_config.get('speed', 1.0),
+                    out_path=output_file,
+                    preserve_pitch=transform_config.get('preserve_pitch', False)
+                )
+            elif transform_type == 'pitch':
+                from transforms.pitch import pitch_shift
+                pitch_shift(
+                    input_path=current_file,
+                    semitones=transform_config.get('semitones', 0),
+                    out_path=output_file
+                )
+            elif transform_type == 'reverb':
+                from transforms.reverb import apply_reverb
+                apply_reverb(
+                    input_path=current_file,
+                    delay_ms=transform_config.get('delay_ms', 50),
+                    out_path=output_file
+                )
+            elif transform_type == 'noise_reduction':
+                from transforms.noise import reduce_noise
+                reduce_noise(
+                    input_path=current_file,
+                    reduction_strength=transform_config.get('strength', 0.5),
+                    out_path=output_file
+                )
+            elif transform_type == 'eq':
+                from transforms.eq import boost_highs, boost_lows
+                gain_db = transform_config.get('gain_db', 0)
+                if gain_db > 0:
+                    boost_highs(
+                        input_path=current_file,
+                        gain_db=gain_db,
+                        out_path=output_file
+                    )
+                else:
+                    boost_lows(
+                        input_path=current_file,
+                        gain_db=abs(gain_db),
+                        out_path=output_file
+                    )
+            elif transform_type == 'compression':
+                from transforms.encode import re_encode
+                re_encode(
+                    input_path=current_file,
+                    codec=transform_config.get('codec', 'mp3'),
+                    bitrate=transform_config.get('bitrate', '128k'),
+                    out_path=output_file
+                )
+            elif transform_type == 'overlay':
+                from transforms.overlay import overlay_vocals
+                overlay_path = overlay_file_path if overlay_file_path else None
+                overlay_vocals(
+                    input_path=current_file,
+                    vocal_file=overlay_path,
+                    level_db=transform_config.get('gain_db', -6),
+                    out_path=output_file
+                )
+            elif transform_type == 'highpass':
+                from transforms.eq import high_pass_filter
+                high_pass_filter(
+                    input_path=current_file,
+                    freq_hz=transform_config.get('freq_hz', 150),
+                    out_path=output_file
+                )
+            elif transform_type == 'lowpass':
+                from transforms.eq import low_pass_filter
+                low_pass_filter(
+                    input_path=current_file,
+                    freq_hz=transform_config.get('freq_hz', 6000),
+                    out_path=output_file
+                )
+            elif transform_type == 'boost_highs':
+                from transforms.eq import boost_highs
+                boost_highs(
+                    input_path=current_file,
+                    gain_db=transform_config.get('gain_db', 6),
+                    out_path=output_file
+                )
+            elif transform_type == 'boost_lows':
+                from transforms.eq import boost_lows
+                boost_lows(
+                    input_path=current_file,
+                    gain_db=transform_config.get('gain_db', 6),
+                    out_path=output_file
+                )
+            elif transform_type == 'telephone':
+                from transforms.eq import telephone_filter
+                telephone_filter(
+                    input_path=current_file,
+                    low_freq=transform_config.get('low_freq', 300),
+                    high_freq=transform_config.get('high_freq', 3000),
+                    out_path=output_file
+                )
+            elif transform_type == 'limiting':
+                from transforms.dynamics import apply_limiting
+                apply_limiting(
+                    input_path=current_file,
+                    ceiling_db=transform_config.get('ceiling_db', -1),
+                    out_path=output_file
+                )
+            elif transform_type == 'multiband':
+                from transforms.dynamics import apply_multiband_compression
+                apply_multiband_compression(
+                    input_path=current_file,
+                    out_path=output_file
+                )
+            elif transform_type == 'add_noise':
+                from transforms.noise import add_noise
+                add_noise(
+                    input_path=current_file,
+                    snr_db=transform_config.get('snr_db', 20),
+                    noise_type=transform_config.get('noise_type', 'white'),
+                    out_path=output_file
+                )
+            elif transform_type == 'crop':
+                from transforms.crop import crop_10_seconds, crop_5_seconds, crop_middle_segment, crop_end_segment
+                crop_type = transform_config.get('crop_type', '10s')
+                if crop_type == '10s':
+                    crop_10_seconds(current_file, output_file)
+                elif crop_type == '5s':
+                    crop_5_seconds(current_file, output_file)
+                elif crop_type == 'middle':
+                    crop_middle_segment(current_file, output_file, duration=transform_config.get('duration', 10))
+                elif crop_type == 'end':
+                    crop_end_segment(current_file, output_file, duration=transform_config.get('duration', 10))
+            
+            # Update current_file for next iteration
+            current_file = output_file
+        
+        # Clean up temp files
+        for temp_file in temp_files:
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except:
+                    pass
+        
+        # Clean up overlay file if saved
+        if overlay_file_path and overlay_file_path.exists():
+            try:
+                overlay_file_path.unlink()
+            except:
+                pass
+        
+        final_output_path = str(output_file.relative_to(PROJECT_ROOT))
+        
+        # Generate Phase 1 and Phase 2 reports if requested
+        report_data_phase1 = None
+        report_data_phase2 = None
+        
+        if generate_reports.lower() == 'true':
+            # Run fingerprint test
+            from fingerprint.load_model import load_fingerprint_model
+            from fingerprint.embed import segment_audio, extract_embeddings, normalize_embeddings
+            from fingerprint.query_index import build_index, load_index, query_index
+            
+            fingerprint_config = PROJECT_ROOT / "config" / "fingerprint_v1.yaml"
+            model_config_dict = load_fingerprint_model(fingerprint_config)
+            
+            if isinstance(model_config_dict, dict):
+                segment_length = model_config_dict.get("segment_length", 0.5)
+                sample_rate = model_config_dict.get("sample_rate", 44100)
+                model = model_config_dict
+            else:
+                segment_length = 0.5
+                sample_rate = 44100
+                model = model_config_dict
+            
+            # Extract embeddings
+            segments_orig = segment_audio(input_file, segment_length=segment_length, sample_rate=sample_rate)
+            embeddings_orig = extract_embeddings(segments_orig, model, save_embeddings=False)
+            embeddings_orig = normalize_embeddings(embeddings_orig, method="l2")
+            
+            segments_manip = segment_audio(output_file, segment_length=segment_length, sample_rate=sample_rate)
+            embeddings_manip = extract_embeddings(segments_manip, model, save_embeddings=False)
+            embeddings_manip = normalize_embeddings(embeddings_manip, method="l2")
+            
+            # Build index and query
+            orig_id = input_file.stem
+            orig_ids = [f"{orig_id}_seg_{i}" for i in range(len(embeddings_orig))]
+            
+            with tempfile.NamedTemporaryFile(suffix='.bin', delete=False) as tmp_index:
+                tmp_index_path = Path(tmp_index.name)
+            
+            index_config = {"index_type": "flat", "metric": "cosine", "normalize": True}
+            build_index(embeddings_orig, orig_ids, tmp_index_path, index_config, save_metadata=False)
+            
+            index, _ = load_index(tmp_index_path)
+            query_emb = np.mean(embeddings_manip, axis=0) if len(embeddings_manip) > 1 else embeddings_manip[0]
+            results = query_index(index, query_emb, topk=10, ids=orig_ids, normalize=True)
+            
+            try:
+                tmp_index_path.unlink()
+            except:
+                pass
+            
+            # Check match
+            matched = False
+            rank = None
+            similarity = 0.0
+            top_match = None
+            
+            if results and len(results) > 0:
+                top_match = results[0].get("id", "")
+                similarity = results[0].get("similarity", 0.0)
+                for i, result in enumerate(results):
+                    result_id = result.get("id", "")
+                    if orig_id in result_id:
+                        matched = True
+                        rank = i + 1
+                        similarity = result.get("similarity", similarity)
+                        break
+            
+            orig_mean = np.mean(embeddings_orig, axis=0) if len(embeddings_orig) > 1 else embeddings_orig[0]
+            direct_similarity = float(np.dot(query_emb, orig_mean))
+            final_similarity = max(similarity, direct_similarity)
+            final_matched = matched or direct_similarity > 0.7
+            
+            test_result = {
+                "matched": final_matched,
+                "similarity": final_similarity,
+                "direct_similarity": float(direct_similarity),
+                "rank": rank,
+                "top_match": top_match,
+                "original_id": orig_id
+            }
+            
+            # Generate Phase 1 report
+            try:
+                report_data_phase1 = auto_generate_test_reports(
+                    original_file=input_file,
+                    manipulated_file=output_file,
+                    test_result=test_result,
+                    phase="phase1"
+                )
+                logger.info(f"Generated Phase 1 report: {report_data_phase1.get('report_id')}")
+            except Exception as e:
+                logger.warning(f"Failed to generate Phase 1 report: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+            
+            # Generate Phase 2 report
+            try:
+                report_data_phase2 = auto_generate_test_reports(
+                    original_file=input_file,
+                    manipulated_file=output_file,
+                    test_result=test_result,
+                    phase="phase2"
+                )
+                logger.info(f"Generated Phase 2 report: {report_data_phase2.get('report_id')}")
+            except Exception as e:
+                logger.warning(f"Failed to generate Phase 2 report: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": final_output_path,
+            "message": f"Successfully applied {len(transforms_list)} transformation(s)",
+            "report_id_phase1": report_data_phase1.get("report_id") if report_data_phase1 else None,
+            "report_path_phase1": report_data_phase1.get("report_path") if report_data_phase1 else None,
+            "report_id_phase2": report_data_phase2.get("report_id") if report_data_phase2 else None,
+            "report_path_phase2": report_data_phase2.get("report_path") if report_data_phase2 else None
+        })
+        
+    except Exception as e:
+        logger.error(f"Deliverables batch transform failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
 
 
 def auto_generate_test_reports(original_file: Path, manipulated_file: Path, test_result: dict, phase: str = "phase1") -> dict:
@@ -1898,11 +2199,7 @@ async def test_fingerprint(
         final_matched = matched or direct_similarity > 0.7
         final_similarity = float(max(similarity, direct_similarity))
         
-        # Determine which phase this transformation belongs to
-        determined_phase = determine_transform_phase(manipulated_file)
-        logger.info(f"Determined transformation phase: {determined_phase} for file: {manipulated_file.name}")
-        
-        # Only generate report for the appropriate phase
+        # Automatically generate BOTH Phase 1 and Phase 2 reports
         report_data_phase1 = None
         report_data_phase2 = None
         
@@ -1915,33 +2212,33 @@ async def test_fingerprint(
             "original_id": orig_id
         }
         
-        # Generate report only for the determined phase
-        if determined_phase == "phase1":
-            try:
-                report_data_phase1 = auto_generate_test_reports(
-                    original_file=original_file,
-                    manipulated_file=manipulated_file,
-                    test_result=test_result,
-                    phase="phase1"
-                )
-                logger.info(f"Auto-generated Phase 1 report: {report_data_phase1.get('report_id')}")
-            except Exception as e:
-                logger.warning(f"Failed to auto-generate Phase 1 report: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-        elif determined_phase == "phase2":
-            try:
-                report_data_phase2 = auto_generate_test_reports(
-                    original_file=original_file,
-                    manipulated_file=manipulated_file,
-                    test_result=test_result,
-                    phase="phase2"
-                )
-                logger.info(f"Auto-generated Phase 2 report: {report_data_phase2.get('report_id')}")
-            except Exception as e:
-                logger.warning(f"Failed to auto-generate Phase 2 report: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
+        try:
+            # Generate Phase 1 report
+            report_data_phase1 = auto_generate_test_reports(
+                original_file=original_file,
+                manipulated_file=manipulated_file,
+                test_result=test_result,
+                phase="phase1"
+            )
+            logger.info(f"Auto-generated Phase 1 report: {report_data_phase1.get('report_id')}")
+        except Exception as e:
+            logger.warning(f"Failed to auto-generate Phase 1 report: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        
+        try:
+            # Generate Phase 2 report
+            report_data_phase2 = auto_generate_test_reports(
+                original_file=original_file,
+                manipulated_file=manipulated_file,
+                test_result=test_result,
+                phase="phase2"
+            )
+            logger.info(f"Auto-generated Phase 2 report: {report_data_phase2.get('report_id')}")
+        except Exception as e:
+            logger.warning(f"Failed to auto-generate Phase 2 report: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         
         response_data = {
             "status": "success",

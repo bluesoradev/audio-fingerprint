@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     checkStatus();
     loadDashboard();
+    loadDeliverablesAudioFiles(); // Load deliverables audio files on page load
     setInterval(checkStatus, 5000); // Check status every 5 seconds
 });
 
@@ -52,6 +53,7 @@ function showSection(sectionId, eventElement) {
         loadTestFileSelects();
     } else if (sectionId === 'deliverables') {
         loadDeliverables();
+        loadDeliverablesAudioFiles();
     }
 }
 
@@ -294,7 +296,7 @@ function startProcessMonitoring(commandId, message, processName = 'Process') {
     
     const logsDiv = document.getElementById('systemLogs');
     if (logsDiv) {
-        logsDiv.innerHTML = `<div class="log-line">${message}</div>`;
+    logsDiv.innerHTML = `<div class="log-line">${message}</div>`;
     }
     
     // Store process name for alerts
@@ -401,32 +403,32 @@ async function loadManifests() {
         const experimentSelect = document.getElementById('experimentManifest');
         
         if (manifestList) {
-            manifestList.innerHTML = '';
+        manifestList.innerHTML = '';
         }
         
         [ingestSelect, transformSelect, experimentSelect].forEach(select => {
             if (select) {
-                select.innerHTML = '<option value="">-- Select Manifest --</option>';
+            select.innerHTML = '<option value="">-- Select Manifest --</option>';
             }
         });
         
         if (result.manifests && result.manifests.length > 0) {
             result.manifests.forEach(manifest => {
                 if (manifestList) {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span>${manifest.name}</span>
-                        <span>${formatBytes(manifest.size)}</span>
-                    `;
-                    manifestList.appendChild(li);
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${manifest.name}</span>
+                    <span>${formatBytes(manifest.size)}</span>
+                `;
+                manifestList.appendChild(li);
                 }
                 
                 [ingestSelect, transformSelect, experimentSelect].forEach(select => {
                     if (select) {
-                        const option = document.createElement('option');
-                        option.value = manifest.path;
-                        option.textContent = manifest.name;
-                        select.appendChild(option);
+                    const option = document.createElement('option');
+                    option.value = manifest.path;
+                    option.textContent = manifest.name;
+                    select.appendChild(option);
                     }
                 });
             });
@@ -1653,7 +1655,7 @@ function addToChain() {
     // Get current transform settings from sliders
     const speedSlider = document.getElementById('speedSlider');
     const speedRatio = parseFloat(speedSlider.value) / 100.0;
-    const preservePitch = document.getElementById('preservePitch').checked;
+            const preservePitch = document.getElementById('preservePitch').checked;
     const pitchSemitones = parseInt(document.getElementById('pitchSlider').value);
     const reverbMs = parseInt(document.getElementById('reverbSlider').value);
     const noisePercent = parseInt(document.getElementById('noiseSlider').value);
@@ -1708,8 +1710,8 @@ function addToChain() {
         description: transformDesc.join(', ')
     };
     
-    transformChain.push(transform);
-    updateChainDisplay();
+        transformChain.push(transform);
+        updateChainDisplay();
     addSystemLog(`Added transform to chain: ${transform.description}`, 'info');
 }
 
@@ -2479,18 +2481,11 @@ async function loadDeliverables() {
                     const date = new Date(run.timestamp * 1000).toLocaleString();
                     const reportPath = `${run.path}/final_report/report.html`;
                     const hasReport = run.has_summary || run.has_metrics;
-                    // Determine report type: single test (test_*) vs comprehensive (run_*)
-                    const isSingleTest = run.id && run.id.startsWith('test_');
-                    const reportType = isSingleTest ? 'Single Test' : 'Comprehensive';
-                    const reportTypeColor = isSingleTest ? '#fbbf24' : '#10b981';
                     
                     html += `
                         <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
                              onmouseover="this.style.borderColor='#427eea'; this.style.background='#2d3d4d';" 
                              onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                                <span style="background: ${reportTypeColor}; color: #000; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">${reportType}</span>
-                            </div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
@@ -2521,18 +2516,10 @@ async function loadDeliverables() {
                     const reportPath = `${run.path}/final_report/report.html`;
                     const hasReport = run.has_summary || run.has_metrics;
                     
-                    // Determine report type: single test (test_*) vs comprehensive (run_*)
-                    const isSingleTest = run.id && run.id.startsWith('test_');
-                    const reportType = isSingleTest ? 'Single Test' : 'Comprehensive';
-                    const reportTypeColor = isSingleTest ? '#fbbf24' : '#10b981';
-                    
                     html += `
                         <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
                              onmouseover="this.style.borderColor='#10b981'; this.style.background='#2d3d2d';" 
                              onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                                <span style="background: ${reportTypeColor}; color: #000; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold;">${reportType}</span>
-                            </div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
@@ -2733,59 +2720,6 @@ async function viewRunDetails(runId) {
     }
 }
 
-async function generateComprehensiveReports() {
-    if (!confirm('This will run the full Phase 1 and Phase 2 test matrices covering all transformations. This may take several minutes to complete. Continue?')) {
-        return;
-    }
-    
-    try {
-        showCompletionAlert('🚀 Starting comprehensive report generation... This may take several minutes. Check the Logs section for progress.');
-        addSystemLog('🚀 Starting comprehensive Phase 1 & Phase 2 report generation...', 'info');
-        
-        const formData = new FormData();
-        formData.append('manifest_path', 'data/manifests/files_manifest.csv');
-        formData.append('phase', 'both');
-        
-        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.message || errorMessage;
-            } catch {
-                const errorText = await response.text();
-                errorMessage = errorText.substring(0, 200);
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const result = await response.json();
-        if (result.status === 'success') {
-            showCompletionAlert('✅ Comprehensive report generation started! Check the Logs section for progress. Reports will appear in the Deliverables section when complete.');
-            addSystemLog('✅ Comprehensive report generation started. Process ID: ' + (result.process_id || 'N/A'), 'success');
-            
-            // Poll for completion (optional - can be enhanced with WebSocket or polling)
-            // For now, just reload deliverables after a longer delay
-            setTimeout(() => {
-                if (document.getElementById('deliverables')) {
-                    loadDeliverables();
-                }
-            }, 5000);
-        } else {
-            showError(result.message || 'Failed to start report generation');
-            addSystemLog('❌ Failed to start comprehensive report generation: ' + (result.message || 'Unknown error'), 'error');
-        }
-    } catch (error) {
-        showError('Failed to generate comprehensive reports: ' + error.message);
-        addSystemLog('❌ Failed to generate comprehensive reports: ' + error.message, 'error');
-        console.error('Failed to generate comprehensive reports:', error);
-    }
-}
-
 async function deleteReport(runId) {
     if (!confirm(`Are you sure you want to delete report "${runId}"?\n\nThis action cannot be undone.`)) {
         return;
@@ -2809,5 +2743,377 @@ async function deleteReport(runId) {
         console.error('Failed to delete report:', error);
         showError('Failed to delete report: ' + error.message);
         addSystemLog(`❌ Failed to delete report "${runId}": ${error.message}`, 'error');
+    }
+}
+
+// ============================================================================
+// Deliverables Transformation Functions
+// ============================================================================
+
+// Deliverables transformation state
+let deliverablesSelectedAudioFile = null;
+
+// Load audio files into deliverables select
+async function loadDeliverablesAudioFiles() {
+    try {
+        const response = await fetch(`${API_BASE}/files/audio?directory=test_audio`);
+        const result = await response.json();
+        
+        const select = document.getElementById('deliverablesAudioSelect');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">-- Select Audio File --</option>';
+        
+        if (result.files && result.files.length > 0) {
+            result.files.forEach(file => {
+                const option = document.createElement('option');
+                option.value = `data/test_audio/${file}`;
+                option.textContent = file;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load audio files:', error);
+    }
+}
+
+function loadDeliverablesAudioInfo(filePath) {
+    if (!filePath) {
+        deliverablesSelectedAudioFile = null;
+        const infoDiv = document.getElementById('deliverablesAudioInfo');
+        if (infoDiv) {
+            infoDiv.innerHTML = '<p style="color: #9ca3af; margin: 0; font-size: 12px;">No file selected</p>';
+        }
+        updateDeliverablesTransformState();
+        return;
+    }
+    
+    deliverablesSelectedAudioFile = filePath;
+    const infoDiv = document.getElementById('deliverablesAudioInfo');
+    if (infoDiv) {
+        const fileName = filePath.split('/').pop();
+        infoDiv.innerHTML = `<p style="color: #4ade80; margin: 0; font-size: 12px;">✓ Selected: ${fileName}</p>`;
+    }
+    updateDeliverablesTransformState();
+}
+
+// Update slider displays for deliverables
+function updateDeliverablesSpeedValue(value) {
+    const display = document.getElementById('deliverablesSpeedValue');
+    if (display) {
+        display.textContent = (value / 100).toFixed(1) + 'x';
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesPitchValue(value) {
+    const display = document.getElementById('deliverablesPitchValue');
+    if (display) {
+        display.textContent = value;
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesReverbValue(value) {
+    const display = document.getElementById('deliverablesReverbValue');
+    if (display) {
+        display.textContent = value;
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesNoiseValue(value) {
+    const display = document.getElementById('deliverablesNoiseValue');
+    if (display) {
+        display.textContent = value + '%';
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesEQValue(value) {
+    const display = document.getElementById('deliverablesEQValue');
+    if (display) {
+        display.textContent = value + ' dB';
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesOverlayGainValue(value) {
+    const display = document.getElementById('deliverablesOverlayGainValue');
+    if (display) {
+        display.textContent = value;
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesSliderDisplay(type, value) {
+    const displayMap = {
+        'highpass': { id: 'deliverablesHighpassDisplay', suffix: ' Hz' },
+        'lowpass': { id: 'deliverablesLowpassDisplay', suffix: ' Hz' },
+        'boostHighs': { id: 'deliverablesBoostHighsDisplay', suffix: ' dB' },
+        'boostLows': { id: 'deliverablesBoostLowsDisplay', suffix: ' dB' },
+        'limiting': { id: 'deliverablesLimitingDisplay', suffix: ' dB' },
+        'noiseSNR': { id: 'deliverablesNoiseSNRDisplay', suffix: ' dB' }
+    };
+    const mapping = displayMap[type];
+    if (mapping) {
+        const display = document.getElementById(mapping.id);
+        if (display) {
+            display.textContent = value + mapping.suffix;
+        }
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesBitrateEnabled() {
+    const codecSelect = document.getElementById('deliverablesCodecSelect');
+    const bitrateSelect = document.getElementById('deliverablesBitrateSelect');
+    if (codecSelect && bitrateSelect) {
+        bitrateSelect.disabled = codecSelect.value === 'None';
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesCropDuration() {
+    const cropTypeSelect = document.getElementById('deliverablesCropTypeSelect');
+    const cropDurationGroup = document.getElementById('deliverablesCropDurationGroup');
+    if (cropTypeSelect && cropDurationGroup) {
+        const cropType = cropTypeSelect.value;
+        cropDurationGroup.style.display = (cropType === 'middle' || cropType === 'end') ? 'block' : 'none';
+    }
+    updateDeliverablesTransformState();
+}
+
+function updateDeliverablesTransformState() {
+    // Count enabled transformations
+    const enabledTransforms = [];
+    
+    if (document.getElementById('deliverablesSpeedEnabled')?.checked) enabledTransforms.push('Speed');
+    if (document.getElementById('deliverablesPitchEnabled')?.checked) enabledTransforms.push('Pitch');
+    if (document.getElementById('deliverablesReverbEnabled')?.checked) enabledTransforms.push('Reverb');
+    if (document.getElementById('deliverablesNoiseEnabled')?.checked) enabledTransforms.push('Noise Reduction');
+    if (document.getElementById('deliverablesEQEnabled')?.checked) enabledTransforms.push('EQ');
+    if (document.getElementById('deliverablesCompressionEnabled')?.checked && 
+        document.getElementById('deliverablesCodecSelect')?.value !== 'None') enabledTransforms.push('Compression');
+    if (document.getElementById('deliverablesOverlayEnabled')?.checked) enabledTransforms.push('Overlay');
+    if (document.getElementById('deliverablesHighpassEnabled')?.checked) enabledTransforms.push('High-Pass');
+    if (document.getElementById('deliverablesLowpassEnabled')?.checked) enabledTransforms.push('Low-Pass');
+    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) enabledTransforms.push('Boost Highs');
+    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) enabledTransforms.push('Boost Lows');
+    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) enabledTransforms.push('Telephone');
+    if (document.getElementById('deliverablesLimitingEnabled')?.checked) enabledTransforms.push('Limiting');
+    if (document.getElementById('deliverablesMultibandEnabled')?.checked) enabledTransforms.push('Multiband');
+    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) enabledTransforms.push('Add Noise');
+    if (document.getElementById('deliverablesCropEnabled')?.checked) enabledTransforms.push('Crop');
+    
+    const count = enabledTransforms.length;
+    const countElement = document.getElementById('deliverablesTransformCount');
+    const applyBtn = document.getElementById('deliverablesApplyAllBtn');
+    
+    if (countElement) {
+        countElement.textContent = `${count} transformation${count !== 1 ? 's' : ''} selected: ${enabledTransforms.join(', ')}`;
+    }
+    
+    if (applyBtn) {
+        applyBtn.disabled = !deliverablesSelectedAudioFile || count === 0;
+    }
+}
+
+// Apply all selected transformations and generate reports
+async function applyAllDeliverablesTransforms() {
+    if (!deliverablesSelectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const enabledTransforms = [];
+    
+    // Collect all enabled transformations
+    if (document.getElementById('deliverablesSpeedEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'speed',
+            speed: parseFloat(document.getElementById('deliverablesSpeedSlider').value) / 100,
+            preserve_pitch: document.getElementById('deliverablesPreservePitch')?.checked || false
+        });
+    }
+    
+    if (document.getElementById('deliverablesPitchEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'pitch',
+            semitones: parseInt(document.getElementById('deliverablesPitchSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesReverbEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'reverb',
+            delay_ms: parseFloat(document.getElementById('deliverablesReverbSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesNoiseEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'noise_reduction',
+            strength: parseFloat(document.getElementById('deliverablesNoiseSlider').value) / 100
+        });
+    }
+    
+    if (document.getElementById('deliverablesEQEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'eq',
+            gain_db: parseFloat(document.getElementById('deliverablesEQSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesCompressionEnabled')?.checked) {
+        const codec = document.getElementById('deliverablesCodecSelect')?.value;
+        if (codec !== 'None') {
+            enabledTransforms.push({
+                type: 'compression',
+                codec: codec.toLowerCase(),
+                bitrate: document.getElementById('deliverablesBitrateSelect')?.value
+            });
+        }
+    }
+    
+    if (document.getElementById('deliverablesOverlayEnabled')?.checked) {
+        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
+        enabledTransforms.push({
+            type: 'overlay',
+            gain_db: parseFloat(document.getElementById('deliverablesOverlayGainSlider')?.value || -6),
+            overlay_file: overlayFile ? overlayFile.name : null
+        });
+    }
+    
+    if (document.getElementById('deliverablesHighpassEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'highpass',
+            freq_hz: parseFloat(document.getElementById('deliverablesHighpassSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesLowpassEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'lowpass',
+            freq_hz: parseFloat(document.getElementById('deliverablesLowpassSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'boost_highs',
+            gain_db: parseFloat(document.getElementById('deliverablesBoostHighsSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'boost_lows',
+            gain_db: parseFloat(document.getElementById('deliverablesBoostLowsSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'telephone',
+            low_freq: parseFloat(document.getElementById('deliverablesTelephoneLow')?.value || 300),
+            high_freq: parseFloat(document.getElementById('deliverablesTelephoneHigh')?.value || 3000)
+        });
+    }
+    
+    if (document.getElementById('deliverablesLimitingEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'limiting',
+            ceiling_db: parseFloat(document.getElementById('deliverablesLimitingSlider').value)
+        });
+    }
+    
+    if (document.getElementById('deliverablesMultibandEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'multiband'
+        });
+    }
+    
+    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) {
+        enabledTransforms.push({
+            type: 'add_noise',
+            noise_type: document.getElementById('deliverablesNoiseTypeSelect')?.value || 'white',
+            snr_db: parseFloat(document.getElementById('deliverablesNoiseSNRSlider')?.value || 20)
+        });
+    }
+    
+    if (document.getElementById('deliverablesCropEnabled')?.checked) {
+        const cropType = document.getElementById('deliverablesCropTypeSelect')?.value;
+        enabledTransforms.push({
+            type: 'crop',
+            crop_type: cropType,
+            duration: (cropType === 'middle' || cropType === 'end') ? 
+                parseFloat(document.getElementById('deliverablesCropDuration')?.value || 10) : null
+        });
+    }
+    
+    if (enabledTransforms.length === 0) {
+        showError('Please enable at least one transformation');
+        return;
+    }
+    
+    // Disable button and show progress
+    const applyBtn = document.getElementById('deliverablesApplyAllBtn');
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.textContent = '⏳ Processing...';
+    }
+    
+    try {
+        // Call backend endpoint to apply all transforms and generate reports
+        const formData = new FormData();
+        formData.append('input_path', deliverablesSelectedAudioFile);
+        formData.append('transforms', JSON.stringify(enabledTransforms));
+        formData.append('generate_reports', 'true');
+        
+        // Add overlay file if provided
+        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
+        if (overlayFile) {
+            formData.append('overlay_file', overlayFile);
+        }
+        
+        const response = await fetch(`${API_BASE}/manipulate/deliverables-batch`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch {
+                const errorText = await response.text();
+                errorMessage = errorText.substring(0, 200);
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showCompletionAlert(`Successfully applied ${enabledTransforms.length} transformation(s) and generated Phase 1 & Phase 2 reports!`);
+            addSystemLog(`Deliverables: Applied ${enabledTransforms.length} transformation(s)`, 'success');
+            
+            // Reload deliverables list
+            setTimeout(() => {
+                loadDeliverables();
+            }, 2000);
+        } else {
+            throw new Error(result.message || 'Failed to apply transformations');
+        }
+    } catch (error) {
+        showError('Failed to apply transformations: ' + error.message);
+        console.error('Deliverables transform error:', error);
+    } finally {
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.textContent = '🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports';
+        }
     }
 }
