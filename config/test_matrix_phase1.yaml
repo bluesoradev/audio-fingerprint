@@ -1,0 +1,170 @@
+# Phase 1 Test Matrix Configuration
+# Core Manipulation Tests (Baseline)
+
+global:
+  random_seed: 42
+  num_samples_per_transform: 1
+  phase: "phase1"
+
+originals:
+  manifest_path: "data/manifests/files_manifest.csv"
+  min_duration: 5.0
+  max_duration: 300.0
+  sample_rate: 44100
+
+transforms:
+  # 1. Tempo (Speed) Changes - Phase 1 requirements
+  speed_change:
+    enabled: true
+    parameters:
+      - speed: 0.97  # -3%
+        preserve_pitch: false
+        severity: "mild"
+      - speed: 0.94  # -6%
+        preserve_pitch: false
+        severity: "moderate"
+      - speed: 0.90  # -10%
+        preserve_pitch: false
+        severity: "severe"
+      - speed: 1.03  # +3%
+        preserve_pitch: false
+        severity: "mild"
+      - speed: 1.06  # +6%
+        preserve_pitch: false
+        severity: "moderate"
+      - speed: 1.10  # +10%
+        preserve_pitch: false
+        severity: "severe"
+
+  # 2. Pitch Shifts - Phase 1 requirements
+  pitch_shift:
+    enabled: true
+    parameters:
+      - semitones: -3
+        severity: "moderate"
+      - semitones: -2
+        severity: "moderate"
+      - semitones: -1
+        severity: "mild"
+      - semitones: 1
+        severity: "mild"
+      - semitones: 2
+        severity: "moderate"
+      - semitones: 3
+        severity: "moderate"
+
+  # 3. Combined Pitch + Tempo - Phase 1 requirements
+  combine_chain:
+    enabled: true
+    chains:
+      - name: "pitch_tempo_pos"
+        severity: "moderate"
+        transforms:
+          - type: "speed_change"
+            params: {speed: 1.03, preserve_pitch: false}
+          - type: "pitch_shift"
+            params: {semitones: 1}
+      
+      - name: "pitch_tempo_neg"
+        severity: "moderate"
+        transforms:
+          - type: "speed_change"
+            params: {speed: 0.96, preserve_pitch: false}
+          - type: "pitch_shift"
+            params: {semitones: -2}
+
+  # 4. EQ Manipulations - Phase 1 requirements
+  high_pass_filter:
+    enabled: true
+    parameters:
+      - freq_hz: 150
+        severity: "moderate"
+
+  low_pass_filter:
+    enabled: true
+    parameters:
+      - freq_hz: 6000
+        severity: "moderate"
+
+  boost_highs:
+    enabled: true
+    parameters:
+      - gain_db: 6.0
+        freq_hz: 3000
+        severity: "moderate"
+
+  boost_lows:
+    enabled: true
+    parameters:
+      - gain_db: 6.0
+        freq_hz: 200
+        severity: "moderate"
+
+  telephone_filter:
+    enabled: true
+    parameters:
+      - low_freq: 300
+        high_freq: 3000
+        severity: "moderate"
+
+  # 5. Compression / Limiting - Phase 1 requirements
+  apply_compression:
+    enabled: true
+    parameters:
+      - threshold_db: -10.0
+        ratio: 10.0
+        severity: "severe"
+
+  apply_limiting:
+    enabled: true
+    parameters:
+      - ceiling_db: -1.0
+        severity: "moderate"
+
+  apply_multiband_compression:
+    enabled: true
+    parameters:
+      - severity: "moderate"
+
+thresholds:
+  recall_at_k:
+    mild:
+      recall_at_1: 0.90
+      recall_at_5: 0.95
+      recall_at_10: 0.98
+    moderate:
+      recall_at_1: 0.75
+      recall_at_5: 0.85
+      recall_at_10: 0.90
+    severe:
+      recall_at_1: 0.50
+      recall_at_5: 0.70
+      recall_at_10: 0.80
+
+  latency:
+    max_mean_ms: 1000
+    max_p95_ms: 2000
+
+  similarity:
+    min_score_mild: 0.85
+    min_score_moderate: 0.70
+    min_score_severe: 0.50
+
+evaluation:
+  top_k_values: [1, 5, 10, 20]
+  compute_per_segment: true
+  aggregate_method: "mean"
+
+failure_capture:
+  enabled: true
+  save_audio: true
+  save_spectrograms: true
+  save_json: true
+  max_failures_per_transform: 10
+
+reporting:
+  generate_html: true
+  generate_pdf: false
+  save_plots: true
+  include_proofs: true
+

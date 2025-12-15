@@ -19,6 +19,7 @@ from .dynamics import (
     apply_multiband_compression
 )
 from .chain import combine_chain
+from .crop import crop_segment, crop_10_seconds, crop_5_seconds, crop_middle_segment, crop_end_segment
 
 __all__ = [
     "pitch_shift",
@@ -39,4 +40,9 @@ __all__ = [
     "apply_limiting",
     "apply_multiband_compression",
     "combine_chain",
+    "crop_segment",
+    "crop_10_seconds",
+    "crop_5_seconds",
+    "crop_middle_segment",
+    "crop_end_segment",
 ]

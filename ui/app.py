@@ -1475,6 +1475,22 @@ async def list_runs_legacy():
     return await list_runs()
 
 
+@app.get("/api/files/report")
+async def serve_report_html(path: str):
+    """Serve report HTML file."""
+    file_path = PROJECT_ROOT / path
+    
+    logger.info(f"[Report API] Requested path: {path}")
+    logger.info(f"[Report API] Full file path: {file_path}")
+    
+    if file_path.exists() and file_path.suffix == ".html":
+        logger.info(f"[Report API] Serving report: {file_path}")
+        return FileResponse(file_path, media_type="text/html")
+    else:
+        logger.warning(f"[Report API] Report file not found: {file_path}")
+        return JSONResponse({"error": "Report file not found"}, status_code=404)
+
+
 @app.get("/report/{run_id}")
 async def view_report_legacy(request: Request, run_id: str):
     """Legacy endpoint for viewing report."""

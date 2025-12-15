@@ -29,6 +29,8 @@ from .dynamics import (
     apply_multiband_compression
 )
 from .chain import combine_chain
+from .crop import crop_10_seconds, crop_5_seconds, crop_middle_segment, crop_end_segment
+from .reverb import apply_reverb
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -145,7 +147,7 @@ def generate_transforms(
                             slice_chop(orig_path, **param_set, out_path=out_path)
                         elif transform_type == "add_noise":
                             add_noise(orig_path, random_seed=global_seed, **param_set, out_path=out_path)
-                        elif transform_type == "overlay_vocals":
+                        elif transform_type == "overlay_vocals" or transform_type.startswith("overlay_vocals"):
                             overlay_vocals(orig_path, **param_set, out_path=out_path)
                         elif transform_type == "high_pass_filter":
                             high_pass_filter(orig_path, **param_set, out_path=out_path)
@@ -165,6 +167,18 @@ def generate_transforms(
                             apply_multiband_compression(orig_path, **param_set, out_path=out_path)
                         elif transform_type == "speed_change":
                             speed_change(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "apply_reverb":
+                            apply_reverb(orig_path, **param_set, out_path=out_path)
+                        elif transform_type == "crop_10_seconds":
+                            crop_10_seconds(orig_path, out_path=out_path)
+                        elif transform_type == "crop_5_seconds":
+                            crop_5_seconds(orig_path, out_path=out_path)
+                        elif transform_type == "crop_middle_segment":
+                            duration = param_set.pop("duration", 10.0)
+                            crop_middle_segment(orig_path, duration=duration, out_path=out_path)
+                        elif transform_type == "crop_end_segment":
+                            duration = param_set.pop("duration", 10.0)
+                            crop_end_segment(orig_path, duration=duration, out_path=out_path)
                         else:
                             logger.warning(f"Unknown transform type: {transform_type}")
                             continue

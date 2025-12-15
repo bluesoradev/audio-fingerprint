@@ -50,6 +50,8 @@ function showSection(sectionId, eventElement) {
     if (sectionId === 'manipulate') {
         loadManipulateAudioFiles();
         loadTestFileSelects();
+    } else if (sectionId === 'deliverables') {
+        loadDeliverables();
     }
 }
 
@@ -1979,5 +1981,242 @@ function updateTestDisplays(originalPath, transformedPath) {
         
         testBtn.disabled = !(hasOriginal && hasTransformed);
         console.log('[updateTestDisplays] Test button disabled:', testBtn.disabled);
+    }
+}
+
+// Deliverables & Reports
+async function loadDeliverables() {
+    try {
+        const response = await fetch(`${API_BASE}/runs`);
+        const result = await response.json();
+        
+        const deliverablesListDiv = document.getElementById('deliverablesList');
+        
+        if (!deliverablesListDiv) {
+            console.error('deliverablesList element not found');
+            return;
+        }
+        
+        if (result.runs && result.runs.length > 0) {
+            // Group runs by phase (detect from path or ID)
+            const phase1Runs = [];
+            const phase2Runs = [];
+            const otherRuns = [];
+            
+            result.runs.forEach(run => {
+                const runPath = (run.path || '').toLowerCase();
+                const runId = (run.id || '').toLowerCase();
+                
+                // Check if it's Phase 1 or Phase 2
+                if (runPath.includes('phase1') || runId.includes('phase1') || 
+                    runPath.includes('phase_1') || runId.includes('phase_1')) {
+                    phase1Runs.push(run);
+                } else if (runPath.includes('phase2') || runId.includes('phase2') || 
+                          runPath.includes('phase_2') || runId.includes('phase_2')) {
+                    phase2Runs.push(run);
+                } else {
+                    // Check final_report directory for phase indicators
+                    const finalReportPath = `${run.path}/final_report/report.html`;
+                    otherRuns.push(run);
+                }
+            });
+            
+            let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+            
+            // Phase 1 Section
+            html += '<div class="group-box" style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 2px solid #427eea;">';
+            html += '<h4 style="color: #427eea; margin-bottom: 15px; font-size: 1.2em;">📈 Phase 1: Core Manipulation</h4>';
+            if (phase1Runs.length > 0) {
+                phase1Runs.forEach(run => {
+                    const date = new Date(run.timestamp * 1000).toLocaleString();
+                    const reportPath = `${run.path}/final_report/report.html`;
+                    const hasReport = run.has_summary || run.has_metrics;
+                    
+                    html += `
+                        <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
+                             onmouseover="this.style.borderColor='#427eea'; this.style.background='#2d3d4d';" 
+                             onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
+                                    <p style="color: #9ca3af; font-size: 11px; margin: 0 0 8px 0;">${date}</p>
+                                    ${hasReport ? '<span style="background: #10b981; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Complete</span>' : 
+                                      '<span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">In Progress</span>'}
+                                </div>
+                                <div style="display: flex; gap: 8px; margin-left: 10px;">
+                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
+                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #3d3d3d;">Details</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p style="color: #9ca3af; padding: 20px; text-align: center;">No Phase 1 reports found.<br><small>Run Phase 1 tests to generate reports.</small></p>';
+            }
+            html += '</div>';
+            
+            // Phase 2 Section
+            html += '<div class="group-box" style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 2px solid #10b981;">';
+            html += '<h4 style="color: #10b981; margin-bottom: 15px; font-size: 1.2em;">📈 Phase 2: Structural Manipulation</h4>';
+            if (phase2Runs.length > 0) {
+                phase2Runs.forEach(run => {
+                    const date = new Date(run.timestamp * 1000).toLocaleString();
+                    const reportPath = `${run.path}/final_report/report.html`;
+                    const hasReport = run.has_summary || run.has_metrics;
+                    
+                    html += `
+                        <div style="padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d; transition: all 0.2s;" 
+                             onmouseover="this.style.borderColor='#10b981'; this.style.background='#2d3d2d';" 
+                             onmouseout="this.style.borderColor='#3d3d3d'; this.style.background='#2d2d2d';">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <strong style="color: #ffffff; font-size: 14px; display: block; margin-bottom: 5px;">${run.id}</strong>
+                                    <p style="color: #9ca3af; font-size: 11px; margin: 0 0 8px 0;">${date}</p>
+                                    ${hasReport ? '<span style="background: #10b981; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Complete</span>' : 
+                                      '<span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 10px;">In Progress</span>'}
+                                </div>
+                                <div style="display: flex; gap: 8px; margin-left: 10px;">
+                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
+                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #3d3d3d;">Details</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p style="color: #9ca3af; padding: 20px; text-align: center;">No Phase 2 reports found.<br><small>Run Phase 2 tests to generate reports.</small></p>';
+            }
+            html += '</div>';
+            
+            html += '</div>';
+            
+            // Other runs section
+            if (otherRuns.length > 0) {
+                html += '<div class="group-box" style="margin-top: 20px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #3d3d3d;">';
+                html += '<h4 style="color: #9ca3af; margin-bottom: 15px; font-size: 1.1em;">📊 Other Reports</h4>';
+                otherRuns.forEach(run => {
+                    const date = new Date(run.timestamp * 1000).toLocaleString();
+                    const reportPath = `${run.path}/final_report/report.html`;
+                    const hasReport = run.has_summary || run.has_metrics;
+                    
+                    html += `
+                        <div style="padding: 12px; margin-bottom: 10px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: #ffffff; font-size: 13px;">${run.id}</strong>
+                                    <p style="color: #9ca3af; font-size: 10px; margin: 3px 0 0 0;">${date}</p>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 5px 10px;">View</button>` : ''}
+                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #3d3d3d;">Details</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            deliverablesListDiv.innerHTML = html;
+        } else {
+            deliverablesListDiv.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #9ca3af;">
+                    <p style="font-size: 16px; margin-bottom: 10px;">No deliverables found</p>
+                    <p style="font-size: 12px;">Run experiments using <code>generate_deliverables.py</code> to generate Phase 1 and Phase 2 reports.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load deliverables:', error);
+        const deliverablesListDiv = document.getElementById('deliverablesList');
+        if (deliverablesListDiv) {
+            deliverablesListDiv.innerHTML = `
+                <div style="padding: 20px; background: #3a1e1e; border-radius: 6px; border: 1px solid #f87171;">
+                    <p style="color: #f87171; margin: 0;">Error loading deliverables: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+}
+
+function viewReport(reportPath, runId) {
+    // Open report HTML in new tab
+    const url = `/api/files/report?path=${encodeURIComponent(reportPath)}`;
+    window.open(url, '_blank');
+}
+
+async function viewRunDetails(runId) {
+    try {
+        const response = await fetch(`${API_BASE}/runs/${runId}`);
+        const result = await response.json();
+        
+        const reportViewerDiv = document.getElementById('reportViewer');
+        
+        if (!reportViewerDiv) {
+            console.error('reportViewer element not found');
+            return;
+        }
+        
+        let html = '<div style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #3d3d3d;">';
+        html += `<h4 style="color: #ffffff; margin-bottom: 15px; border-bottom: 2px solid #427eea; padding-bottom: 10px;">Report: ${runId}</h4>`;
+        
+        if (result.metrics) {
+            html += '<div style="margin-bottom: 20px;">';
+            html += '<h5 style="color: #427eea; margin-bottom: 10px; font-size: 14px;">📊 Metrics Summary</h5>';
+            const summary = result.metrics.summary || {};
+            html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">`;
+            html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Total Queries</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 18px;">${summary.total_queries || 'N/A'}</p></div>`;
+            html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Total Transforms</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 18px;">${summary.total_transforms || 'N/A'}</p></div>`;
+            html += `</div>`;
+            
+            if (result.metrics.overall) {
+                html += '<h5 style="color: #427eea; margin-top: 15px; margin-bottom: 10px; font-size: 14px;">🎯 Overall Performance</h5>';
+                const recall = result.metrics.overall.recall || {};
+                const rank = result.metrics.overall.rank || {};
+                const similarity = result.metrics.overall.similarity || {};
+                
+                html += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">`;
+                html += `<div style="padding: 12px; background: #2d2d2d; border-radius: 4px; border-left: 3px solid #427eea;"><strong style="color: #9ca3af; font-size: 11px;">Recall@1</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 20px; font-weight: bold;">${((recall.recall_at_1 || 0) * 100).toFixed(1)}%</p></div>`;
+                html += `<div style="padding: 12px; background: #2d2d2d; border-radius: 4px; border-left: 3px solid #10b981;"><strong style="color: #9ca3af; font-size: 11px;">Recall@5</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 20px; font-weight: bold;">${((recall.recall_at_5 || 0) * 100).toFixed(1)}%</p></div>`;
+                html += `<div style="padding: 12px; background: #2d2d2d; border-radius: 4px; border-left: 3px solid #f59e0b;"><strong style="color: #9ca3af; font-size: 11px;">Recall@10</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 20px; font-weight: bold;">${((recall.recall_at_10 || 0) * 100).toFixed(1)}%</p></div>`;
+                html += `</div>`;
+                
+                html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">`;
+                html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Mean Rank</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 16px;">${(rank.mean_rank || 0).toFixed(2)}</p></div>`;
+                html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Mean Similarity</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 16px;">${((similarity.mean_similarity_correct || 0) * 100).toFixed(1)}%</p></div>`;
+                html += `</div>`;
+            }
+            html += '</div>';
+        }
+        
+        if (result.summary && result.summary.length > 0) {
+            html += '<h5 style="color: #427eea; margin-top: 20px; margin-bottom: 10px; font-size: 14px;">📋 Per-Severity Summary</h5>';
+            html += '<div style="overflow-x: auto;"><table class="table" style="width: 100%; margin-top: 10px; font-size: 12px;"><thead><tr style="background: #2d2d2d;"><th style="padding: 8px; text-align: left;">Severity</th><th style="padding: 8px; text-align: right;">Count</th><th style="padding: 8px; text-align: right;">Recall@1</th><th style="padding: 8px; text-align: right;">Recall@5</th><th style="padding: 8px; text-align: right;">Recall@10</th></tr></thead><tbody>';
+            result.summary.forEach(row => {
+                const severityColor = row.severity === 'mild' ? '#10b981' : row.severity === 'moderate' ? '#f59e0b' : '#f87171';
+                html += `<tr style="border-bottom: 1px solid #3d3d3d;">
+                    <td style="padding: 8px;"><span style="color: ${severityColor}; font-weight: 500;">${row.severity || 'N/A'}</span></td>
+                    <td style="padding: 8px; text-align: right; color: #ffffff;">${row.count || 0}</td>
+                    <td style="padding: 8px; text-align: right; color: #ffffff;">${((row.recall_at_1 || 0) * 100).toFixed(1)}%</td>
+                    <td style="padding: 8px; text-align: right; color: #ffffff;">${((row.recall_at_5 || 0) * 100).toFixed(1)}%</td>
+                    <td style="padding: 8px; text-align: right; color: #ffffff;">${((row.recall_at_10 || 0) * 100).toFixed(1)}%</td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+        
+        html += '</div>';
+        reportViewerDiv.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load run details:', error);
+        const reportViewerDiv = document.getElementById('reportViewer');
+        if (reportViewerDiv) {
+            reportViewerDiv.innerHTML = `
+                <div style="padding: 15px; background: #3a1e1e; border-radius: 6px; border: 1px solid #f87171;">
+                    <p style="color: #f87171; margin: 0;">Error loading details: ${error.message}</p>
+                </div>
+            `;
+        }
     }
 }

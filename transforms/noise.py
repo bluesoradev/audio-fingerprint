@@ -57,6 +57,42 @@ def add_noise(
             noise = np.real(np.fft.ifft(fft_pink))
             # Scale to desired power
             noise = noise * np.sqrt(noise_power / np.mean(noise ** 2))
+        elif noise_type.lower() == "vinyl" or noise_type.lower() == "crackle":
+            # Vinyl crackle: sparse impulsive noise with high-frequency content
+            # Create sparse clicks and pops
+            noise = np.zeros(len(y))
+            num_clicks = int(len(y) / sr * 2)  # ~2 clicks per second
+            click_indices = np.random.choice(len(y), size=num_clicks, replace=False)
+            
+            for idx in click_indices:
+                # Create a short click/pop (impulse response)
+                click_length = int(sr * 0.001)  # 1ms click
+                start_idx = max(0, idx - click_length // 2)
+                end_idx = min(len(y), idx + click_length // 2)
+                
+                # Generate click: high-frequency burst
+                click_samples = end_idx - start_idx
+                t = np.linspace(0, 1, click_samples)
+                # Exponential decay with high-frequency content
+                click = np.exp(-t * 50) * np.sin(2 * np.pi * 8000 * t) * np.random.uniform(0.5, 1.5)
+                noise[start_idx:end_idx] += click
+            
+            # Add some continuous high-frequency noise (hiss)
+            hiss = np.random.normal(0, np.sqrt(noise_power * 0.3), len(y))
+            # High-pass filter the hiss
+            from scipy import signal
+            nyquist = sr / 2.0
+            normalized_freq = 5000 / nyquist  # 5kHz high-pass
+            normalized_freq = max(0.01, min(0.99, normalized_freq))
+            b, a = signal.butter(4, normalized_freq, btype='high', analog=False)
+            hiss = signal.filtfilt(b, a, hiss)
+            
+            noise = noise + hiss
+            
+            # Scale to desired power
+            current_power = np.mean(noise ** 2)
+            if current_power > 0:
+                noise = noise * np.sqrt(noise_power / current_power)
         else:
             # Default to white noise
             noise = np.random.normal(0, np.sqrt(noise_power), len(y))

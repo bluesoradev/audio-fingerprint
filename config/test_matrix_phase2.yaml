@@ -1,0 +1,158 @@
+# Phase 2 Test Matrix Configuration
+# Structural Manipulation Tests (Realistic Theft Scenarios)
+
+global:
+  random_seed: 42
+  num_samples_per_transform: 1
+  phase: "phase2"
+
+originals:
+  manifest_path: "data/manifests/files_manifest.csv"
+  min_duration: 5.0
+  max_duration: 300.0
+  sample_rate: 44100
+
+transforms:
+  # 6. Add Percussion Layers - Phase 2 requirements
+  overlay_vocals:
+    enabled: true
+    parameters:
+      - overlay_path: null  # Will use provided percussion files or generate
+        level_db: -10.0  # 10% volume
+        severity: "moderate"
+        description: "Basic drum loop"
+      - overlay_path: null
+        level_db: -13.0  # ~20% volume
+        severity: "moderate"
+        description: "Trap drums"
+      - overlay_path: null
+        level_db: -13.0
+        severity: "moderate"
+        description: "Boom-bap drums"
+      - overlay_path: null
+        level_db: -13.0
+        severity: "moderate"
+        description: "Percussion loop"
+      # 7. Add Melodic Layers - Phase 2 requirements
+      - overlay_path: null
+        level_db: -6.0
+        severity: "moderate"
+        description: "Pad/chords"
+      - overlay_path: null
+        level_db: -6.0
+        severity: "moderate"
+        description: "Simple lead melody"
+      - overlay_path: null
+        level_db: -6.0
+        severity: "moderate"
+        description: "Countermelody"
+
+  # 8. Remove Elements - Phase 2 requirements
+  low_pass_filter:
+    enabled: true
+    parameters:
+      - freq_hz: 200  # Bass-only (remove drums/highs)
+        severity: "severe"
+        description: "Bass-only"
+      - freq_hz: 2000  # Remove highs (low-pass at 2k Hz)
+        severity: "moderate"
+        description: "Remove highs"
+
+  # Note: "Remove drums" would require stem separation, using low-pass as approximation
+
+  # 9. Noise & Room Effects - Phase 2 requirements
+  add_noise:
+    enabled: true
+    parameters:
+      - snr_db: 20  # White noise at -20 dB
+        noise_type: "white"
+        severity: "moderate"
+        description: "White noise -20dB"
+      - snr_db: 25  # Vinyl crackle
+        noise_type: "vinyl"
+        severity: "moderate"
+        description: "Vinyl crackle"
+
+  apply_reverb:
+    enabled: true
+    parameters:
+      - delay_ms: 30  # Small room
+        wet_mix: 0.2
+        decay: 0.3
+        severity: "mild"
+        description: "Reverb small room"
+      - delay_ms: 150  # Large hall
+        wet_mix: 0.4
+        decay: 0.6
+        severity: "moderate"
+        description: "Reverb large hall"
+
+  # 10. Cropping - Phase 2 requirements
+  crop_10_seconds:
+    enabled: true
+    parameters:
+      - severity: "mild"
+        description: "10-second clip from start"
+  
+  crop_5_seconds:
+    enabled: true
+    parameters:
+      - severity: "mild"
+        description: "5-second clip from start"
+  
+  crop_middle_segment:
+    enabled: true
+    parameters:
+      - duration: 10.0
+        severity: "moderate"
+        description: "Middle segment (10 seconds)"
+  
+  crop_end_segment:
+    enabled: true
+    parameters:
+      - duration: 10.0
+        severity: "moderate"
+        description: "End segment (10 seconds)"
+
+thresholds:
+  recall_at_k:
+    mild:
+      recall_at_1: 0.90
+      recall_at_5: 0.95
+      recall_at_10: 0.98
+    moderate:
+      recall_at_1: 0.75
+      recall_at_5: 0.85
+      recall_at_10: 0.90
+    severe:
+      recall_at_1: 0.50
+      recall_at_5: 0.70
+      recall_at_10: 0.80
+
+  latency:
+    max_mean_ms: 1000
+    max_p95_ms: 2000
+
+  similarity:
+    min_score_mild: 0.85
+    min_score_moderate: 0.70
+    min_score_severe: 0.50
+
+evaluation:
+  top_k_values: [1, 5, 10, 20]
+  compute_per_segment: true
+  aggregate_method: "mean"
+
+failure_capture:
+  enabled: true
+  save_audio: true
+  save_spectrograms: true
+  save_json: true
+  max_failures_per_transform: 10
+
+reporting:
+  generate_html: true
+  generate_pdf: false
+  save_plots: true
+  include_proofs: true
+
