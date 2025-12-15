@@ -1169,8 +1169,10 @@ async function applyReverbTransform() {
             addSystemLog(`Reverb transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
+                updateTransformedPlayer(result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
@@ -1214,8 +1216,10 @@ async function applyNoiseReductionTransform() {
             addSystemLog(`Noise reduction applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
+                updateTransformedPlayer(result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
@@ -1258,8 +1262,10 @@ async function applyEQTransform() {
             addSystemLog(`EQ transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
+                updateTransformedPlayer(result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
@@ -1314,8 +1320,10 @@ async function applyCompressionTransform() {
             addSystemLog(`Compression applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
+                updateTransformedPlayer(result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
@@ -1380,8 +1388,10 @@ async function applyOverlayTransform() {
             addSystemLog(`Overlay transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
+                updateTransformedPlayer(result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
