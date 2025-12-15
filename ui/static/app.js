@@ -752,7 +752,7 @@ function loadAudioInfo() {
     }
     
     selectedAudioFile = filePath;
-    const fileName = select.options[select.selectedIndex].textContent;
+    const fileName = select.options[select.selectedIndex]?.textContent || filePath.split('/').pop();
     
     const selectedFileName = document.getElementById('selectedFileName');
     const selectedFilePath = document.getElementById('selectedFilePath');
@@ -767,11 +767,14 @@ function loadAudioInfo() {
     // Update original audio player
     updateOriginalPlayer(filePath);
     
-    // Update original test display - preserve existing transformed path
+    // Update original test display in "Test Fingerprint Robustness" section
+    // Preserve existing transformed path if it exists
     const transformedDisplay = document.getElementById('transformedTestDisplay');
-    const existingTransformed = transformedDisplay?.value || null;
-    console.log('[loadAudioInfo] Preserving existing transformed path:', existingTransformed);
+    const existingTransformed = transformedDisplay?.value?.trim() || null;
+    console.log('[loadAudioInfo] Updating test displays - Original:', filePath, 'Transformed (preserved):', existingTransformed);
     updateTestDisplays(filePath, existingTransformed);
+    
+    console.log('[loadAudioInfo] ✅ Original audio set in Test Fingerprint Robustness section');
 }
 
 function updateOriginalPlayer(filePath) {
