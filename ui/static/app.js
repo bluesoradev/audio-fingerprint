@@ -1113,9 +1113,11 @@ async function applySpeedTransform() {
             addSystemLog(`Speed transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            // Update transformed test display and player
+            // Update transformed test display and player - preserve original path
             if (result.output_path) {
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
         } else {
@@ -1184,9 +1186,11 @@ async function applyPitchTransform() {
             console.log('[Pitch Transform] Success! Output file:', result.output_path);
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            // Update transformed test display and player
+            // Update transformed test display and player - preserve original path
             if (result.output_path) {
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
         } else {
@@ -1233,9 +1237,11 @@ async function applyReverbTransform() {
             addSystemLog(`Reverb transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            // Update transformed test display and player
+            // Update transformed test display and player - preserve original path
             if (result.output_path) {
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
         } else {
@@ -1302,7 +1308,9 @@ async function applyNoiseReductionTransform() {
             if (result.output_path) {
                 console.log('[Noise Reduction] Calling updateTestDisplays with:', result.output_path);
                 console.log('[Noise Reduction] Calling updateTransformedPlayer with:', result.output_path);
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
                 console.error('[Noise Reduction] No output_path in response:', result);
@@ -1374,7 +1382,9 @@ async function applyEQTransform() {
             if (result.output_path) {
                 console.log('[EQ Transform] Calling updateTestDisplays with:', result.output_path);
                 console.log('[EQ Transform] Calling updateTransformedPlayer with:', result.output_path);
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
                 console.error('[EQ Transform] No output_path in response:', result);
@@ -1436,9 +1446,11 @@ async function applyCompressionTransform() {
             addSystemLog(`Compression applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            // Update transformed test display and player
+            // Update transformed test display and player - preserve original path
             if (result.output_path) {
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
         } else {
@@ -1504,9 +1516,11 @@ async function applyOverlayTransform() {
             addSystemLog(`Overlay transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            // Update transformed test display and player
+            // Update transformed test display and player - preserve original path
             if (result.output_path) {
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
         } else {
@@ -1774,8 +1788,11 @@ async function applyChainTransform() {
             clearChain();
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display - preserve original path
             if (result.output_path) {
-                updateTestDisplays(null, result.output_path);
+                const originalDisplay = document.getElementById('originalTestDisplay');
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                updateTestDisplays(existingOriginal, result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
