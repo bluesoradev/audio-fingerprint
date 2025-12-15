@@ -21,18 +21,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize progress indicators
     const radius = 54;
     const circumference = 2 * Math.PI * radius;
-    const phase1Circle = document.querySelector('.progress-circle-fill.phase1');
-    const phase2Circle = document.querySelector('.progress-circle-fill.phase2');
+    const overallCircle = document.querySelector('.progress-circle-fill.overall');
+    const stepCircle = document.querySelector('.progress-circle-fill.step');
     
-    if (phase1Circle) {
-        phase1Circle.style.strokeDasharray = `${circumference} ${circumference}`;
-        phase1Circle.style.strokeDashoffset = circumference;
-        phase1Circle.classList.add('pending');
+    if (overallCircle) {
+        overallCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        overallCircle.style.strokeDashoffset = circumference;
+        overallCircle.classList.add('pending');
     }
-    if (phase2Circle) {
-        phase2Circle.style.strokeDasharray = `${circumference} ${circumference}`;
-        phase2Circle.style.strokeDashoffset = circumference;
-        phase2Circle.classList.add('pending');
+    if (stepCircle) {
+        stepCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        stepCircle.style.strokeDashoffset = circumference;
+        stepCircle.classList.add('pending');
     }
     
     checkStatus();
@@ -3270,9 +3270,11 @@ let progressModalState = {
     phase: 'both',
     commandId: null,
     startTime: null,
-    phase1Progress: 0,
-    phase2Progress: 0,
+    overallProgress: 0,
+    stepProgress: 0,
     currentStep: 'Initializing...',
+    currentStepIndex: 0,
+    stepStartTime: null,
     isCancelled: false,
     pollInterval: null
 };
@@ -3294,20 +3296,22 @@ function showProgressModal(phase) {
     
     progressModalState.phase = phase;
     progressModalState.startTime = Date.now();
-    progressModalState.phase1Progress = 0;
-    progressModalState.phase2Progress = 0;
+    progressModalState.stepStartTime = Date.now();
+    progressModalState.overallProgress = 0;
+    progressModalState.stepProgress = 0;
     progressModalState.currentStep = 'Initializing...';
+    progressModalState.currentStepIndex = 0;
     progressModalState.isCancelled = false;
     
     // Reset UI
-    updateProgressIndicator('phase1', 0, 'Waiting...');
-    updateProgressIndicator('phase2', 0, 'Waiting...');
+    updateProgressIndicator('overall', 0, 'Waiting...');
+    updateProgressIndicator('step', 0, 'Waiting...');
     updateCurrentStep('Initializing...');
     updateTimeInfo();
     
-    // Disable close button
+    // Close button is enabled and will cancel the process if clicked
     const closeBtn = document.getElementById('progressModalClose');
-    if (closeBtn) closeBtn.disabled = true;
+    if (closeBtn) closeBtn.disabled = false;
     
     modal.style.display = 'flex';
     
@@ -3319,6 +3323,12 @@ function showProgressModal(phase) {
 }
 
 function closeProgressModal() {
+    // If there's an active process, cancel it first
+    if (progressModalState.commandId && !progressModalState.isCancelled) {
+        cancelProgress();
+        return;
+    }
+    
     const modal = document.getElementById('progressModal');
     if (!modal) return;
     
@@ -3333,16 +3343,12 @@ function closeProgressModal() {
         clearInterval(progressModalState.timeInterval);
         progressModalState.timeInterval = null;
     }
-    
-    // Re-enable close button
-    const closeBtn = document.getElementById('progressModalClose');
-    if (closeBtn) closeBtn.disabled = false;
 }
 
-function updateProgressIndicator(phase, percentage, status) {
-    const percentageEl = document.getElementById(`${phase}Percentage`);
-    const statusEl = document.getElementById(`${phase}Status`);
-    const circleEl = document.querySelector(`.progress-circle-fill.${phase}`);
+function updateProgressIndicator(type, percentage, status) {
+    const percentageEl = document.getElementById(`${type}Percentage`);
+    const statusEl = document.getElementById(`${type}Status`);
+    const circleEl = document.querySelector(`.progress-circle-fill.${type}`);
     
     if (percentageEl) percentageEl.textContent = `${Math.round(percentage)}%`;
     if (statusEl) statusEl.textContent = status;
@@ -3364,10 +3370,10 @@ function updateProgressIndicator(phase, percentage, status) {
     }
     
     // Update state
-    if (phase === 'phase1') {
-        progressModalState.phase1Progress = percentage;
-    } else if (phase === 'phase2') {
-        progressModalState.phase2Progress = percentage;
+    if (type === 'overall') {
+        progressModalState.overallProgress = percentage;
+    } else if (type === 'step') {
+        progressModalState.stepProgress = percentage;
     }
 }
 
@@ -3397,52 +3403,58 @@ function updateTimeInfo() {
     }
 }
 
+// Step definitions with their order and step-level progress ranges
+const STEP_DEFINITIONS = [
+    { text: 'Step 1: Ingesting', keywords: ['ingest', 'ingesting'], stepIndex: 0, stepProgress: 0 },
+    { text: 'Step 2: Generating transforms', keywords: ['transform', 'generating transforms'], stepIndex: 1, stepProgress: 0 },
+    { text: 'Step 3: Building FAISS index', keywords: ['index', 'faiss', 'building'], stepIndex: 2, stepProgress: 0 },
+    { text: 'Step 4: Running queries', keywords: ['query', 'queries', 'running queries'], stepIndex: 3, stepProgress: 0 },
+    { text: 'Step 5: Analyzing results', keywords: ['analyze', 'analyzing', 'results'], stepIndex: 4, stepProgress: 0 },
+    { text: 'Step 6: Capturing failures', keywords: ['failure', 'failures', 'capturing'], stepIndex: 5, stepProgress: 0 },
+    { text: 'Step 7: Generating report', keywords: ['report', 'generating report'], stepIndex: 6, stepProgress: 0 }
+];
+
 function parseLogForProgress(logMessage, currentActivePhase) {
     if (!logMessage) return null;
     
     const message = logMessage.toLowerCase();
     
-    // Detect which phase is running based on log content and current active phase
+    // Detect which phase is running
     let detectedPhase = null;
-    
-    // Check for explicit phase markers in log
     if (message.includes('phase1') || message.includes('phase_1') || message.includes('test_matrix_phase1')) {
         detectedPhase = 'phase1';
     } else if (message.includes('phase2') || message.includes('phase_2') || message.includes('test_matrix_phase2')) {
         detectedPhase = 'phase2';
     } else {
-        // Use current active phase if no explicit marker
         detectedPhase = currentActivePhase;
     }
     
-    // Check for step markers (case-insensitive partial match)
-    for (const [stepText, percentage] of Object.entries(STEP_MAPPING)) {
-        const stepLower = stepText.toLowerCase();
-        // Match various formats: "Step 1:", "Step 1", "ingesting", etc.
+    // Check for step markers
+    for (let i = 0; i < STEP_DEFINITIONS.length; i++) {
+        const stepDef = STEP_DEFINITIONS[i];
+        const stepLower = stepDef.text.toLowerCase();
+        
+        // Check if this step is mentioned in the log
         if (message.includes(stepLower) || 
-            message.includes(stepLower.replace('step ', '').replace(':', '')) ||
-            (stepLower.includes('ingesting') && message.includes('ingest')) ||
-            (stepLower.includes('generating transforms') && message.includes('transform')) ||
-            (stepLower.includes('building faiss') && message.includes('index')) ||
-            (stepLower.includes('running queries') && message.includes('query')) ||
-            (stepLower.includes('analyzing results') && message.includes('analyze')) ||
-            (stepLower.includes('capturing failures') && message.includes('failure')) ||
-            (stepLower.includes('generating report') && message.includes('report'))) {
+            stepDef.keywords.some(keyword => message.includes(keyword))) {
             return {
                 phase: detectedPhase,
-                percentage: percentage,
-                step: stepText
+                stepIndex: stepDef.stepIndex,
+                stepText: stepDef.text,
+                stepProgress: 0 // Will be updated based on time/activity
             };
         }
     }
     
-    // Check for completion markers
+    // Check for completion
     if (message.includes('completed') || message.includes('finished') || 
         message.includes('experiment run:') || message.includes('report generated')) {
         return {
             phase: detectedPhase,
-            percentage: 100,
-            step: 'Complete'
+            stepIndex: STEP_DEFINITIONS.length - 1,
+            stepText: 'Complete',
+            stepProgress: 100,
+            completed: true
         };
     }
     
@@ -3451,8 +3463,7 @@ function parseLogForProgress(logMessage, currentActivePhase) {
         message.includes('exception') || message.includes('traceback')) {
         return {
             phase: detectedPhase,
-            percentage: null,
-            step: 'Error',
+            stepText: 'Error',
             error: true
         };
     }
@@ -3460,8 +3471,45 @@ function parseLogForProgress(logMessage, currentActivePhase) {
     return null;
 }
 
+function calculateOverallProgress(currentPhase, stepIndex, stepProgress) {
+    // Calculate overall progress based on phase and step
+    const totalSteps = STEP_DEFINITIONS.length;
+    const stepWeight = 100 / totalSteps; // Each step is worth ~14.3%
+    
+    if (progressModalState.phase === 'both') {
+        // Phase 1: steps 0-6 (0-50%), Phase 2: steps 0-6 (50-100%)
+        if (currentPhase === 'phase1') {
+            // Phase 1: 0-50%
+            const baseProgress = (stepIndex / totalSteps) * 50;
+            const stepContribution = (stepProgress / 100) * stepWeight * 0.5;
+            return Math.min(baseProgress + stepContribution, 50);
+        } else if (currentPhase === 'phase2') {
+            // Phase 2: 50-100%
+            const baseProgress = 50 + (stepIndex / totalSteps) * 50;
+            const stepContribution = (stepProgress / 100) * stepWeight * 0.5;
+            return Math.min(baseProgress + stepContribution, 100);
+        }
+    } else if (progressModalState.phase === 'phase1') {
+        // Single Phase 1: 0-100%
+        const baseProgress = (stepIndex / totalSteps) * 100;
+        const stepContribution = (stepProgress / 100) * stepWeight;
+        return Math.min(baseProgress + stepContribution, 100);
+    } else if (progressModalState.phase === 'phase2') {
+        // Single Phase 2: 0-100%
+        const baseProgress = (stepIndex / totalSteps) * 100;
+        const stepContribution = (stepProgress / 100) * stepWeight;
+        return Math.min(baseProgress + stepContribution, 100);
+    }
+    
+    return 0;
+}
+
 async function cancelProgress() {
-    if (!progressModalState.commandId) return;
+    if (!progressModalState.commandId) {
+        // No active process, just close modal
+        closeProgressModal();
+        return;
+    }
     
     if (!confirm('Are you sure you want to cancel the report generation?')) {
         return;
@@ -3475,6 +3523,15 @@ async function cancelProgress() {
         if (resp.ok) {
             progressModalState.isCancelled = true;
             updateCurrentStep('Cancelling...');
+            updateProgressIndicator('overall', progressModalState.overallProgress, 'Cancelled');
+            updateProgressIndicator('step', progressModalState.stepProgress, 'Cancelled');
+            
+            // Stop polling
+            if (progressModalState.pollInterval) {
+                clearInterval(progressModalState.pollInterval);
+                progressModalState.pollInterval = null;
+            }
+            
             showCompletionAlert('Report generation cancelled', 'info');
             setTimeout(() => {
                 closeProgressModal();
@@ -3551,18 +3608,61 @@ async function runPhaseSuite(phase = 'both') {
                                     
                                     // Parse log for progress
                                     const progressInfo = parseLogForProgress(log.message, currentActivePhase);
-                                    if (progressInfo && progressInfo.phase) {
+                                    if (progressInfo) {
                                         if (progressInfo.error) {
-                                            updateProgressIndicator(progressInfo.phase, progressModalState[`${progressInfo.phase}Progress`], 'Error');
+                                            updateProgressIndicator('overall', progressModalState.overallProgress, 'Error');
+                                            updateProgressIndicator('step', progressModalState.stepProgress, 'Error');
                                             updateCurrentStep('Error occurred');
-                                        } else {
-                                            updateProgressIndicator(progressInfo.phase, progressInfo.percentage, progressInfo.step);
-                                            updateCurrentStep(progressInfo.step);
+                                        } else if (progressInfo.stepText) {
+                                            // Check if this is a new step
+                                            const isNewStep = progressInfo.stepIndex !== undefined && 
+                                                             progressInfo.stepIndex !== progressModalState.currentStepIndex;
+                                            
+                                            if (isNewStep) {
+                                                // New step started - reset step progress
+                                                progressModalState.currentStepIndex = progressInfo.stepIndex;
+                                                progressModalState.stepProgress = 0;
+                                                progressModalState.stepStartTime = Date.now();
+                                            }
+                                            
+                                            // Estimate step progress based on time (each step estimated to take ~30 seconds)
+                                            // This is a rough estimate - in reality, steps take different amounts of time
+                                            const estimatedStepDuration = 30000; // 30 seconds per step
+                                            let stepProgress = progressInfo.stepProgress !== undefined ? progressInfo.stepProgress : 0;
+                                            
+                                            if (stepProgress === 0 && progressModalState.stepStartTime) {
+                                                const timeInStep = Date.now() - progressModalState.stepStartTime;
+                                                stepProgress = Math.min((timeInStep / estimatedStepDuration) * 100, 95); // Cap at 95% until completion
+                                            }
+                                            
+                                            progressModalState.stepProgress = stepProgress;
+                                            
+                                            // Calculate overall progress
+                                            const overallProgress = calculateOverallProgress(
+                                                progressInfo.phase || currentActivePhase,
+                                                progressModalState.currentStepIndex,
+                                                stepProgress
+                                            );
+                                            progressModalState.overallProgress = overallProgress;
+                                            
+                                            // Update UI
+                                            updateProgressIndicator('overall', overallProgress, progressInfo.completed ? 'Complete' : `${Math.round(overallProgress)}%`);
+                                            updateProgressIndicator('step', stepProgress, progressInfo.stepText);
+                                            updateCurrentStep(progressInfo.stepText);
                                             
                                             // If phase1 completes and we're running both, switch to phase2
-                                            if (phase === 'both' && progressInfo.phase === 'phase1' && progressInfo.percentage === 100) {
+                                            if (phase === 'both' && progressInfo.phase === 'phase1' && progressInfo.completed) {
                                                 currentActivePhase = 'phase2';
-                                                updateProgressIndicator('phase2', 0, 'Starting...');
+                                                progressModalState.currentStepIndex = 0;
+                                                progressModalState.stepProgress = 0;
+                                                progressModalState.stepStartTime = Date.now();
+                                                updateProgressIndicator('step', 0, 'Starting Phase 2...');
+                                            }
+                                            
+                                            // If step completed, set to 100%
+                                            if (progressInfo.completed) {
+                                                progressModalState.stepProgress = 100;
+                                                updateProgressIndicator('step', 100, 'Complete');
                                             }
                                         }
                                     }
@@ -3589,12 +3689,8 @@ async function runPhaseSuite(phase = 'both') {
                                     : `Process exited with code ${exitCodeNum}`;
                                 
                                 // Update progress to show error
-                                if (currentActivePhase === 'phase1' || phase === 'both') {
-                                    updateProgressIndicator('phase1', progressModalState.phase1Progress, 'Failed');
-                                }
-                                if (currentActivePhase === 'phase2' || phase === 'both') {
-                                    updateProgressIndicator('phase2', progressModalState.phase2Progress, 'Failed');
-                                }
+                                updateProgressIndicator('overall', progressModalState.overallProgress, 'Failed');
+                                updateProgressIndicator('step', progressModalState.stepProgress, 'Failed');
                                 updateCurrentStep('Process failed');
                                 
                                 setTimeout(() => {
@@ -3605,19 +3701,9 @@ async function runPhaseSuite(phase = 'both') {
                             }
                             
                             // Success - update progress to 100%
-                            if (phase === 'both') {
-                                updateProgressIndicator('phase1', 100, 'Complete ✓');
-                                updateProgressIndicator('phase2', 100, 'Complete ✓');
-                            } else if (phase === 'phase1') {
-                                updateProgressIndicator('phase1', 100, 'Complete ✓');
-                            } else if (phase === 'phase2') {
-                                updateProgressIndicator('phase2', 100, 'Complete ✓');
-                            }
+                            updateProgressIndicator('overall', 100, 'Complete ✓');
+                            updateProgressIndicator('step', 100, 'Complete ✓');
                             updateCurrentStep('Reports generated successfully!');
-                            
-                            // Re-enable close button
-                            const closeBtn = document.getElementById('progressModalClose');
-                            if (closeBtn) closeBtn.disabled = false;
                             
                             setTimeout(() => {
                                 closeProgressModal();

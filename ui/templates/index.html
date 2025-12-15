@@ -1692,7 +1692,7 @@
         <div class="progress-modal-content">
             <div class="progress-modal-header">
                 <h2>Generating Reports</h2>
-                <button id="progressModalClose" class="progress-modal-close" onclick="closeProgressModal()" disabled>×</button>
+                <button id="progressModalClose" class="progress-modal-close" onclick="closeProgressModal()">×</button>
             </div>
             <div class="progress-modal-body">
                 <div class="progress-indicators">
@@ -1700,27 +1700,27 @@
                         <div class="progress-circle-container">
                             <svg class="progress-circle" width="120" height="120">
                                 <circle class="progress-circle-bg" cx="60" cy="60" r="54"></circle>
-                                <circle class="progress-circle-fill phase1" cx="60" cy="60" r="54"></circle>
+                                <circle class="progress-circle-fill overall" cx="60" cy="60" r="54"></circle>
                             </svg>
                             <div class="progress-text">
-                                <div class="progress-percentage" id="phase1Percentage">0%</div>
-                                <div class="progress-status" id="phase1Status">Waiting...</div>
+                                <div class="progress-percentage" id="overallPercentage">0%</div>
+                                <div class="progress-status" id="overallStatus">Waiting...</div>
                             </div>
                         </div>
-                        <div class="progress-label">Phase 1</div>
+                        <div class="progress-label">Overall Progress</div>
                     </div>
                     <div class="progress-indicator">
                         <div class="progress-circle-container">
                             <svg class="progress-circle" width="120" height="120">
                                 <circle class="progress-circle-bg" cx="60" cy="60" r="54"></circle>
-                                <circle class="progress-circle-fill phase2" cx="60" cy="60" r="54"></circle>
+                                <circle class="progress-circle-fill step" cx="60" cy="60" r="54"></circle>
                             </svg>
                             <div class="progress-text">
-                                <div class="progress-percentage" id="phase2Percentage">0%</div>
-                                <div class="progress-status" id="phase2Status">Waiting...</div>
+                                <div class="progress-percentage" id="stepPercentage">0%</div>
+                                <div class="progress-status" id="stepStatus">Waiting...</div>
                             </div>
                         </div>
-                        <div class="progress-label">Phase 2</div>
+                        <div class="progress-label">Current Step</div>
                     </div>
                 </div>
                 <div class="progress-info">
@@ -1839,11 +1839,11 @@
             transition: stroke-dashoffset 0.3s ease;
         }
 
-        .progress-circle-fill.phase1 {
+        .progress-circle-fill.overall {
             stroke: #427eea;
         }
 
-        .progress-circle-fill.phase2 {
+        .progress-circle-fill.step {
             stroke: #10b981;
         }
 
