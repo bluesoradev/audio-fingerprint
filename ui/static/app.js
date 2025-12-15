@@ -794,11 +794,14 @@ function updateOriginalPlayer(filePath) {
 }
 
 function updateTransformedPlayer(filePath) {
+    console.log('[updateTransformedPlayer] Called with filePath:', filePath);
+    
     const player = document.getElementById('transformedAudioPlayer');
     const playBtn = document.getElementById('transformedPlayBtn');
     const infoDiv = document.getElementById('transformedPlayerInfo');
     
     if (!filePath) {
+        console.log('[updateTransformedPlayer] No filePath provided, clearing player');
         if (player) {
             player.src = '';
             player.pause();
@@ -816,18 +819,39 @@ function updateTransformedPlayer(filePath) {
         return;
     }
     
-    if (player) {
-        player.src = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
-        player.load();
-        player.onpause = () => {
-            if (playBtn) playBtn.textContent = '▶';
-            transformedAudioPlaying = false;
-        };
-        player.onended = () => {
-            if (playBtn) playBtn.textContent = '▶';
-            transformedAudioPlaying = false;
-        };
+    if (!player) {
+        console.error('[updateTransformedPlayer] Player element not found!');
+        return;
     }
+    
+    const audioUrl = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
+    console.log('[updateTransformedPlayer] Setting audio src to:', audioUrl);
+    
+    player.src = audioUrl;
+    
+    // Add error handler to catch loading issues
+    player.onerror = (e) => {
+        console.error('[updateTransformedPlayer] Audio loading error:', e);
+        console.error('[updateTransformedPlayer] Failed to load:', audioUrl);
+        if (infoDiv) {
+            infoDiv.innerHTML = `<p style="color: #f87171; font-size: 12px; margin: 0;">Error loading: ${filePath.split('/').pop()}</p>`;
+        }
+    };
+    
+    player.onloadeddata = () => {
+        console.log('[updateTransformedPlayer] Audio loaded successfully:', audioUrl);
+    };
+    
+    player.load();
+    player.onpause = () => {
+        if (playBtn) playBtn.textContent = '▶';
+        transformedAudioPlaying = false;
+    };
+    player.onended = () => {
+        if (playBtn) playBtn.textContent = '▶';
+        transformedAudioPlaying = false;
+    };
+    
     if (playBtn) {
         playBtn.disabled = false;
         playBtn.textContent = '▶';
@@ -835,6 +859,7 @@ function updateTransformedPlayer(filePath) {
     if (infoDiv) {
         const fileName = filePath.split('/').pop();
         infoDiv.innerHTML = `<p style="color: #4ade80; font-size: 12px; margin: 0;">Loaded: ${fileName}</p>`;
+        console.log('[updateTransformedPlayer] Updated info display with:', fileName);
     }
     transformedAudioPlaying = false;
 }
@@ -1223,20 +1248,26 @@ async function applyNoiseReductionTransform() {
         }
         
         const result = await response.json();
-        console.log('[Noise Reduction] Response:', result);
+        console.log('[Noise Reduction] Full response:', JSON.stringify(result, null, 2));
         
         if (result.status === 'success') {
             showCompletionAlert(result.message);
             addSystemLog(`Noise reduction applied: ${result.output_path}`, 'success');
             console.log('[Noise Reduction] Success! Output file:', result.output_path);
+            console.log('[Noise Reduction] Output path type:', typeof result.output_path);
+            
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            
             // Update transformed test display and player
             if (result.output_path) {
+                console.log('[Noise Reduction] Calling updateTestDisplays with:', result.output_path);
+                console.log('[Noise Reduction] Calling updateTransformedPlayer with:', result.output_path);
                 updateTestDisplays(null, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
                 console.error('[Noise Reduction] No output_path in response:', result);
+                showError('Transform succeeded but no output path returned');
             }
         } else {
             console.error('[Noise Reduction] Failed:', result.message);
@@ -1289,20 +1320,26 @@ async function applyEQTransform() {
         }
         
         const result = await response.json();
-        console.log('[EQ Transform] Response:', result);
+        console.log('[EQ Transform] Full response:', JSON.stringify(result, null, 2));
         
         if (result.status === 'success') {
             showCompletionAlert(result.message);
             addSystemLog(`EQ transform applied: ${result.output_path}`, 'success');
             console.log('[EQ Transform] Success! Output file:', result.output_path);
+            console.log('[EQ Transform] Output path type:', typeof result.output_path);
+            
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            
             // Update transformed test display and player
             if (result.output_path) {
+                console.log('[EQ Transform] Calling updateTestDisplays with:', result.output_path);
+                console.log('[EQ Transform] Calling updateTransformedPlayer with:', result.output_path);
                 updateTestDisplays(null, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
                 console.error('[EQ Transform] No output_path in response:', result);
+                showError('Transform succeeded but no output path returned');
             }
         } else {
             console.error('[EQ Transform] Failed:', result.message);

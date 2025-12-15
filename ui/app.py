@@ -480,12 +480,22 @@ async def list_audio_files(directory: str = "originals"):
 @app.get("/api/files/audio-file")
 async def serve_audio_file(path: str):
     """Serve audio file for preview."""
+    logger.info(f"[Audio File API] Requested path: {path}")
     file_path = PROJECT_ROOT / path
+    logger.info(f"[Audio File API] Full file path: {file_path}")
+    logger.info(f"[Audio File API] File exists: {file_path.exists()}")
     
-    if file_path.exists() and file_path.suffix in [".wav", ".mp3", ".m4a", ".flac"]:
-        return FileResponse(file_path, media_type="audio/wav")
+    if file_path.exists():
+        logger.info(f"[Audio File API] File suffix: {file_path.suffix}")
+        if file_path.suffix in [".wav", ".mp3", ".m4a", ".flac", ".ogg"]:
+            logger.info(f"[Audio File API] Serving file: {file_path}")
+            return FileResponse(file_path, media_type="audio/wav")
+        else:
+            logger.warning(f"[Audio File API] Unsupported file type: {file_path.suffix}")
+            return JSONResponse({"error": f"Unsupported file type: {file_path.suffix}"}, status_code=400)
     else:
-        return JSONResponse({"error": "Audio file not found"}, status_code=404)
+        logger.error(f"[Audio File API] File not found: {file_path}")
+        return JSONResponse({"error": f"Audio file not found: {path}"}, status_code=404)
 
 
 @app.post("/api/upload/audio")
@@ -745,15 +755,23 @@ async def manipulate_noise_reduction(
         out_file = output_path / f"{input_file.stem}_noise_reduced_{int(reduction_strength*100)}pct.wav"
     
     try:
+        logger.info(f"[Noise Reduction API] Applying noise reduction: {input_file} -> {out_file}")
         reduce_noise(input_file, reduction_strength, out_file)
+        
+        if not out_file.exists():
+            raise Exception(f"Output file was not created: {out_file}")
+        
+        output_path_str = str(out_file.relative_to(PROJECT_ROOT))
+        file_size = out_file.stat().st_size
+        logger.info(f"[Noise Reduction API] Success! Output: {output_path_str} ({file_size} bytes)")
         
         return JSONResponse({
             "status": "success",
-            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "output_path": output_path_str,
             "message": f"Noise reduction applied: {int(reduction_strength*100)}%"
         })
     except Exception as e:
-        logger.error(f"Noise reduction failed: {e}")
+        logger.error(f"[Noise Reduction API] Noise reduction failed: {e}", exc_info=True)
         import traceback
         logger.error(traceback.format_exc())
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
@@ -900,14 +918,16 @@ async def manipulate_eq(
             message = "No EQ adjustment (0 dB)"
         
         if not out_file.exists():
-            raise Exception("Output file was not created")
+            raise Exception(f"Output file was not created: {out_file}")
         
+        output_path_str = str(out_file.relative_to(PROJECT_ROOT))
         file_size = out_file.stat().st_size
-        logger.info(f"[EQ Transform API] Success! Output file: {out_file} ({file_size} bytes)")
+        logger.info(f"[EQ Transform API] Success! Output: {output_path_str} ({file_size} bytes)")
+        logger.info(f"[EQ Transform API] Output path relative to PROJECT_ROOT: {output_path_str}")
         
         return JSONResponse({
             "status": "success",
-            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "output_path": output_path_str,
             "message": message
         })
     except Exception as e:
