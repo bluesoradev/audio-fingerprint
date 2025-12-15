@@ -182,11 +182,43 @@ def generate_transforms(
                 parameters = transform_config.get("parameters", [])
                 
                 for param_set in parameters:
-                    # Extract severity if present
+                    # Create a copy to avoid modifying the original dict
+                    param_set = param_set.copy()
+                    
+                    # Extract severity if present (metadata, not a function parameter)
                     severity = param_set.pop("severity", "moderate")
                     
-                    # Generate transform ID
-                    transform_id = generate_transform_id(orig_id, transform_type, param_set)
+                    # Remove description (metadata only, not a function parameter)
+                    description = param_set.pop("description", None)
+                    
+                    # Handle parameter name mappings for specific transforms
+                    # Store original overlay_path value for ID generation before mapping
+                    original_overlay_path = None
+                    had_overlay_path = False
+                    if transform_type == "overlay_vocals" or transform_type.startswith("overlay_vocals"):
+                        # Map overlay_path to vocal_file (function expects vocal_file)
+                        if "overlay_path" in param_set:
+                            overlay_path_val = param_set.pop("overlay_path")
+                            original_overlay_path = overlay_path_val
+                            had_overlay_path = True
+                            # Convert None to None, or string path to Path object
+                            if overlay_path_val is not None and overlay_path_val != "null":
+                                param_set["vocal_file"] = Path(overlay_path_val) if isinstance(overlay_path_val, str) else overlay_path_val
+                            # If overlay_path is None/null, vocal_file defaults to None in function signature
+                            # Don't add vocal_file=None to param_set, let function use default
+                    
+                    # Generate transform ID (use param_set with description restored for ID generation)
+                    # For overlay_vocals, use original overlay_path name in ID for consistency with config
+                    param_set_for_id = param_set.copy()
+                    if description:
+                        param_set_for_id["description"] = description
+                    # Restore overlay_path for ID generation if it was mapped (even if None)
+                    if transform_type == "overlay_vocals" or transform_type.startswith("overlay_vocals"):
+                        if had_overlay_path:
+                            # Remove vocal_file if it was added, restore overlay_path
+                            param_set_for_id.pop("vocal_file", None)
+                            param_set_for_id["overlay_path"] = original_overlay_path
+                    transform_id = generate_transform_id(orig_id, transform_type, param_set_for_id)
                     out_path = transformed_dir / f"{transform_id}.wav"
                     
                     try:
@@ -237,13 +269,18 @@ def generate_transforms(
                             logger.warning(f"Unknown transform type: {transform_type}")
                             continue
                         
+                        # Store params with description for record keeping
+                        params_for_record = param_set.copy()
+                        if description:
+                            params_for_record["description"] = description
+                        
                         transform_records.append({
                             "orig_id": orig_id,
                             "transformed_id": transform_id,
                             "transform_type": transform_type,
                             "transform_name": transform_type,
                             "severity": severity,
-                            "params": json.dumps(param_set),
+                            "params": json.dumps(params_for_record),
                             "output_path": str(out_path),
                             "seed": global_seed,
                         })
