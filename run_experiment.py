@@ -295,7 +295,22 @@ def run_full_experiment(
                 logger.info("Metrics and summary files are available in the run directory.")
             else:
                 # Generate plots
-                generate_plots(metrics_path, final_report_dir, config_path)
+                try:
+                    logger.info("Generating plots...")
+                    generate_plots(metrics_path, final_report_dir, config_path)
+                    # Verify plots directory exists
+                    plots_dir = final_report_dir / "plots"
+                    if plots_dir.exists():
+                        plot_count = len(list(plots_dir.glob("*.png")))
+                        if plot_count > 0:
+                            logger.info(f"✓ Successfully generated {plot_count} plot(s)")
+                        else:
+                            logger.warning(f"⚠ Plots directory exists but contains no PNG files")
+                    else:
+                        logger.warning(f"⚠ Plots directory was not created: {plots_dir}")
+                except Exception as e:
+                    logger.error(f"Error during plot generation: {e}", exc_info=True)
+                    logger.error("Continuing with HTML report generation despite plot errors...")
                 
                 # Generate HTML
                 html_path = final_report_dir / "report.html"

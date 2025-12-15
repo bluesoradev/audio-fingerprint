@@ -28,11 +28,19 @@ except ImportError as e:
 def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path = None):
     """Generate visualization plots."""
     if not HAS_PLOTTING:
-        logger.warning("Plot generation is disabled (matplotlib/PIL not available). Skipping plot generation.")
+        logger.error("Plot generation is disabled (matplotlib/PIL not available). Skipping plot generation.")
+        logger.error("To enable plots, install: pip install matplotlib pillow seaborn")
+        # Create empty plots directory so the structure exists
+        plots_dir = output_dir / "plots"
+        plots_dir.mkdir(parents=True, exist_ok=True)
         return
     
-    with open(metrics_path, 'r') as f:
-        metrics = json.load(f)
+    try:
+        with open(metrics_path, 'r') as f:
+            metrics = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load metrics.json for plot generation: {e}")
+        return
     
     plots_dir = output_dir / "plots"
     plots_dir.mkdir(parents=True, exist_ok=True)
@@ -90,9 +98,14 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
                 transform=ax.transAxes, fontsize=14)
         ax.set_title('Recall@K by Transform Severity')
     
-    plt.tight_layout()
-    plt.savefig(plots_dir / "recall_by_severity.png", dpi=150)
-    plt.close()
+    try:
+        plt.tight_layout()
+        plt.savefig(plots_dir / "recall_by_severity.png", dpi=150)
+        plt.close()
+        logger.info(f"Generated plot: recall_by_severity.png")
+    except Exception as e:
+        logger.error(f"Failed to generate recall_by_severity.png: {e}", exc_info=True)
+        plt.close()
     
     # Plot 2: Similarity score distribution by severity
     fig, ax = plt.subplots()
@@ -125,9 +138,14 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
                 transform=ax.transAxes, fontsize=14)
         ax.set_title('Similarity Scores vs Thresholds by Severity')
     
-    plt.tight_layout()
-    plt.savefig(plots_dir / "similarity_by_severity.png", dpi=150)
-    plt.close()
+    try:
+        plt.tight_layout()
+        plt.savefig(plots_dir / "similarity_by_severity.png", dpi=150)
+        plt.close()
+        logger.info(f"Generated plot: similarity_by_severity.png")
+    except Exception as e:
+        logger.error(f"Failed to generate similarity_by_severity.png: {e}", exc_info=True)
+        plt.close()
     
     # Plot 3: Recall by transform type
     fig, ax = plt.subplots(figsize=(14, 6))
@@ -162,9 +180,14 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
                 transform=ax.transAxes, fontsize=14)
         ax.set_title('Recall@K by Transform Type')
     
-    plt.tight_layout()
-    plt.savefig(plots_dir / "recall_by_transform.png", dpi=150)
-    plt.close()
+    try:
+        plt.tight_layout()
+        plt.savefig(plots_dir / "recall_by_transform.png", dpi=150)
+        plt.close()
+        logger.info(f"Generated plot: recall_by_transform.png")
+    except Exception as e:
+        logger.error(f"Failed to generate recall_by_transform.png: {e}", exc_info=True)
+        plt.close()
     
     # Plot 4: Latency by transform type
     fig, ax = plt.subplots()
@@ -194,11 +217,24 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
                 transform=ax.transAxes, fontsize=14)
         ax.set_title('Processing Latency by Transform Type')
     
-    plt.tight_layout()
-    plt.savefig(plots_dir / "latency_by_transform.png", dpi=150)
-    plt.close()
+    try:
+        plt.tight_layout()
+        plt.savefig(plots_dir / "latency_by_transform.png", dpi=150)
+        plt.close()
+        logger.info(f"Generated plot: latency_by_transform.png")
+    except Exception as e:
+        logger.error(f"Failed to generate latency_by_transform.png: {e}", exc_info=True)
+        plt.close()
     
-    logger.info(f"Generated plots in {plots_dir}")
+    # Verify plots were created
+    plot_files = list(plots_dir.glob("*.png"))
+    if plot_files:
+        logger.info(f"Successfully generated {len(plot_files)} plots in {plots_dir}")
+        for plot_file in plot_files:
+            logger.info(f"  - {plot_file.name}")
+    else:
+        logger.error(f"WARNING: No plot files were generated in {plots_dir}")
+        logger.error("Check logs above for errors during plot generation.")
 
 
 def render_html_report(
