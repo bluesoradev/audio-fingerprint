@@ -1303,6 +1303,140 @@ async def manipulate_multiband(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+@app.post("/api/manipulate/crop/10s")
+async def manipulate_crop_10s(
+    input_path: str = Form(...),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Crop audio to 10 seconds from start."""
+    try:
+        from transforms.crop import crop_10_seconds
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_crop_10s.wav"
+        
+        crop_10_seconds(input_file, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": "Cropped to 10 seconds from start"
+        })
+    except Exception as e:
+        logger.error(f"Crop 10s failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/crop/5s")
+async def manipulate_crop_5s(
+    input_path: str = Form(...),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Crop audio to 5 seconds from start."""
+    try:
+        from transforms.crop import crop_5_seconds
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_crop_5s.wav"
+        
+        crop_5_seconds(input_file, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": "Cropped to 5 seconds from start"
+        })
+    except Exception as e:
+        logger.error(f"Crop 5s failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/crop/middle")
+async def manipulate_crop_middle(
+    input_path: str = Form(...),
+    duration: float = Form(10.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Crop middle segment of audio."""
+    try:
+        from transforms.crop import crop_middle_segment
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_crop_middle_{duration}s.wav"
+        
+        crop_middle_segment(input_file, duration, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Cropped middle segment ({duration}s)"
+        })
+    except Exception as e:
+        logger.error(f"Crop middle failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/crop/end")
+async def manipulate_crop_end(
+    input_path: str = Form(...),
+    duration: float = Form(10.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Crop end segment of audio."""
+    try:
+        from transforms.crop import crop_end_segment
+        
+        input_file = PROJECT_ROOT / input_path
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_crop_end_{duration}s.wav"
+        
+        crop_end_segment(input_file, duration, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Cropped end segment ({duration}s)"
+        })
+    except Exception as e:
+        logger.error(f"Crop end failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 @app.post("/api/manipulate/chain")
 async def manipulate_chain(
     input_path: str = Form(...),

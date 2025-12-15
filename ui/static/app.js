@@ -1936,13 +1936,441 @@ async function testFingerprintRobustness() {
     }
 }
 
+// Main transform router function
+async function applyTransform(type) {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    switch(type) {
+        case 'speed':
+            await applySpeedTransform();
+            break;
+        case 'pitch':
+            await applyPitchTransform();
+            break;
+        case 'reverb':
+            await applyReverbTransform();
+            break;
+        case 'noise':
+            await applyNoiseReductionTransform();
+            break;
+        case 'eq':
+            await applyEQTransform();
+            break;
+        case 'compression':
+            await applyCompressionTransform();
+            break;
+        case 'overlay':
+            await applyOverlayTransform();
+            break;
+        case 'highpass':
+            await applyHighpassTransform();
+            break;
+        case 'lowpass':
+            await applyLowpassTransform();
+            break;
+        case 'boostHighs':
+            await applyBoostHighsTransform();
+            break;
+        case 'boostLows':
+            await applyBoostLowsTransform();
+            break;
+        case 'telephone':
+            await applyTelephoneTransform();
+            break;
+        case 'limiting':
+            await applyLimitingTransform();
+            break;
+        case 'multiband':
+            await applyMultibandTransform();
+            break;
+        case 'addNoise':
+            await applyAddNoiseTransform();
+            break;
+        case 'crop':
+            await applyCropTransform();
+            break;
+        default:
+            showError(`Unknown transform type: ${type}`);
+    }
+}
+
+// Update slider display values
+function updateSliderDisplay(type, value) {
+    const displayElement = document.getElementById(`${type}Display`);
+    if (!displayElement) return;
+    
+    switch(type) {
+        case 'speed':
+            displayElement.textContent = (parseFloat(value) / 100).toFixed(2) + 'x';
+            break;
+        case 'pitch':
+            displayElement.textContent = value + ' semitones';
+            break;
+        case 'reverb':
+            displayElement.textContent = value + ' ms';
+            break;
+        case 'noise':
+            displayElement.textContent = value + '%';
+            break;
+        case 'eq':
+            displayElement.textContent = value == 0 ? '0 dB' : (value > 0 ? '+' : '') + value + ' dB';
+            break;
+        case 'overlay':
+            displayElement.textContent = value + ' dB';
+            break;
+        case 'highpass':
+            displayElement.textContent = value + ' Hz';
+            break;
+        case 'lowpass':
+            displayElement.textContent = value + ' Hz';
+            break;
+        case 'boostHighs':
+            displayElement.textContent = value + ' dB';
+            break;
+        case 'boostLows':
+            displayElement.textContent = value + ' dB';
+            break;
+        case 'limiting':
+            displayElement.textContent = value + ' dB';
+            break;
+        case 'noiseSNR':
+            displayElement.textContent = value + ' dB SNR';
+            break;
+    }
+}
+
+// High-Pass Filter Transform
+async function applyHighpassTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const freqHz = parseFloat(document.getElementById('highpassControl')?.value || 150);
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('freq_hz', freqHz);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/eq/highpass`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`High-pass filter applied: ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply high-pass filter: ' + error.message);
+    }
+}
+
+// Low-Pass Filter Transform
+async function applyLowpassTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const freqHz = parseFloat(document.getElementById('lowpassControl')?.value || 6000);
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('freq_hz', freqHz);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/eq/lowpass`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Low-pass filter applied: ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply low-pass filter: ' + error.message);
+    }
+}
+
+// Boost Highs Transform
+async function applyBoostHighsTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const gainDb = parseFloat(document.getElementById('boostHighsControl')?.value || 6);
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('gain_db', gainDb);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/eq/boost-highs`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Boost highs applied: ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply boost highs: ' + error.message);
+    }
+}
+
+// Boost Lows Transform
+async function applyBoostLowsTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const gainDb = parseFloat(document.getElementById('boostLowsControl')?.value || 6);
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('gain_db', gainDb);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/eq/boost-lows`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Boost lows applied: ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply boost lows: ' + error.message);
+    }
+}
+
+// Telephone Filter Transform
+async function applyTelephoneTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/eq/telephone`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Telephone filter applied: ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply telephone filter: ' + error.message);
+    }
+}
+
+// Limiting Transform
+async function applyLimitingTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const ceilingDb = parseFloat(document.getElementById('limitingControl')?.value || -1);
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('ceiling_db', ceilingDb);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/dynamics/limiting`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Limiting applied: ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply limiting: ' + error.message);
+    }
+}
+
+// Multiband Compression Transform
+async function applyMultibandTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/dynamics/multiband`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Multiband compression applied: ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply multiband compression: ' + error.message);
+    }
+}
+
+// Add Noise Transform
+async function applyAddNoiseTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const noiseType = document.getElementById('noiseTypeSelect')?.value || 'white';
+    const snrDb = parseFloat(document.getElementById('noiseSNRControl')?.value || 20);
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('noise_type', noiseType);
+        formData.append('snr_db', snrDb);
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/noise`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Noise added (${noiseType}): ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to add noise: ' + error.message);
+    }
+}
+
+// Crop Transform
+async function applyCropTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const cropType = document.getElementById('cropTypeSelect')?.value || '10s';
+    
+    try {
+        let endpoint = '';
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('output_dir', 'data/manipulated');
+        
+        switch(cropType) {
+            case '10s':
+                endpoint = '/api/manipulate/crop/10s';
+                break;
+            case '5s':
+                endpoint = '/api/manipulate/crop/5s';
+                break;
+            case 'middle':
+                endpoint = '/api/manipulate/crop/middle';
+                formData.append('duration', '10.0');
+                break;
+            case 'end':
+                endpoint = '/api/manipulate/crop/end';
+                formData.append('duration', '10.0');
+                break;
+            default:
+                throw new Error('Invalid crop type');
+        }
+        
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Crop applied (${cropType}): ${result.output_path}`, 'success');
+            updateTransformedPlayer(result.output_path);
+            updateTestDisplays(selectedAudioFile, result.output_path);
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply crop: ' + error.message);
+    }
+}
+
 // Update test displays when files are loaded
 function updateTestDisplays(originalPath, transformedPath) {
     console.log('[updateTestDisplays] Called with:', { originalPath, transformedPath });
     
-    const originalDisplay = document.getElementById('originalTestDisplay');
-    const transformedDisplay = document.getElementById('transformedTestDisplay');
-    const testBtn = document.getElementById('testBtn');
+    // Try new IDs first (manipulate_section.html), fallback to old IDs (index.html)
+    const originalDisplay = document.getElementById('testOriginalPath') || document.getElementById('originalTestDisplay');
+    const transformedDisplay = document.getElementById('testTransformedPath') || document.getElementById('transformedTestDisplay');
+    const testBtn = document.getElementById('testFingerprintBtn') || document.getElementById('testBtn');
     
     if (!originalDisplay) {
         console.error('[updateTestDisplays] originalTestDisplay element not found!');
