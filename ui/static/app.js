@@ -3816,6 +3816,15 @@ async function runPhaseSuite(phase = 'both') {
                                 updateProgressIndicator('step', progressModalState.stepProgress, 'Failed');
                                 updateCurrentStep('Process failed');
                                 
+                                // Clear commandId so closeProgressModal doesn't try to cancel
+                                progressModalState.commandId = null;
+                                
+                                // Stop polling
+                                if (progressModalState.pollInterval) {
+                                    clearTimeout(progressModalState.pollInterval);
+                                    progressModalState.pollInterval = null;
+                                }
+                                
                                 setTimeout(() => {
                                     closeProgressModal();
                                     showError('Failed to run suite: ' + errorMsg);
@@ -3827,6 +3836,15 @@ async function runPhaseSuite(phase = 'both') {
                             updateProgressIndicator('overall', 100, 'Complete ✓');
                             updateProgressIndicator('step', 100, 'Complete ✓');
                             updateCurrentStep('Reports generated successfully!');
+                            
+                            // Clear commandId so closeProgressModal doesn't try to cancel
+                            progressModalState.commandId = null;
+                            
+                            // Stop polling
+                            if (progressModalState.pollInterval) {
+                                clearTimeout(progressModalState.pollInterval);
+                                progressModalState.pollInterval = null;
+                            }
                             
                             setTimeout(() => {
                                 closeProgressModal();
