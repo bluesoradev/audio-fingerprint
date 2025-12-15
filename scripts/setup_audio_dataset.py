@@ -88,13 +88,6 @@ def main():
         "https://beatlibrary.s3.us-east-1.amazonaws.com/beats/BEATBOI_GEM_IN_EYE_CMIN_145/BEATBOI_GEM_IN_EYE_CMIN_145.mp3",
         "https://05e8f6d066ebc9c5b0e49ae1ae6cb5d4.cdn.bubble.io/f1749612775939x780107747552101200/CLUE%21_DARK_TIMES_CMIN_140.wav",
         "https://05e8f6d066ebc9c5b0e49ae1ae6cb5d4.cdn.bubble.io/f1747851031931x771872613364962000/Lil%20Uzi%20Vert%20x%20Nav%20Type%20beat%20back%20it%20up.mp3",
-        "https://05e8f6d066ebc9c5b0e49ae1ae6cb5d4.cdn.bubble.io/f1749612400355x175279102581866980/CLUE%21_AINT_GON_TELL_YA_TWICE_GMIN_140.wav",
-        "https://beatlibrary.s3.us-east-1.amazonaws.com/beats/MIXED+TAPE/BENZMUZIK_WARZONE_DMAJ_146/BENZMUZIK_WARZONE_DMAJ_146.mp3",
-        "https://beatlibrary.s3.us-east-1.amazonaws.com/beats/MIXED+TAPE/BENZMUZIK_CONTROL_ME_DMAJ_120/BENZMUZIK_CONTROL_ME_DMAJ_120.mp3",
-        "https://05e8f6d066ebc9c5b0e49ae1ae6cb5d4.cdn.bubble.io/f1745806805744x223599312519719970/DonKody_Back_It_Up_GMin_100.mp3",
-        "https://05e8f6d066ebc9c5b0e49ae1ae6cb5d4.cdn.bubble.io/f1756822094119x481931140740412540/andygrvcia_onna_leash_Ebm_99.mp3",
-        "https://beatlibrary.s3.us-east-1.amazonaws.com/beats/NNOVAD_CHANGE_UR_LIFE_BMIN_152/NNOVAD_CHANGE_UR_LIFE_BMIN_152.wav",
-        "https://beatlibrary.s3.us-east-1.amazonaws.com/beats/MXDWAVE_NOSUGAR_EMIN_135/MXDWAVE_NOSUGAR_EMIN_135.mp3",
      
     ]
     
