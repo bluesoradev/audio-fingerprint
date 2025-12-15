@@ -1863,6 +1863,34 @@ async def get_run_details(run_id: str):
     return JSONResponse(details)
 
 
+@app.delete("/api/runs/{run_id}")
+async def delete_run(run_id: str):
+    """Delete a report/run."""
+    import shutil
+    
+    report_dir = REPORTS_DIR / run_id
+    
+    if not report_dir.exists():
+        return JSONResponse({"error": "Run not found"}, status_code=404)
+    
+    try:
+        # Delete the entire report directory
+        shutil.rmtree(report_dir)
+        logger.info(f"Deleted report: {run_id}")
+        return JSONResponse({
+            "status": "success",
+            "message": f"Report '{run_id}' deleted successfully"
+        })
+    except Exception as e:
+        logger.error(f"Failed to delete report {run_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({
+            "status": "error",
+            "message": f"Failed to delete report: {str(e)}"
+        }, status_code=500)
+
+
 @app.get("/api/config/test-matrix")
 async def get_test_matrix():
     """Get test matrix configuration."""

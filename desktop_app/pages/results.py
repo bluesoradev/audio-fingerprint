@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor, QPainter, QPen, QBrush
 from pathlib import Path
 import json
+import shutil
 from datetime import datetime
 from desktop_app.pages.dashboard import LineChartWidget
 
@@ -202,6 +203,23 @@ class ResultsPage(QWidget):
         open_html_btn.setStyleSheet(export_csv_btn.styleSheet())
         open_html_btn.clicked.connect(self.open_html_report)
         header_layout.addWidget(open_html_btn)
+        
+        delete_report_btn = QPushButton("Delete Report")
+        delete_report_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f87171;
+                color: #ffffff;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #ef4444;
+            }
+        """)
+        delete_report_btn.clicked.connect(self.delete_current_report)
+        header_layout.addWidget(delete_report_btn)
         
         layout.addLayout(header_layout)
         
@@ -572,6 +590,38 @@ class ResultsPage(QWidget):
             webbrowser.open(f"file://{os.path.abspath(html_path)}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open HTML report:\n{str(e)}")
+    
+    def delete_current_report(self):
+        """Delete the currently selected report."""
+        if not hasattr(self, 'current_report_dir') or not self.current_report_dir:
+            QMessageBox.warning(self, "No Report", "No report selected.")
+            return
+        
+        report_name = self.current_report_dir.name
+        
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            "Delete Report",
+            f"Are you sure you want to delete report '{report_name}'?\n\nThis action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        try:
+            # Delete the report directory
+            shutil.rmtree(self.current_report_dir)
+            QMessageBox.information(self, "Success", f"Report '{report_name}' deleted successfully.")
+            
+            # Clear current data and reload
+            self.current_report_dir = None
+            self.current_metrics = None
+            self.load_results()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to delete report:\n{str(e)}")
     
     def _show_no_data(self):
         """Show placeholder when no data is available."""

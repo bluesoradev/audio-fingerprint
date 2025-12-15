@@ -2058,6 +2058,7 @@ async function loadDeliverables() {
                                 <div style="display: flex; gap: 8px; margin-left: 10px;">
                                     ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
                                     <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #3d3d3d;">Details</button>
+                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
                                 </div>
                             </div>
                         </div>
@@ -2091,6 +2092,7 @@ async function loadDeliverables() {
                                 <div style="display: flex; gap: 8px; margin-left: 10px;">
                                     ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
                                     <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #3d3d3d;">Details</button>
+                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 12px; padding: 6px 12px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
                                 </div>
                             </div>
                         </div>
@@ -2122,6 +2124,7 @@ async function loadDeliverables() {
                                 <div style="display: flex; gap: 8px;">
                                     ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 5px 10px;">View</button>` : ''}
                                     <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #3d3d3d;">Details</button>
+                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
                                 </div>
                             </div>
                         </div>
@@ -2276,5 +2279,31 @@ async function viewRunDetails(runId) {
                 </div>
             `;
         }
+    }
+}
+
+async function deleteReport(runId) {
+    if (!confirm(`Are you sure you want to delete report "${runId}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/runs/${runId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            addSystemLog(`✅ Report "${runId}" deleted successfully`, 'success');
+            // Reload deliverables list
+            setTimeout(() => loadDeliverables(), 500);
+        } else {
+            throw new Error(result.message || 'Failed to delete report');
+        }
+    } catch (error) {
+        console.error('Failed to delete report:', error);
+        showError('Failed to delete report: ' + error.message);
+        addSystemLog(`❌ Failed to delete report "${runId}": ${error.message}`, 'error');
     }
 }
