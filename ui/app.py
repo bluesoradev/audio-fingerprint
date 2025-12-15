@@ -2439,8 +2439,20 @@ async def list_runs():
                         with open(metrics_file, 'r') as f:
                             metrics = json.load(f)
                             run_info["summary"] = metrics.get("summary", {})
-                            run_info["phase"] = metrics.get("summary", {}).get("phase") or metrics.get("test_details", {}).get("phase", "unknown")
-                    except:
+                            # Try multiple ways to determine phase
+                            phase = (metrics.get("summary", {}).get("phase") or 
+                                    metrics.get("test_details", {}).get("phase") or
+                                    "unknown")
+                            # If still unknown, check config file path in test_details
+                            if phase == "unknown":
+                                config_file = metrics.get("test_details", {}).get("config_file", "")
+                                if "phase1" in config_file.lower() or "phase_1" in config_file.lower():
+                                    phase = "phase1"
+                                elif "phase2" in config_file.lower() or "phase_2" in config_file.lower():
+                                    phase = "phase2"
+                            run_info["phase"] = phase
+                    except Exception as e:
+                        logger.warning(f"Failed to load metrics for {report_dir.name}: {e}")
                         pass
                 
                 runs.append(run_info)

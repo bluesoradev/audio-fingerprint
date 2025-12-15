@@ -149,6 +149,14 @@ def analyze_results(
         },
     }
     
+    # Determine phase from config file path
+    config_path_str = str(test_matrix_path).lower()
+    phase = "unknown"
+    if "phase1" in config_path_str or "phase_1" in config_path_str:
+        phase = "phase1"
+    elif "phase2" in config_path_str or "phase_2" in config_path_str:
+        phase = "phase2"
+    
     # Compile full results
     results = {
         "overall": {
@@ -165,6 +173,11 @@ def analyze_results(
             "total_transforms": len(transform_df),
             "transform_types": list(query_df["transform_type"].unique()),
             "severities": list(query_df["severity"].unique()),
+            "phase": phase,
+        },
+        "test_details": {
+            "phase": phase,
+            "config_file": str(test_matrix_path),
         }
     }
     

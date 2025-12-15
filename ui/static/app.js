@@ -2543,11 +2543,13 @@ async function loadDeliverables() {
         const deliverablesListDiv = document.getElementById('deliverablesList');
         
         if (result.runs && result.runs.length > 0) {
-            // Group runs by phase
+            // Group runs by phase - check metrics.json for phase info if not in run object
             const phase1Runs = [];
             const phase2Runs = [];
             const otherRuns = [];
             
+            // First pass: check runs with phase info
+            const runsToCheck = [];
             result.runs.forEach(run => {
                 const runPath = (run.path || '').toLowerCase();
                 const runId = (run.id || '').toLowerCase();
@@ -2562,10 +2564,48 @@ async function loadDeliverables() {
                     phase1Runs.push(run);
                 } else if (isPhase2 && !isPhase1) {
                     phase2Runs.push(run);
+                } else if (!runPhase || runPhase === 'unknown') {
+                    // Need to check metrics.json directly
+                    runsToCheck.push(run);
                 } else {
                     otherRuns.push(run);
                 }
             });
+            
+            // Second pass: check metrics.json for runs without phase info
+            for (const run of runsToCheck) {
+                try {
+                    const detailsResp = await fetch(`${API_BASE}/runs/${run.id}`);
+                    if (detailsResp.ok) {
+                        const details = await detailsResp.json();
+                        const metrics = details.metrics || {};
+                        const phase = (metrics.summary?.phase || metrics.test_details?.phase || '').toLowerCase();
+                        
+                        if (phase === 'phase1') {
+                            run.phase = 'phase1';
+                            phase1Runs.push(run);
+                        } else if (phase === 'phase2') {
+                            run.phase = 'phase2';
+                            phase2Runs.push(run);
+                        } else {
+                            // Check config file used - if it contains phase1/phase2 in path
+                            const runPath = (run.path || '').toLowerCase();
+                            if (runPath.includes('phase1') || runPath.includes('phase_1')) {
+                                phase1Runs.push(run);
+                            } else if (runPath.includes('phase2') || runPath.includes('phase_2')) {
+                                phase2Runs.push(run);
+                            } else {
+                                otherRuns.push(run);
+                            }
+                        }
+                    } else {
+                        otherRuns.push(run);
+                    }
+                } catch (e) {
+                    console.warn(`Failed to check phase for run ${run.id}:`, e);
+                    otherRuns.push(run);
+                }
+            }
             
             // Sort each group by timestamp (most recent first)
             const sortByTime = (a, b) => (b.timestamp || 0) - (a.timestamp || 0);
@@ -2578,68 +2618,62 @@ async function loadDeliverables() {
                 
                 // Add most recent Phase 1 report if available
                 if (phase1Runs.length > 0) {
-                    latestReports.push(phase1Runs[0]);
+                    latestReports.push({...phase1Runs[0], phaseLabel: 'Phase 1', isPhase1: true});
                 }
                 
                 // Add most recent Phase 2 report if available
                 if (phase2Runs.length > 0) {
-                    latestReports.push(phase2Runs[0]);
+                    latestReports.push({...phase2Runs[0], phaseLabel: 'Phase 2', isPhase2: true});
                 }
                 
                 if (latestReports.length > 0) {
                     let html = '';
                     latestReports.forEach(run => {
                         const date = run.timestamp ? new Date(run.timestamp * 1000) : null;
-                        const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pending';
+                        const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Pending';
                         const reportPath = `${run.path}/final_report/report.html`;
                         const hasReport = run.has_summary || run.has_metrics;
                         
-                        // Determine phase label
-                        const runPath = (run.path || '').toLowerCase();
-                        const runId = (run.id || '').toLowerCase();
-                        const runPhase = (run.phase || run.summary?.phase || '').toLowerCase();
-                        const isPhase1 = runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') ||
-                                         runPath.includes('phase_1') || runId.includes('phase_1');
-                        const isPhase2 = runPhase === 'phase2' || runPath.includes('phase2') || runId.includes('phase2') ||
-                                         runPath.includes('phase_2') || runId.includes('phase_2');
-                        const phaseLabel = isPhase1 ? 'Phase 1' : (isPhase2 ? 'Phase 2' : 'Report');
+                        // Determine phase label and color
+                        const phaseLabel = run.phaseLabel || (run.isPhase1 ? 'Phase 1' : (run.isPhase2 ? 'Phase 2' : 'Report'));
+                        const phaseColor = run.isPhase1 ? '#427eea' : (run.isPhase2 ? '#10b981' : '#9ca3af');
                         
                         // Calculate size (placeholder - would need actual file size)
                         const sizeStr = '1.2 MB'; // Placeholder
                         
                         html += `
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 8px; border: 1px solid #3d3d3d; transition: all 0.2s;">
                                 <div style="flex: 1;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span style="color: ${isPhase1 ? '#427eea' : isPhase2 ? '#10b981' : '#9ca3af'}; font-size: 11px; font-weight: 600;">${phaseLabel}</span>
-                                        <strong style="color: #ffffff; font-size: 13px;">${run.id}</strong>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                        <span style="color: ${phaseColor}; font-size: 12px; font-weight: 600; padding: 4px 8px; background: ${phaseColor}20; border-radius: 4px;">${phaseLabel}</span>
+                                        <strong style="color: #ffffff; font-size: 14px;">${run.id}</strong>
                                     </div>
-                                    <p style="color: #9ca3af; font-size: 11px; margin: 3px 0 0 0;">${dateStr} | ${sizeStr}</p>
+                                    <p style="color: #9ca3af; font-size: 11px; margin: 0;">${dateStr} | ${sizeStr}</p>
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
-                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #3d3d3d;">Details</button>
-                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #427eea; color: #ffffff;" title="Download">⬇️</button>` : ''}
-                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
+                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #3d3d3d; border-radius: 4px; border: none; color: #ffffff; cursor: pointer;">Details</button>
+                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #427eea; color: #ffffff; border-radius: 4px; border: none; cursor: pointer;" title="View Report">📄 View</button>` : ''}
+                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #f87171; color: #ffffff; border-radius: 4px; border: none; cursor: pointer;" title="Delete Report">🗑️</button>
                                 </div>
                             </div>
                         `;
                     });
                     deliverablesListDiv.innerHTML = html;
                 } else {
-                    deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No Phase 1 or Phase 2 reports found. Generate reports using the "Full Test Suites" section above.</p>';
+                    deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px; padding: 20px; text-align: center; background: #2d2d2d; border-radius: 8px;">No Phase 1 or Phase 2 reports found. Generate reports using the "Full Test Suites" section above.</p>';
                 }
             }
         } else {
             // No reports found
             if (deliverablesListDiv) {
-                deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No reports found.</p>';
+                deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px; padding: 20px; text-align: center; background: #2d2d2d; border-radius: 8px;">No reports found.</p>';
             }
         }
     } catch (error) {
         console.error('Failed to load deliverables:', error);
         const deliverablesListDiv = document.getElementById('deliverablesList');
         if (deliverablesListDiv) {
-            deliverablesListDiv.innerHTML = `<p style="color: #f87171; font-size: 12px;">Error loading reports: ${error.message}</p>`;
+            deliverablesListDiv.innerHTML = `<p style="color: #f87171; font-size: 12px; padding: 20px; text-align: center; background: #2d2d2d; border-radius: 8px;">Error loading reports: ${error.message}</p>`;
         }
     }
 }
