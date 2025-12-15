@@ -1791,6 +1791,7 @@ async function applyChainTransform() {
                 const originalDisplay = document.getElementById('originalTestDisplay');
                 const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
+                updateTransformedPlayer(result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
