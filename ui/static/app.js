@@ -1999,45 +1999,52 @@ async function applyTransform(type) {
 
 // Update slider display values
 function updateSliderDisplay(type, value) {
-    const displayElement = document.getElementById(`${type}Display`);
-    if (!displayElement) return;
+    let displayElement;
     
+    // Map type to actual element ID
     switch(type) {
-        case 'speed':
-            displayElement.textContent = (parseFloat(value) / 100).toFixed(2) + 'x';
-            break;
-        case 'pitch':
-            displayElement.textContent = value + ' semitones';
-            break;
-        case 'reverb':
-            displayElement.textContent = value + ' ms';
-            break;
-        case 'noise':
-            displayElement.textContent = value + '%';
-            break;
-        case 'eq':
-            displayElement.textContent = value == 0 ? '0 dB' : (value > 0 ? '+' : '') + value + ' dB';
-            break;
-        case 'overlay':
-            displayElement.textContent = value + ' dB';
-            break;
         case 'highpass':
-            displayElement.textContent = value + ' Hz';
+            displayElement = document.getElementById('highpassDisplay');
+            if (displayElement) displayElement.textContent = value + ' Hz';
             break;
         case 'lowpass':
-            displayElement.textContent = value + ' Hz';
+            displayElement = document.getElementById('lowpassDisplay');
+            if (displayElement) displayElement.textContent = value + ' Hz';
             break;
         case 'boostHighs':
-            displayElement.textContent = value + ' dB';
+            displayElement = document.getElementById('boostHighsDisplay');
+            if (displayElement) displayElement.textContent = value + ' dB';
             break;
         case 'boostLows':
-            displayElement.textContent = value + ' dB';
+            displayElement = document.getElementById('boostLowsDisplay');
+            if (displayElement) displayElement.textContent = value + ' dB';
             break;
         case 'limiting':
-            displayElement.textContent = value + ' dB';
+            displayElement = document.getElementById('limitingDisplay');
+            if (displayElement) displayElement.textContent = value + ' dB';
             break;
         case 'noiseSNR':
-            displayElement.textContent = value + ' dB SNR';
+            displayElement = document.getElementById('noiseSNRDisplay');
+            if (displayElement) displayElement.textContent = value + ' dB SNR';
+            break;
+        default:
+            // Try generic pattern
+            displayElement = document.getElementById(`${type}Display`);
+            if (displayElement) {
+                if (type === 'speed') {
+                    displayElement.textContent = (parseFloat(value) / 100).toFixed(2) + 'x';
+                } else if (type === 'pitch') {
+                    displayElement.textContent = value + ' semitones';
+                } else if (type === 'reverb') {
+                    displayElement.textContent = value + ' ms';
+                } else if (type === 'noise') {
+                    displayElement.textContent = value + '%';
+                } else if (type === 'eq') {
+                    displayElement.textContent = value == 0 ? '0 dB' : (value > 0 ? '+' : '') + value + ' dB';
+                } else if (type === 'overlay') {
+                    displayElement.textContent = value + ' dB';
+                }
+            }
             break;
     }
 }
@@ -2049,7 +2056,7 @@ async function applyHighpassTransform() {
         return;
     }
     
-    const freqHz = parseFloat(document.getElementById('highpassControl')?.value || 150);
+    const freqHz = parseFloat(document.getElementById('highpassSlider')?.value || 150);
     
     try {
         const formData = new FormData();
@@ -2083,7 +2090,7 @@ async function applyLowpassTransform() {
         return;
     }
     
-    const freqHz = parseFloat(document.getElementById('lowpassControl')?.value || 6000);
+    const freqHz = parseFloat(document.getElementById('lowpassSlider')?.value || 6000);
     
     try {
         const formData = new FormData();
@@ -2117,7 +2124,7 @@ async function applyBoostHighsTransform() {
         return;
     }
     
-    const gainDb = parseFloat(document.getElementById('boostHighsControl')?.value || 6);
+    const gainDb = parseFloat(document.getElementById('boostHighsSlider')?.value || 6);
     
     try {
         const formData = new FormData();
@@ -2151,7 +2158,7 @@ async function applyBoostLowsTransform() {
         return;
     }
     
-    const gainDb = parseFloat(document.getElementById('boostLowsControl')?.value || 6);
+    const gainDb = parseFloat(document.getElementById('boostLowsSlider')?.value || 6);
     
     try {
         const formData = new FormData();
@@ -2216,7 +2223,7 @@ async function applyLimitingTransform() {
         return;
     }
     
-    const ceilingDb = parseFloat(document.getElementById('limitingControl')?.value || -1);
+    const ceilingDb = parseFloat(document.getElementById('limitingSlider')?.value || -1);
     
     try {
         const formData = new FormData();
@@ -2282,7 +2289,7 @@ async function applyAddNoiseTransform() {
     }
     
     const noiseType = document.getElementById('noiseTypeSelect')?.value || 'white';
-    const snrDb = parseFloat(document.getElementById('noiseSNRControl')?.value || 20);
+    const snrDb = parseFloat(document.getElementById('noiseSNRSlider')?.value || 20);
     
     try {
         const formData = new FormData();

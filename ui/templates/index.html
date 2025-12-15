@@ -736,7 +736,7 @@
                                         <input type="checkbox" id="preservePitch"> Preserve Pitch
                                     </label>
                                 </div>
-                                <button class="btn" onclick="applySpeedTransform()">Apply Speed Change</button>
+                                <button class="btn" onclick="applyTransform('speed')">Apply Speed Change</button>
                             </div>
 
                             <!-- Pitch Control -->
@@ -751,7 +751,7 @@
                                         <span class="slider-value" id="pitchValue">0</span>
                                     </div>
                                 </div>
-                                <button class="btn" onclick="applyPitchTransform()">Apply Pitch Shift</button>
+                                <button class="btn" onclick="applyTransform('pitch')">Apply Pitch Shift</button>
                             </div>
 
                             <!-- Reverb -->
@@ -766,7 +766,7 @@
                                         <span class="slider-value" id="reverbValue">50</span>
                                     </div>
                                 </div>
-                                <button class="btn" onclick="applyReverbTransform()">Apply Reverb</button>
+                                <button class="btn" onclick="applyTransform('reverb')">Apply Reverb</button>
                             </div>
 
                             <!-- Noise Reduction -->
@@ -781,7 +781,7 @@
                                         <span class="slider-value" id="noiseValue">50%</span>
                                     </div>
                                 </div>
-                                <button class="btn" onclick="applyNoiseReductionTransform()">Apply Noise Reduction</button>
+                                <button class="btn" onclick="applyTransform('noise')">Apply Noise Reduction</button>
                             </div>
 
                             <!-- EQ Adjustment -->
@@ -796,7 +796,7 @@
                                         <span class="slider-value" id="eqValue">0 dB</span>
                                     </div>
                                 </div>
-                                <button class="btn" onclick="applyEQTransform()">Apply EQ</button>
+                                <button class="btn" onclick="applyTransform('eq')">Apply EQ</button>
                             </div>
 
                             <!-- Audio Compression -->
@@ -821,7 +821,7 @@
                                         <option value="320k">320k</option>
                                     </select>
                                 </div>
-                                <button class="btn" onclick="applyCompressionTransform()">Apply Compression</button>
+                                <button class="btn" onclick="applyTransform('compression')">Apply Compression</button>
                             </div>
 
                             <!-- Overlay Vocals -->
@@ -841,7 +841,133 @@
                                         <span class="slider-value" id="overlayGainValue">-6</span>
                                     </div>
                                 </div>
-                                <button class="btn" onclick="applyOverlayTransform()">Apply Overlay</button>
+                                <button class="btn" onclick="applyTransform('overlay')">Apply Overlay</button>
+                            </div>
+
+                            <!-- High-Pass Filter -->
+                            <div class="transform-card">
+                                <h4>🔊 High-Pass Filter</h4>
+                                <div class="form-group">
+                                    <label>Frequency (Hz)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="highpassSlider" min="50" max="5000" value="150" oninput="updateSliderDisplay('highpass', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="highpassDisplay">150 Hz</span>
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="applyTransform('highpass')">Apply High-Pass</button>
+                            </div>
+
+                            <!-- Low-Pass Filter -->
+                            <div class="transform-card">
+                                <h4>🔉 Low-Pass Filter</h4>
+                                <div class="form-group">
+                                    <label>Frequency (Hz)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="lowpassSlider" min="500" max="20000" value="6000" oninput="updateSliderDisplay('lowpass', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="lowpassDisplay">6000 Hz</span>
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="applyTransform('lowpass')">Apply Low-Pass</button>
+                            </div>
+
+                            <!-- Boost Highs -->
+                            <div class="transform-card">
+                                <h4>⬆️ Boost Highs</h4>
+                                <div class="form-group">
+                                    <label>Gain (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="boostHighsSlider" min="0" max="20" value="6" oninput="updateSliderDisplay('boostHighs', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="boostHighsDisplay">6 dB</span>
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="applyTransform('boostHighs')">Apply Boost Highs</button>
+                            </div>
+
+                            <!-- Boost Lows -->
+                            <div class="transform-card">
+                                <h4>⬇️ Boost Lows</h4>
+                                <div class="form-group">
+                                    <label>Gain (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="boostLowsSlider" min="0" max="20" value="6" oninput="updateSliderDisplay('boostLows', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="boostLowsDisplay">6 dB</span>
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="applyTransform('boostLows')">Apply Boost Lows</button>
+                            </div>
+
+                            <!-- Telephone Filter -->
+                            <div class="transform-card">
+                                <h4>📞 Telephone Filter</h4>
+                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Band-pass filter (300-3000 Hz)</p>
+                                <button class="btn" onclick="applyTransform('telephone')">Apply Telephone Filter</button>
+                            </div>
+
+                            <!-- Limiting -->
+                            <div class="transform-card">
+                                <h4>🔒 Limiting</h4>
+                                <div class="form-group">
+                                    <label>Ceiling (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="limitingSlider" min="-10" max="0" value="-1" oninput="updateSliderDisplay('limiting', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="limitingDisplay">-1 dB</span>
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="applyTransform('limiting')">Apply Limiting</button>
+                            </div>
+
+                            <!-- Multiband Compression -->
+                            <div class="transform-card">
+                                <h4>🎚️ Multiband Compression</h4>
+                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Multi-band dynamic compression</p>
+                                <button class="btn" onclick="applyTransform('multiband')">Apply Multiband</button>
+                            </div>
+
+                            <!-- Add Noise -->
+                            <div class="transform-card">
+                                <h4>📢 Add Noise</h4>
+                                <div class="form-group">
+                                    <label>Noise Type</label>
+                                    <select id="noiseTypeSelect">
+                                        <option value="white">White Noise</option>
+                                        <option value="vinyl">Vinyl Crackle</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>SNR (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="noiseSNRSlider" min="0" max="40" value="20" oninput="updateSliderDisplay('noiseSNR', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="noiseSNRDisplay">20 dB SNR</span>
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="applyTransform('addNoise')">Add Noise</button>
+                            </div>
+
+                            <!-- Cropping -->
+                            <div class="transform-card">
+                                <h4>✂️ Crop Audio</h4>
+                                <div class="form-group">
+                                    <label>Crop Type</label>
+                                    <select id="cropTypeSelect">
+                                        <option value="10s">10 seconds (start)</option>
+                                        <option value="5s">5 seconds (start)</option>
+                                        <option value="middle">Middle segment</option>
+                                        <option value="end">End segment</option>
+                                    </select>
+                                </div>
+                                <button class="btn" onclick="applyTransform('crop')">Apply Crop</button>
                             </div>
                         </div>
                     </div>
