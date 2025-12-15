@@ -2427,7 +2427,7 @@ async function loadDeliverables() {
         }
         
         if (result.runs && result.runs.length > 0) {
-            // Group runs by phase (detect from path or ID)
+            // Group runs by phase (detect from metrics.summary.phase when available; fall back to id/path hints)
             const phase1Runs = [];
             const phase2Runs = [];
             const otherRuns = [];
@@ -2437,23 +2437,27 @@ async function loadDeliverables() {
                 const runId = (run.id || '').toLowerCase();
                 const runPhase = (run.phase || run.summary?.phase || '').toLowerCase();
                 
-                // Check phase from run data first, then from path/ID
-                if (runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') || 
-                    runPath.includes('phase_1') || runId.includes('phase_1') || runId.includes('test_') && runId.includes('phase1')) {
+                const isPhase1 = runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') ||
+                                 runPath.includes('phase_1') || runId.includes('phase_1') || (runId.includes('test_') && runId.includes('phase1'));
+                const isPhase2 = runPhase === 'phase2' || runPath.includes('phase2') || runId.includes('phase2') ||
+                                 runPath.includes('phase_2') || runId.includes('phase_2') || (runId.includes('test_') && runId.includes('phase2'));
+                
+                if (isPhase1 && !isPhase2) {
                     phase1Runs.push(run);
-                } else if (runPhase === 'phase2' || runPath.includes('phase2') || runId.includes('phase2') || 
-                          runPath.includes('phase_2') || runId.includes('phase_2') || runId.includes('test_') && runId.includes('phase2')) {
+                } else if (isPhase2 && !isPhase1) {
                     phase2Runs.push(run);
                 } else {
                     otherRuns.push(run);
                 }
             });
             
-            // Sort each phase by timestamp (most recent first) and take only the most recent one
-            phase1Runs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            phase2Runs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            otherRuns.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            // Sort each group by timestamp (most recent first)
+            const sortByTime = (a, b) => (b.timestamp || 0) - (a.timestamp || 0);
+            phase1Runs.sort(sortByTime);
+            phase2Runs.sort(sortByTime);
+            otherRuns.sort(sortByTime);
             
+            // Show the most recent per phase; keep the rest in "Other"
             const mostRecentPhase1 = phase1Runs.length > 0 ? [phase1Runs[0]] : [];
             const mostRecentPhase2 = phase2Runs.length > 0 ? [phase2Runs[0]] : [];
             
@@ -2529,21 +2533,22 @@ async function loadDeliverables() {
             
             html += '</div>';
             
-            // Other runs section
-            if (otherRuns.length > 0) {
+            // Other runs section (includes older Phase1/2 and unknowns)
+            if (otherRuns.length > 0 || phase1Runs.length > 1 || phase2Runs.length > 1) {
                 html += '<div class="group-box" style="margin-top: 20px; background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #3d3d3d;">';
                 html += '<h4 style="color: #9ca3af; margin-bottom: 15px; font-size: 1.1em;">📊 Other Reports</h4>';
-                otherRuns.forEach(run => {
-                    const date = new Date(run.timestamp * 1000).toLocaleString();
+                const combinedOthers = [...otherRuns, ...phase1Runs.slice(1), ...phase2Runs.slice(1)];
+                combinedOthers.sort(sortByTime);
+                combinedOthers.forEach(run => {
+                    const date = run.timestamp ? new Date(run.timestamp * 1000).toLocaleString() : '';
                     const reportPath = `${run.path}/final_report/report.html`;
                     const hasReport = run.has_summary || run.has_metrics;
-                    
                     html += `
                         <div style="padding: 12px; margin-bottom: 10px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <strong style="color: #ffffff; font-size: 13px;">${run.id}</strong>
-                                    <p style="color: #9ca3af; font-size: 10px; margin: 3px 0 0 0;">${date}</p>
+                                    <p style="color: #9ca3af; font-size: 10px; margin: 3px 0 0 0;">${date || 'Pending...'}</p>
                                 </div>
                                 <div style="display: flex; gap: 8px;">
                                     ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 5px 10px;">View</button>` : ''}
@@ -2597,6 +2602,7 @@ async function viewRunDetails(runId) {
             return;
         }
         
+        const hasMetrics = !!result.metrics;
         const metrics = result.metrics || {};
         const testDetails = metrics.test_details || {};
         const overall = metrics.overall || {};
@@ -2607,9 +2613,9 @@ async function viewRunDetails(runId) {
         const phase = testDetails.phase || metrics.summary?.phase || 'unknown';
         
         const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
-        const statusColor = matched ? '#10b981' : '#f87171';
-        const statusText = matched ? '✅ MATCHED' : '❌ NOT MATCHED';
-        const phaseColor = phase === 'phase1' ? '#427eea' : '#10b981';
+        const statusColor = !hasMetrics ? '#f59e0b' : (matched ? '#10b981' : '#f87171');
+        const statusText = !hasMetrics ? '⏳ PENDING' : (matched ? '✅ MATCHED' : '❌ NOT MATCHED');
+        const phaseColor = phase === 'phase1' ? '#427eea' : phase === 'phase2' ? '#10b981' : '#9ca3af';
         
         let html = `
             <div style="background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%); padding: 25px; border-radius: 12px; border: 2px solid ${phaseColor};">
@@ -2617,7 +2623,18 @@ async function viewRunDetails(runId) {
                     <h3 style="color: ${phaseColor}; margin: 0 0 10px 0; font-size: 1.5em;">${phase.toUpperCase()} Report</h3>
                     <h2 style="color: ${statusColor}; margin: 0; font-size: 2.5em; font-weight: bold;">${statusText}</h2>
                 </div>
-                
+        `;
+        
+        if (!hasMetrics) {
+            html += `
+                <p style="color:#9ca3af; text-align:center; margin-bottom:10px;">Report metrics not available yet. If a suite was just launched, it may still be running or may have failed.</p>
+                <p style="color:#9ca3af; text-align:center; margin-bottom:20px;">Refresh after the suite completes. If it stays pending, check server logs.</p>
+            </div>`;
+            reportViewerDiv.innerHTML = html;
+            return;
+        }
+        
+        html += `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
                     <div style="background: #2d2d2d; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #427eea;">
                         <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">Recall@1</div>
