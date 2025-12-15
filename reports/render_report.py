@@ -41,22 +41,22 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
     per_severity = metrics.get("per_severity", {})
     
     # Plot 1: Recall@K by severity
-    if per_severity:
-        fig, ax = plt.subplots()
-        
-        severities = []
-        recall_1 = []
-        recall_5 = []
-        recall_10 = []
-        
-        for severity in ["mild", "moderate", "severe", "none"]:
-            if severity in per_severity:
-                severities.append(severity)
-                rec = per_severity[severity]["recall"]
-                recall_1.append(rec.get("recall_at_1", 0.0))
-                recall_5.append(rec.get("recall_at_5", 0.0))
-                recall_10.append(rec.get("recall_at_10", 0.0))
-        
+    fig, ax = plt.subplots()
+    
+    severities = []
+    recall_1 = []
+    recall_5 = []
+    recall_10 = []
+    
+    for severity in ["mild", "moderate", "severe", "none"]:
+        if severity in per_severity:
+            severities.append(severity)
+            rec = per_severity[severity]["recall"]
+            recall_1.append(rec.get("recall_at_1", 0.0))
+            recall_5.append(rec.get("recall_at_5", 0.0))
+            recall_10.append(rec.get("recall_at_10", 0.0))
+    
+    if severities:
         x = range(len(severities))
         width = 0.25
         
@@ -71,69 +71,92 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
         ax.set_xticklabels(severities)
         ax.legend()
         ax.set_ylim(0, 1.1)
-        
-        plt.tight_layout()
-        plt.savefig(plots_dir / "recall_by_severity.png", dpi=150)
-        plt.close()
+    else:
+        ax.text(0.5, 0.5, 'No severity data available', 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14)
+        ax.set_title('Recall@K by Transform Severity')
+    
+    plt.tight_layout()
+    plt.savefig(plots_dir / "recall_by_severity.png", dpi=150)
+    plt.close()
     
     # Plot 2: Similarity score distribution by severity
-    if per_severity:
-        fig, ax = plt.subplots()
-        severities = []
-        similarity_scores = []
-        thresholds_list = []
-        
-        for severity in ["mild", "moderate", "severe"]:
-            if severity in per_severity:
-                severities.append(severity)
-                sim_data = per_severity[severity]["similarity"]
-                similarity_scores.append(sim_data.get("mean_similarity_correct", 0.0))
-                thresholds_list.append(similarity_thresholds.get(f"min_score_{severity}", 0.0))
-        
-        if severities:
-            x = range(len(severities))
-            width = 0.35
-            ax.bar([i - width/2 for i in x], similarity_scores, width, label='Actual Similarity', color='steelblue')
-            ax.bar([i + width/2 for i in x], thresholds_list, width, label='Threshold', color='lightcoral', alpha=0.7)
-            ax.set_xlabel('Severity')
-            ax.set_ylabel('Similarity Score')
-            ax.set_title('Similarity Scores vs Thresholds by Severity')
-            ax.set_xticks(x)
-            ax.set_xticklabels(severities)
-            ax.legend()
-            ax.set_ylim(0, 1.0)
-            plt.tight_layout()
-            plt.savefig(plots_dir / "similarity_by_severity.png", dpi=150)
-            plt.close()
+    fig, ax = plt.subplots()
+    severities = []
+    similarity_scores = []
+    thresholds_list = []
+    
+    for severity in ["mild", "moderate", "severe"]:
+        if severity in per_severity:
+            severities.append(severity)
+            sim_data = per_severity[severity]["similarity"]
+            similarity_scores.append(sim_data.get("mean_similarity_correct", 0.0))
+            thresholds_list.append(similarity_thresholds.get(f"min_score_{severity}", 0.0))
+    
+    if severities:
+        x = range(len(severities))
+        width = 0.35
+        ax.bar([i - width/2 for i in x], similarity_scores, width, label='Actual Similarity', color='steelblue')
+        ax.bar([i + width/2 for i in x], thresholds_list, width, label='Threshold', color='lightcoral', alpha=0.7)
+        ax.set_xlabel('Severity')
+        ax.set_ylabel('Similarity Score')
+        ax.set_title('Similarity Scores vs Thresholds by Severity')
+        ax.set_xticks(x)
+        ax.set_xticklabels(severities)
+        ax.legend()
+        ax.set_ylim(0, 1.0)
+    else:
+        ax.text(0.5, 0.5, 'No similarity data available', 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14)
+        ax.set_title('Similarity Scores vs Thresholds by Severity')
+    
+    plt.tight_layout()
+    plt.savefig(plots_dir / "similarity_by_severity.png", dpi=150)
+    plt.close()
     
     # Plot 3: Recall by transform type
+    fig, ax = plt.subplots(figsize=(14, 6))
+    
     if per_transform:
-        fig, ax = plt.subplots(figsize=(14, 6))
         transform_types = list(per_transform.keys())
         recall_1 = [per_transform[t]["recall"].get("recall_at_1", 0.0) for t in transform_types]
         recall_5 = [per_transform[t]["recall"].get("recall_at_5", 0.0) for t in transform_types]
         recall_10 = [per_transform[t]["recall"].get("recall_at_10", 0.0) for t in transform_types]
         
-        x = range(len(transform_types))
-        width = 0.25
-        ax.bar([i - width for i in x], recall_1, width, label='Recall@1')
-        ax.bar(x, recall_5, width, label='Recall@5')
-        ax.bar([i + width for i in x], recall_10, width, label='Recall@10')
-        ax.set_xlabel('Transform Type')
-        ax.set_ylabel('Recall')
+        if transform_types:
+            x = range(len(transform_types))
+            width = 0.25
+            ax.bar([i - width for i in x], recall_1, width, label='Recall@1')
+            ax.bar(x, recall_5, width, label='Recall@5')
+            ax.bar([i + width for i in x], recall_10, width, label='Recall@10')
+            ax.set_xlabel('Transform Type')
+            ax.set_ylabel('Recall')
+            ax.set_title('Recall@K by Transform Type')
+            ax.set_xticks(x)
+            ax.set_xticklabels(transform_types, rotation=45, ha='right')
+            ax.legend()
+            ax.set_ylim(0, 1.1)
+        else:
+            ax.text(0.5, 0.5, 'No transform data available', 
+                    horizontalalignment='center', verticalalignment='center',
+                    transform=ax.transAxes, fontsize=14)
+            ax.set_title('Recall@K by Transform Type')
+    else:
+        ax.text(0.5, 0.5, 'No transform data available', 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14)
         ax.set_title('Recall@K by Transform Type')
-        ax.set_xticks(x)
-        ax.set_xticklabels(transform_types, rotation=45, ha='right')
-        ax.legend()
-        ax.set_ylim(0, 1.1)
-        plt.tight_layout()
-        plt.savefig(plots_dir / "recall_by_transform.png", dpi=150)
-        plt.close()
+    
+    plt.tight_layout()
+    plt.savefig(plots_dir / "recall_by_transform.png", dpi=150)
+    plt.close()
     
     # Plot 4: Latency by transform type
+    fig, ax = plt.subplots()
+    
     if per_transform:
-        fig, ax = plt.subplots()
-        
         transform_types = []
         latencies = []
         
@@ -141,14 +164,26 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
             transform_types.append(transform_type)
             latencies.append(data["latency"]["mean_latency_ms"])
         
-        ax.bar(transform_types, latencies)
-        ax.set_xlabel('Transform Type')
-        ax.set_ylabel('Mean Latency (ms)')
+        if transform_types:
+            ax.bar(transform_types, latencies)
+            ax.set_xlabel('Transform Type')
+            ax.set_ylabel('Mean Latency (ms)')
+            ax.set_title('Processing Latency by Transform Type')
+            plt.xticks(rotation=45, ha='right')
+        else:
+            ax.text(0.5, 0.5, 'No latency data available', 
+                    horizontalalignment='center', verticalalignment='center',
+                    transform=ax.transAxes, fontsize=14)
+            ax.set_title('Processing Latency by Transform Type')
+    else:
+        ax.text(0.5, 0.5, 'No latency data available', 
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=14)
         ax.set_title('Processing Latency by Transform Type')
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
-        plt.savefig(plots_dir / "latency_by_transform.png", dpi=150)
-        plt.close()
+    
+    plt.tight_layout()
+    plt.savefig(plots_dir / "latency_by_transform.png", dpi=150)
+    plt.close()
     
     logger.info(f"Generated plots in {plots_dir}")
 
