@@ -4,7 +4,8 @@ from .speed import time_stretch, speed_change
 from .encode import re_encode
 from .chop import slice_chop
 from .overlay import overlay_vocals
-from .noise import add_noise
+from .noise import add_noise, reduce_noise
+from .reverb import apply_reverb
 from .eq import (
     high_pass_filter,
     low_pass_filter,
@@ -27,6 +28,8 @@ __all__ = [
     "slice_chop",
     "overlay_vocals",
     "add_noise",
+    "reduce_noise",
+    "apply_reverb",
     "high_pass_filter",
     "low_pass_filter",
     "boost_highs",

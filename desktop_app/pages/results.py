@@ -4,7 +4,7 @@ Results page showing fingerprint robustness experiment metrics.
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
-    QGroupBox, QLineEdit, QTextEdit
+    QGroupBox, QLineEdit, QTextEdit, QFileDialog, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor, QPainter, QPen, QBrush
@@ -131,14 +131,79 @@ class ResultsPage(QWidget):
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
         
-        # Header
+        # Header with controls
+        header_layout = QHBoxLayout()
+        
         title = QLabel("Results")
         title_font = QFont()
         title_font.setPointSize(28)
         title_font.setBold(True)
         title.setFont(title_font)
         title.setStyleSheet("color: #ffffff;")
-        layout.addWidget(title)
+        header_layout.addWidget(title)
+        
+        header_layout.addStretch()
+        
+        # Report selector
+        report_label = QLabel("Report:")
+        report_label.setStyleSheet("color: #ffffff; font-size: 12px; margin-right: 8px;")
+        header_layout.addWidget(report_label)
+        
+        self.report_combo = QComboBox()
+        self.report_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #1e1e1e;
+                color: #ffffff;
+                border: 1px solid #3d3d3d;
+                border-radius: 4px;
+                padding: 6px;
+                min-width: 200px;
+            }
+            QComboBox:hover {
+                border: 1px solid #427eea;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #2d2d2d;
+                color: #ffffff;
+                selection-background-color: #427eea;
+            }
+        """)
+        self.report_combo.currentTextChanged.connect(self.on_report_changed)
+        header_layout.addWidget(self.report_combo)
+        
+        # Export buttons
+        export_csv_btn = QPushButton("Export CSV")
+        export_csv_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3d3d3d;
+                color: #ffffff;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #427eea;
+            }
+        """)
+        export_csv_btn.clicked.connect(self.export_csv)
+        header_layout.addWidget(export_csv_btn)
+        
+        export_json_btn = QPushButton("Export JSON")
+        export_json_btn.setStyleSheet(export_csv_btn.styleSheet())
+        export_json_btn.clicked.connect(self.export_json)
+        header_layout.addWidget(export_json_btn)
+        
+        open_html_btn = QPushButton("Open HTML Report")
+        open_html_btn.setStyleSheet(export_csv_btn.styleSheet())
+        open_html_btn.clicked.connect(self.open_html_report)
+        header_layout.addWidget(open_html_btn)
+        
+        layout.addLayout(header_layout)
         
         # Overall Metrics (Recall@K)
         metrics_group = QGroupBox("Overall Fingerprint Robustness Metrics")
@@ -326,6 +391,7 @@ class ResultsPage(QWidget):
         # Find latest report directory
         if not self.reports_dir.exists():
             self._show_no_data()
+            self._update_report_combo([])
             return
         
         # Get all report directories
@@ -334,11 +400,20 @@ class ResultsPage(QWidget):
         
         if not report_dirs:
             self._show_no_data()
+            self._update_report_combo([])
             return
         
-        # Load metrics from latest report
-        latest_report = report_dirs[0]
-        metrics_file = latest_report / "metrics.json"
+        # Update report combo
+        self._update_report_combo(report_dirs)
+        
+        # Load metrics from selected or latest report
+        selected_index = self.report_combo.currentIndex()
+        if selected_index >= 0 and selected_index < len(report_dirs):
+            selected_report = report_dirs[selected_index]
+        else:
+            selected_report = report_dirs[0]
+        
+        metrics_file = selected_report / "metrics.json"
         
         if not metrics_file.exists():
             self._show_no_data()
@@ -348,10 +423,155 @@ class ResultsPage(QWidget):
             with open(metrics_file, 'r') as f:
                 self.current_metrics = json.load(f)
             
+            self.current_report_dir = selected_report
             self._display_metrics()
         except Exception as e:
             print(f"Error loading metrics: {e}")
             self._show_no_data()
+    
+    def _update_report_combo(self, report_dirs):
+        """Update report combo box with available reports."""
+        self.report_combo.blockSignals(True)
+        self.report_combo.clear()
+        
+        for report_dir in report_dirs:
+            # Extract date/time from directory name (run_YYYYMMDD_HHMMSS)
+            dir_name = report_dir.name
+            if dir_name.startswith("run_"):
+                date_str = dir_name[4:]
+                try:
+                    # Format: YYYYMMDD_HHMMSS
+                    if len(date_str) >= 15:
+                        date_part = date_str[:8]
+                        time_part = date_str[9:15]
+                        formatted = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]} {time_part[:2]}:{time_part[2:4]}:{time_part[4:6]}"
+                    else:
+                        formatted = dir_name
+                except:
+                    formatted = dir_name
+            else:
+                formatted = dir_name
+            
+            self.report_combo.addItem(formatted, report_dir)
+        
+        self.report_combo.blockSignals(False)
+    
+    def on_report_changed(self):
+        """Handle report selection change."""
+        self.load_results()
+    
+    def export_csv(self):
+        """Export metrics to CSV file."""
+        if not self.current_metrics:
+            QMessageBox.warning(self, "No Data", "No metrics data available to export.")
+            return
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Metrics to CSV",
+            str(self.project_root / "reports" / "metrics_export.csv"),
+            "CSV Files (*.csv);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            import csv
+            
+            with open(file_path, 'w', newline='') as f:
+                writer = csv.writer(f)
+                
+                # Overall metrics
+                writer.writerow(["Metric", "Value"])
+                writer.writerow([])
+                writer.writerow(["Overall Metrics", ""])
+                
+                overall = self.current_metrics.get("overall", {})
+                recall = overall.get("recall", {})
+                rank = overall.get("rank", {})
+                similarity = overall.get("similarity", {})
+                
+                writer.writerow(["Recall@1", f"{recall.get('recall_at_1', 0.0):.4f}"])
+                writer.writerow(["Recall@5", f"{recall.get('recall_at_5', 0.0):.4f}"])
+                writer.writerow(["Recall@10", f"{recall.get('recall_at_10', 0.0):.4f}"])
+                writer.writerow(["Mean Rank", f"{rank.get('mean_rank', 0.0):.2f}"])
+                writer.writerow(["Mean Similarity", f"{similarity.get('mean_similarity_correct', 0.0):.4f}"])
+                
+                writer.writerow([])
+                writer.writerow(["Per-Transform Metrics", ""])
+                writer.writerow(["Transform Type", "Recall@1", "Recall@5", "Recall@10", "Mean Similarity"])
+                
+                per_transform = self.current_metrics.get("per_transform", {})
+                for transform_type, data in sorted(per_transform.items()):
+                    transform_recall = data.get("recall", {})
+                    transform_similarity = data.get("similarity", {})
+                    writer.writerow([
+                        transform_type,
+                        f"{transform_recall.get('recall_at_1', 0.0):.4f}",
+                        f"{transform_recall.get('recall_at_5', 0.0):.4f}",
+                        f"{transform_recall.get('recall_at_10', 0.0):.4f}",
+                        f"{transform_similarity.get('mean_similarity_correct', 0.0):.4f}"
+                    ])
+            
+            QMessageBox.information(self, "Export Successful", f"Metrics exported to:\n{file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"Error exporting CSV:\n{str(e)}")
+    
+    def export_json(self):
+        """Export metrics to JSON file."""
+        if not self.current_metrics:
+            QMessageBox.warning(self, "No Data", "No metrics data available to export.")
+            return
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Metrics to JSON",
+            str(self.project_root / "reports" / "metrics_export.json"),
+            "JSON Files (*.json);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            with open(file_path, 'w') as f:
+                json.dump(self.current_metrics, f, indent=2)
+            
+            QMessageBox.information(self, "Export Successful", f"Metrics exported to:\n{file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"Error exporting JSON:\n{str(e)}")
+    
+    def open_html_report(self):
+        """Open HTML report in default browser."""
+        if not hasattr(self, 'current_report_dir') or not self.current_report_dir:
+            QMessageBox.warning(self, "No Report", "No report directory selected.")
+            return
+        
+        # Look for HTML report in common locations
+        html_paths = [
+            self.current_report_dir / "final_report" / "report.html",
+            self.current_report_dir / "report.html",
+            self.current_report_dir / "index.html"
+        ]
+        
+        html_path = None
+        for path in html_paths:
+            if path.exists():
+                html_path = path
+                break
+        
+        if not html_path:
+            QMessageBox.warning(self, "Report Not Found", 
+                              f"HTML report not found in:\n{self.current_report_dir}")
+            return
+        
+        try:
+            import webbrowser
+            import os
+            webbrowser.open(f"file://{os.path.abspath(html_path)}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open HTML report:\n{str(e)}")
     
     def _show_no_data(self):
         """Show placeholder when no data is available."""

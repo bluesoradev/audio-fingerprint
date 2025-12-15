@@ -13,40 +13,43 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f5f5;
-            color: #333;
+            background: #1e1e1e;
+            color: #ffffff;
+            min-height: 100vh;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
         }
 
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
+            background: #2d2d2d;
+            color: #ffffff;
+            padding: 20px 30px;
             border-radius: 8px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #3d3d3d;
         }
 
         header h1 {
             font-size: 2em;
             margin-bottom: 5px;
+            color: #ffffff;
         }
 
         header p {
+            color: #c8c8c8;
             opacity: 0.9;
         }
 
         .status-bar {
-            background: white;
-            padding: 15px;
+            background: #2d2d2d;
+            padding: 15px 20px;
             border-radius: 8px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid #3d3d3d;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -62,28 +65,28 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #4CAF50;
+            background: #4ade80;
         }
 
         .status-dot.error {
-            background: #f44336;
+            background: #f87171;
         }
 
         .status-dot.warning {
-            background: #ff9800;
+            background: #fbbf24;
         }
 
         .main-content {
             display: grid;
-            grid-template-columns: 300px 1fr;
+            grid-template-columns: 250px 1fr;
             gap: 20px;
         }
 
         .sidebar {
-            background: white;
+            background: #2d2d2d;
             border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid #3d3d3d;
             height: fit-content;
             position: sticky;
             top: 20px;
@@ -92,7 +95,7 @@
         .sidebar h2 {
             margin-bottom: 15px;
             font-size: 1.2em;
-            color: #667eea;
+            color: #ffffff;
         }
 
         .nav-menu {
@@ -107,21 +110,26 @@
             display: block;
             padding: 10px 15px;
             text-decoration: none;
-            color: #333;
-            border-radius: 5px;
+            color: #c8c8c8;
+            border-radius: 4px;
             transition: all 0.2s;
         }
 
-        .nav-menu a:hover, .nav-menu a.active {
-            background: #667eea;
-            color: white;
+        .nav-menu a:hover {
+            background: #3d3d3d;
+            color: #ffffff;
+        }
+
+        .nav-menu a.active {
+            background: #427eea;
+            color: #ffffff;
         }
 
         .content-area {
-            background: white;
+            background: #2d2d2d;
             border-radius: 8px;
             padding: 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid #3d3d3d;
             min-height: 600px;
         }
 
@@ -135,14 +143,14 @@
 
         .section h2 {
             margin-bottom: 20px;
-            color: #333;
-            border-bottom: 2px solid #667eea;
+            color: #ffffff;
+            border-bottom: 2px solid #427eea;
             padding-bottom: 10px;
         }
 
         .workflow-step {
-            background: #f9f9f9;
-            border: 1px solid #ddd;
+            background: #1e1e1e;
+            border: 1px solid #3d3d3d;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
@@ -150,7 +158,8 @@
 
         .workflow-step h3 {
             margin-bottom: 15px;
-            color: #667eea;
+            color: #ffffff;
+            font-size: 1.1em;
         }
 
         .form-group {
@@ -161,23 +170,98 @@
             display: block;
             margin-bottom: 5px;
             font-weight: 500;
-            color: #555;
+            color: #ffffff;
+            font-size: 14px;
         }
 
         .form-group input, .form-group select, .form-group textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 8px 12px;
+            background: #1e1e1e;
+            border: 1px solid #3d3d3d;
+            border-radius: 4px;
             font-size: 14px;
+            color: #ffffff;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #427eea;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        /* Slider Styles */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ffffff;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            background: #ffffff;
+            border: 2px solid #9ca3af;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            background: #ffffff;
+            border: 2px solid #9ca3af;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-runnable-track {
+            height: 6px;
+            background: #60a5fa;
+            border-radius: 3px;
+        }
+
+        .slider::-moz-range-track {
+            height: 6px;
+            background: #60a5fa;
+            border-radius: 3px;
+        }
+
+        .slider-value {
+            min-width: 50px;
+            color: #ffffff;
+            font-size: 14px;
+            text-align: right;
         }
 
         .btn {
-            background: #667eea;
+            background: #427eea;
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 5px;
+            padding: 10px 20px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
@@ -185,31 +269,29 @@
         }
 
         .btn:hover {
-            background: #5568d3;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            background: #3464ba;
         }
 
         .btn:disabled {
-            background: #ccc;
+            background: #3d3d3d;
+            color: #787878;
             cursor: not-allowed;
-            transform: none;
         }
 
         .btn-danger {
-            background: #f44336;
+            background: #f87171;
         }
 
         .btn-danger:hover {
-            background: #d32f2f;
+            background: #dc2626;
         }
 
         .btn-success {
-            background: #4CAF50;
+            background: #10b981;
         }
 
         .btn-success:hover {
-            background: #45a049;
+            background: #059669;
         }
 
         .log-container {
@@ -222,6 +304,7 @@
             max-height: 400px;
             overflow-y: auto;
             margin-top: 15px;
+            border: 1px solid #3d3d3d;
         }
 
         .log-line {
@@ -230,29 +313,30 @@
         }
 
         .log-line.error {
-            color: #f44336;
+            color: #f87171;
         }
 
         .log-line.success {
-            color: #4CAF50;
+            color: #10b981;
         }
 
         .log-line.warning {
-            color: #ff9800;
+            color: #fbbf24;
         }
 
         .progress-bar {
             width: 100%;
             height: 20px;
-            background: #e0e0e0;
+            background: #1e1e1e;
             border-radius: 10px;
             overflow: hidden;
             margin: 10px 0;
+            border: 1px solid #3d3d3d;
         }
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: #427eea;
             transition: width 0.3s;
             display: flex;
             align-items: center;
@@ -268,16 +352,17 @@
 
         .file-list li {
             padding: 10px;
-            background: #f9f9f9;
+            background: #1e1e1e;
             margin-bottom: 5px;
             border-radius: 5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid #3d3d3d;
         }
 
         .file-list li:hover {
-            background: #f0f0f0;
+            background: #3d3d3d;
         }
 
         .table {
@@ -289,17 +374,17 @@
         .table th, .table td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #3d3d3d;
         }
 
         .table th {
-            background: #f5f5f5;
+            background: #1e1e1e;
             font-weight: 600;
-            color: #667eea;
+            color: #ffffff;
         }
 
         .table tr:hover {
-            background: #f9f9f9;
+            background: #1e1e1e;
         }
 
         .badge {
@@ -311,43 +396,44 @@
         }
 
         .badge-success {
-            background: #4CAF50;
+            background: #10b981;
             color: white;
         }
 
         .badge-error {
-            background: #f44336;
+            background: #f87171;
             color: white;
         }
 
         .badge-warning {
-            background: #ff9800;
+            background: #fbbf24;
             color: white;
         }
 
         .badge-info {
-            background: #2196F3;
+            background: #60a5fa;
             color: white;
         }
 
         .upload-area {
-            border: 2px dashed #ddd;
+            border: 2px dashed #3d3d3d;
             border-radius: 8px;
             padding: 40px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
             margin-bottom: 15px;
+            background: #1e1e1e;
         }
 
         .upload-area:hover {
-            border-color: #667eea;
-            background: #f9f9f9;
+            border-color: #427eea;
+            background: #252525;
         }
 
         .upload-area.dragover {
-            border-color: #667eea;
-            background: #f0f0ff;
+            border-color: #427eea;
+            background: #252525;
         }
 
         .stats-grid {
@@ -358,7 +444,8 @@
         }
 
         .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1e1e1e;
+            border: 1px solid #3d3d3d;
             color: white;
             padding: 20px;
             border-radius: 8px;
@@ -368,11 +455,85 @@
         .stat-card h3 {
             font-size: 2em;
             margin-bottom: 5px;
+            color: #427eea;
         }
 
         .stat-card p {
-            opacity: 0.9;
+            color: #c8c8c8;
             font-size: 0.9em;
+        }
+
+        /* Transform Control Groups */
+        .transform-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .transform-card {
+            border: 1px solid #3d3d3d;
+            padding: 15px;
+            border-radius: 8px;
+            background: #1e1e1e;
+        }
+
+        .transform-card h4 {
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+
+        /* Audio Player Styles */
+        .audio-player {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        audio {
+            width: 100%;
+        }
+
+        /* Test Results */
+        .test-results {
+            margin-top: 15px;
+            padding: 15px;
+            background: #1e1e1e;
+            border-radius: 5px;
+            border: 1px solid #3d3d3d;
+        }
+
+        .test-results.success {
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .test-results.error {
+            border-color: #f87171;
+            color: #f87171;
+        }
+
+        /* ComboBox/Select Styles */
+        select {
+            background: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #3d3d3d;
+            border-radius: 4px;
+            padding: 8px 12px;
+        }
+
+        select:hover {
+            border-color: #427eea;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #427eea;
+        }
+
+        /* Checkbox Styles */
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
         }
 
         @media (max-width: 968px) {
@@ -502,7 +663,7 @@
                 <!-- Audio Manipulation Section -->
                 <div id="manipulate" class="section">
                     <h2>🎵 Audio Manipulation</h2>
-                    <p style="margin-bottom: 20px; color: #666;">Apply transformations to audio files and test fingerprint robustness</p>
+                    <p style="margin-bottom: 20px; color: #9ca3af;">Apply transformations to audio files and test fingerprint robustness</p>
                     
                     <div class="workflow-step">
                         <h3>1. Select Audio File</h3>
@@ -512,24 +673,28 @@
                                 <option value="">-- Select Audio File --</option>
                             </select>
                         </div>
-                        <div id="audioInfo" style="display: none; margin-top: 15px; padding: 15px; background: #f0f0f0; border-radius: 5px;">
+                        <div id="audioInfo" style="display: none; margin-top: 15px; padding: 15px; background: #1e1e1e; border-radius: 5px; border: 1px solid #3d3d3d;">
                             <p><strong>Selected:</strong> <span id="selectedFileName"></span></p>
                             <p><strong>Path:</strong> <span id="selectedFilePath"></span></p>
-                            <audio id="audioPreview" controls style="width: 100%; margin-top: 10px;"></audio>
+                            <audio id="audioPreview" controls class="audio-player"></audio>
                         </div>
                     </div>
 
                     <div class="workflow-step">
                         <h3>2. Apply Transforms</h3>
                         
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                        <div class="transform-grid">
                             <!-- Speed Control -->
-                            <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+                            <div class="transform-card">
                                 <h4>⚡ Speed Change</h4>
                                 <div class="form-group">
                                     <label>Speed Ratio</label>
-                                    <input type="number" id="speedRatio" value="1.0" min="0.5" max="2.0" step="0.1">
-                                    <small style="color: #666;">1.0 = normal, &gt;1.0 = faster, &lt;1.0 = slower</small>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="speedSlider" min="50" max="200" value="100" oninput="updateSpeedValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="speedValue">1.0x</span>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>
@@ -540,135 +705,141 @@
                             </div>
 
                             <!-- Pitch Control -->
-                            <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+                            <div class="transform-card">
                                 <h4>🎹 Pitch Shift</h4>
                                 <div class="form-group">
                                     <label>Semitones</label>
-                                    <input type="number" id="pitchSemitones" value="0" min="-12" max="12" step="0.5">
-                                    <small style="color: #666;">Positive = higher, Negative = lower</small>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="pitchSlider" min="-12" max="12" value="0" oninput="updatePitchValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="pitchValue">0</span>
+                                    </div>
                                 </div>
                                 <button class="btn" onclick="applyPitchTransform()">Apply Pitch Shift</button>
                             </div>
 
-                            <!-- Overlay Vocals -->
-                            <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-                                <h4>🎤 Add Vocals/Overlay</h4>
+                            <!-- Reverb -->
+                            <div class="transform-card">
+                                <h4>🎚️ Reverb Delay</h4>
                                 <div class="form-group">
-                                    <label>Overlay Audio File (optional)</label>
-                                    <input type="file" id="overlayFile" accept="audio/*">
-                                    <small style="color: #666;">Leave empty to generate test overlay</small>
+                                    <label>Delay (ms)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="reverbSlider" min="0" max="500" value="50" oninput="updateReverbValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="reverbValue">50</span>
+                                    </div>
                                 </div>
+                                <button class="btn" onclick="applyReverbTransform()">Apply Reverb</button>
+                            </div>
+
+                            <!-- Noise Reduction -->
+                            <div class="transform-card">
+                                <h4>🔊 Noise Reduction</h4>
+                                <div class="form-group">
+                                    <label>Reduction (%)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="noiseSlider" min="0" max="100" value="50" oninput="updateNoiseValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="noiseValue">50%</span>
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="applyNoiseTransform()">Apply Noise Reduction</button>
+                            </div>
+
+                            <!-- EQ Adjustment -->
+                            <div class="transform-card">
+                                <h4>🎛️ EQ Adjustment</h4>
                                 <div class="form-group">
                                     <label>Gain (dB)</label>
-                                    <input type="number" id="overlayGain" value="-6" min="-20" max="0" step="1">
-                                    <small style="color: #666;">Negative = quieter overlay</small>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="eqSlider" min="-20" max="20" value="0" oninput="updateEQValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="eqValue">0 dB</span>
+                                    </div>
                                 </div>
-                                <button class="btn" onclick="applyOverlayTransform()">Apply Overlay</button>
+                                <button class="btn" onclick="applyEQTransform()">Apply EQ</button>
                             </div>
 
-                            <!-- Noise -->
-                            <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-                                <h4>🔊 Add Noise</h4>
-                                <div class="form-group">
-                                    <label>SNR (dB)</label>
-                                    <input type="number" id="noiseSNR" value="20" min="5" max="40" step="5">
-                                    <small style="color: #666;">Higher = less noise</small>
-                                </div>
-                                <div class="form-group">
-                                    <label>Noise Type</label>
-                                    <select id="noiseType">
-                                        <option value="white">White Noise</option>
-                                        <option value="pink">Pink Noise</option>
-                                    </select>
-                                </div>
-                                <button class="btn" onclick="applyNoiseTransform()">Add Noise</button>
-                            </div>
-
-                            <!-- Re-encode -->
-                            <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-                                <h4>💾 Re-encode</h4>
+                            <!-- Audio Compression -->
+                            <div class="transform-card">
+                                <h4>💾 Audio Compression</h4>
                                 <div class="form-group">
                                     <label>Codec</label>
-                                    <select id="encodeCodec">
-                                        <option value="mp3">MP3</option>
-                                        <option value="aac">AAC</option>
+                                    <select id="codecSelect" onchange="updateBitrateEnabled()">
+                                        <option value="None">None</option>
+                                        <option value="MP3">MP3</option>
+                                        <option value="AAC">AAC</option>
+                                        <option value="OGG">OGG</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label>Bitrate</label>
-                                    <select id="encodeBitrate">
-                                        <option value="320k">320k</option>
-                                        <option value="192k">192k</option>
-                                        <option value="128k">128k</option>
+                                    <select id="bitrateSelect" disabled>
                                         <option value="64k">64k</option>
+                                        <option value="128k">128k</option>
+                                        <option value="192k">192k</option>
+                                        <option value="256k">256k</option>
+                                        <option value="320k">320k</option>
                                     </select>
                                 </div>
-                                <button class="btn" onclick="applyEncodeTransform()">Re-encode</button>
+                                <button class="btn" onclick="applyCompressionTransform()">Apply Compression</button>
                             </div>
 
-                            <!-- Slice/Chop -->
-                            <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-                                <h4>✂️ Slice/Chop</h4>
+                            <!-- Overlay Vocals -->
+                            <div class="transform-card">
+                                <h4>🎤 Overlay/Mixing</h4>
                                 <div class="form-group">
-                                    <label>Remove from Start (seconds)</label>
-                                    <input type="number" id="chopStart" value="0" min="0" max="10" step="0.5">
+                                    <label>Overlay Audio File (optional)</label>
+                                    <input type="file" id="overlayFile" accept="audio/*">
+                                    <small>Leave empty to generate test overlay</small>
                                 </div>
                                 <div class="form-group">
-                                    <label>Remove from End (seconds)</label>
-                                    <input type="number" id="chopEnd" value="0" min="0" max="10" step="0.5">
+                                    <label>Gain (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="overlayGainSlider" min="-20" max="0" value="-6" oninput="updateOverlayGainValue(this.value)">
+                                        </div>
+                                        <span class="slider-value" id="overlayGainValue">-6</span>
+                                    </div>
                                 </div>
-                                <button class="btn" onclick="applyChopTransform()">Apply Slice</button>
+                                <button class="btn" onclick="applyOverlayTransform()">Apply Overlay</button>
                             </div>
                         </div>
                     </div>
 
                     <div class="workflow-step">
-                        <h3>3. Combine Transforms (Chain)</h3>
-                        <div id="transformChain" style="margin-bottom: 15px;">
-                            <p style="color: #666;">No transforms added to chain yet. Apply individual transforms above or add to chain.</p>
+                        <h3>3. Transform Chain Builder</h3>
+                        <div class="form-group">
+                            <label>Transform Chain</label>
+                            <textarea id="chainList" readonly style="height: 100px; font-family: monospace; font-size: 12px;">No transforms in chain yet.</textarea>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn" onclick="addToChain('speed')">Add Speed to Chain</button>
-                            <button class="btn" onclick="addToChain('pitch')">Add Pitch to Chain</button>
-                            <button class="btn" onclick="addToChain('overlay')">Add Overlay to Chain</button>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn" onclick="addToChain()">Add to Chain</button>
                             <button class="btn" onclick="clearChain()">Clear Chain</button>
                             <button class="btn btn-success" onclick="applyChainTransform()">Apply Chain</button>
                         </div>
                     </div>
 
                     <div class="workflow-step">
-                        <h3>4. Output Settings</h3>
-                        <div class="form-group">
-                            <label>Output Directory</label>
-                            <input type="text" id="manipulateOutputDir" value="data/manipulated">
-                        </div>
-                        <div class="form-group">
-                            <label>Output Filename (optional)</label>
-                            <input type="text" id="manipulateOutputName" placeholder="Auto-generated if empty">
-                        </div>
-                    </div>
-
-                    <div class="workflow-step">
-                        <h3>5. Test Fingerprint Robustness</h3>
-                        <p style="color: #666; margin-bottom: 15px;">
-                            After applying transforms, test if the fingerprint can still identify the original audio.
+                        <h3>4. Test Fingerprint Robustness</h3>
+                        <p style="color: #9ca3af; margin-bottom: 15px;">
+                            Test if transformed audio can be matched to original.
                         </p>
                         <div class="form-group">
-                            <label>Original Audio File (for comparison)</label>
-                            <select id="testOriginalFile">
-                                <option value="">-- Select Original --</option>
-                            </select>
+                            <label>Original Audio:</label>
+                            <input type="text" id="originalTestDisplay" readonly placeholder="No original audio selected...">
                         </div>
                         <div class="form-group">
-                            <label>Manipulated Audio File (to test)</label>
-                            <select id="testManipulatedFile">
-                                <option value="">-- Select Manipulated --</option>
-                            </select>
+                            <label>Transformed Audio:</label>
+                            <input type="text" id="transformedTestDisplay" readonly placeholder="No transformed audio available. Apply transforms first...">
                         </div>
-                        <button class="btn btn-success" onclick="testFingerprintRobustness()">🔍 Test Fingerprint Match</button>
-                        <div id="fingerprintTestResult" style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 5px; display: none;">
-                            <h4>Test Results</h4>
-                            <div id="fingerprintTestDetails"></div>
+                        <button class="btn btn-success" id="testBtn" onclick="testFingerprintRobustness()">🔍 Test Fingerprint Match</button>
+                        <div id="testResults" class="test-results" style="display: none; margin-top: 15px;">
+                            <div id="testResultsContent"></div>
                         </div>
                     </div>
 
@@ -718,7 +889,7 @@
                     <h2>Configuration</h2>
                     <div class="workflow-step">
                         <h3>Test Matrix Configuration</h3>
-                        <textarea id="testMatrixConfig" style="width: 100%; height: 400px; font-family: monospace;"></textarea>
+                        <textarea id="testMatrixConfig" style="width: 100%; height: 400px; font-family: monospace; background: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d;"></textarea>
                         <button class="btn" onclick="saveTestMatrix()" style="margin-top: 15px;">Save Configuration</button>
                     </div>
                 </div>
@@ -733,5 +904,37 @@
     </div>
 
     <script src="/static/app.js"></script>
+    <script>
+        // Slider value update functions
+        function updateSpeedValue(value) {
+            document.getElementById('speedValue').textContent = (value / 100).toFixed(1) + 'x';
+        }
+
+        function updatePitchValue(value) {
+            document.getElementById('pitchValue').textContent = value;
+        }
+
+        function updateReverbValue(value) {
+            document.getElementById('reverbValue').textContent = value;
+        }
+
+        function updateNoiseValue(value) {
+            document.getElementById('noiseValue').textContent = value + '%';
+        }
+
+        function updateEQValue(value) {
+            const eqValue = document.getElementById('eqValue');
+            eqValue.textContent = value == 0 ? '0' : value + ' dB';
+        }
+
+        function updateOverlayGainValue(value) {
+            document.getElementById('overlayGainValue').textContent = value;
+        }
+
+        function updateBitrateEnabled() {
+            const codec = document.getElementById('codecSelect').value;
+            document.getElementById('bitrateSelect').disabled = codec === 'None';
+        }
+    </script>
 </body>
 </html>

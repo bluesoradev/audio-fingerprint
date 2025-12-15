@@ -659,6 +659,7 @@ async def manipulate_overlay(
                 overlay_file = None
         
         logger.info(f"Applying overlay transform: {input_file} -> {out_file}")
+        # overlay_vocals signature: (input_path, vocal_file, level_db, out_path)
         overlay_vocals(input_file, overlay_file, gain_db, out_file)
         
         if not out_file.exists():
@@ -677,6 +678,74 @@ async def manipulate_overlay(
             "status": "error",
             "message": str(e)
         }, status_code=500)
+
+
+@app.post("/api/manipulate/reverb")
+async def manipulate_reverb(
+    input_path: str = Form(...),
+    delay_ms: float = Form(50.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply reverb delay transform."""
+    from transforms.reverb import apply_reverb
+    
+    input_file = PROJECT_ROOT / input_path
+    output_path = PROJECT_ROOT / output_dir
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    if output_name:
+        out_file = output_path / output_name
+    else:
+        out_file = output_path / f"{input_file.stem}_reverb_{delay_ms}ms.wav"
+    
+    try:
+        apply_reverb(input_file, delay_ms, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Reverb applied: {delay_ms}ms delay"
+        })
+    except Exception as e:
+        logger.error(f"Reverb transform failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/noise-reduction")
+async def manipulate_noise_reduction(
+    input_path: str = Form(...),
+    reduction_strength: float = Form(0.5),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply noise reduction transform."""
+    from transforms.noise import reduce_noise
+    
+    input_file = PROJECT_ROOT / input_path
+    output_path = PROJECT_ROOT / output_dir
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    if output_name:
+        out_file = output_path / output_name
+    else:
+        out_file = output_path / f"{input_file.stem}_noise_reduced_{int(reduction_strength*100)}pct.wav"
+    
+    try:
+        reduce_noise(input_file, reduction_strength, out_file)
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Noise reduction applied: {int(reduction_strength*100)}%"
+        })
+    except Exception as e:
+        logger.error(f"Noise reduction failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
 @app.post("/api/manipulate/noise")

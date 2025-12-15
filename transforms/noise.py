@@ -81,3 +81,102 @@ def add_noise(
     except Exception as e:
         logger.error(f"Add noise failed: {e}")
         raise
+
+
+def reduce_noise(
+    input_path: Path,
+    reduction_strength: float,
+    out_path: Path = None,
+    sample_rate: int = 44100,
+    noise_gate_threshold: float = None
+) -> Path:
+    """
+    Reduce noise from audio using spectral subtraction.
+    
+    Args:
+        input_path: Input audio file
+        reduction_strength: Noise reduction strength (0.0 to 1.0)
+                          0.0 = no reduction, 1.0 = maximum reduction
+        out_path: Output file path
+        sample_rate: Sample rate for processing
+        noise_gate_threshold: Optional noise gate threshold in dB (None = auto)
+        
+    Returns:
+        Path to output file
+    """
+    try:
+        # Load audio
+        y, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        
+        # Estimate noise from the first 0.5 seconds (assuming quiet start)
+        noise_sample_length = min(int(0.5 * sr), len(y) // 10)
+        if noise_sample_length < 1024:
+            noise_sample_length = min(1024, len(y))
+        
+        noise_sample = y[:noise_sample_length]
+        
+        # Compute STFT
+        n_fft = 2048
+        hop_length = n_fft // 4
+        
+        # Get STFT of full signal
+        stft = librosa.stft(y, n_fft=n_fft, hop_length=hop_length)
+        magnitude = np.abs(stft)
+        phase = np.angle(stft)
+        
+        # Get STFT of noise sample
+        noise_stft = librosa.stft(noise_sample, n_fft=n_fft, hop_length=hop_length)
+        noise_magnitude = np.abs(noise_stft)
+        
+        # Estimate noise power spectrum (average across time)
+        noise_power = np.mean(noise_magnitude ** 2, axis=1, keepdims=True)
+        
+        # Estimate signal power spectrum
+        signal_power = magnitude ** 2
+        
+        # Spectral subtraction with over-subtraction factor
+        # Higher reduction_strength = more aggressive noise removal
+        alpha = 1.0 + (reduction_strength * 2.0)  # 1.0 to 3.0
+        beta = 0.1 * reduction_strength  # 0.0 to 0.1
+        
+        # Subtract noise power from signal power
+        enhanced_power = signal_power - alpha * noise_power
+        
+        # Apply spectral floor to prevent over-subtraction artifacts
+        spectral_floor = beta * noise_power
+        enhanced_power = np.maximum(enhanced_power, spectral_floor)
+        
+        # Reconstruct magnitude
+        enhanced_magnitude = np.sqrt(enhanced_power)
+        
+        # Apply noise gate if threshold is provided
+        if noise_gate_threshold is not None:
+            # Convert threshold from dB to linear
+            gate_threshold_linear = 10 ** (noise_gate_threshold / 20.0)
+            # Apply gate: set to zero if below threshold
+            mask = enhanced_magnitude > (gate_threshold_linear * np.max(enhanced_magnitude))
+            enhanced_magnitude = enhanced_magnitude * mask
+        
+        # Reconstruct STFT
+        enhanced_stft = enhanced_magnitude * np.exp(1j * phase)
+        
+        # Convert back to time domain
+        y_enhanced = librosa.istft(enhanced_stft, hop_length=hop_length, length=len(y))
+        
+        # Normalize to prevent clipping
+        max_val = np.max(np.abs(y_enhanced))
+        if max_val > 1.0:
+            y_enhanced = y_enhanced / max_val
+        
+        # Save
+        if out_path is None:
+            out_path = input_path.parent / f"{input_path.stem}_noise_reduced_{reduction_strength:.2f}.wav"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        sf.write(str(out_path), y_enhanced, sr)
+        
+        logger.debug(f"Reduced noise in {input_path} (strength: {reduction_strength:.2f}) -> {out_path}")
+        return out_path
+        
+    except Exception as e:
+        logger.error(f"Noise reduction failed: {e}")
+        raise

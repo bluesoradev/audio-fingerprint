@@ -81,7 +81,7 @@ def extract_embeddings(
     
     Args:
         segments: List of segment dictionaries
-        model: EmbeddingGenerator model
+        model: EmbeddingGenerator model (or dict with 'model' key)
         output_dir: Directory to save embeddings (optional)
         save_embeddings: Whether to save to disk
         
@@ -90,41 +90,68 @@ def extract_embeddings(
     """
     embeddings = []
     
-    # Determine if we have a proper EmbeddingGenerator or fallback
-    if hasattr(model, "generate_embedding"):
-        # Use standard interface
-        generate_fn = lambda seg: model.generate_embedding_from_audio(
-            seg["audio"], seg["sample_rate"]
-        ) if hasattr(model, "generate_embedding_from_audio") else None
-    elif hasattr(model, "model") and hasattr(model["model"], "generate_embedding"):
-        # Model dict format
-        generate_fn = lambda seg: model["model"].generate_embedding_from_audio(
-            seg["audio"], seg["sample_rate"]
-        ) if hasattr(model["model"], "generate_embedding_from_audio") else None
-    else:
-        # Fallback: use librosa features
-        logger.warning("Using fallback embedding extraction")
-        generate_fn = None
+    # Extract the actual model from dict if needed
+    actual_model = model
+    if isinstance(model, dict):
+        actual_model = model.get("model", model)
+    
+    # Check if model has generate_embedding method (takes Path)
+    has_generate_embedding = hasattr(actual_model, "generate_embedding")
+    
+    # Import required modules
+    import tempfile
+    import soundfile as sf
+    
+    # Get embedding dimension for fallback
+    embedding_dim = 512
+    if hasattr(actual_model, "embedding_dim"):
+        embedding_dim = actual_model.embedding_dim
+    elif isinstance(model, dict) and "embedding_dim" in model:
+        embedding_dim = model["embedding_dim"]
+    
+    logger.info(f"Extracting embeddings using model: {type(actual_model).__name__}, has_generate_embedding: {has_generate_embedding}")
     
     for seg in tqdm(segments, desc="Extracting embeddings", leave=False):
+        tmp_path = None
         try:
-            if generate_fn:
-                emb = generate_fn(seg)
-            else:
-                # Fallback: extract using librosa
-                from fingerprint.load_model import FallbackEmbeddingGenerator
-                fallback = FallbackEmbeddingGenerator()
-                
-                # Save segment temporarily
-                import tempfile
-                import soundfile as sf
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                    tmp_path = Path(tmp.name)
-                    sf.write(str(tmp_path), seg["audio"], seg["sample_rate"])
-                    emb = fallback.generate_embedding(tmp_path)
-                    tmp_path.unlink()
+            # Always save segment to temp file since models expect file paths
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+                sf.write(str(tmp_path), seg["audio"], seg["sample_rate"])
             
+            # Use generate_embedding (takes Path) if available
+            if has_generate_embedding:
+                try:
+                    emb = actual_model.generate_embedding(tmp_path)
+                except Exception as e:
+                    logger.warning(f"Model.generate_embedding failed for {seg['segment_id']}: {e}, trying fallback")
+                    # Fall back to librosa-based extraction
+                    from fingerprint.load_model import FallbackEmbeddingGenerator
+                    fallback = FallbackEmbeddingGenerator(
+                        embedding_dim=embedding_dim,
+                        sample_rate=seg["sample_rate"]
+                    )
+                    emb = fallback.generate_embedding(tmp_path)
+            else:
+                # Fallback: use librosa features
+                from fingerprint.load_model import FallbackEmbeddingGenerator
+                fallback = FallbackEmbeddingGenerator(
+                    embedding_dim=embedding_dim,
+                    sample_rate=seg["sample_rate"]
+                )
+                emb = fallback.generate_embedding(tmp_path)
+            
+            # Validate embedding
             if emb is not None:
+                emb = np.asarray(emb)
+                if len(emb.shape) == 0 or emb.size == 0:
+                    logger.warning(f"Empty embedding for {seg['segment_id']}")
+                    emb = None
+                elif len(emb.shape) > 1:
+                    # Flatten if needed
+                    emb = emb.flatten()
+            
+            if emb is not None and emb.size > 0:
                 embeddings.append(emb)
                 
                 # Save if requested
@@ -133,17 +160,29 @@ def extract_embeddings(
                     emb_path = output_dir / f"{seg['segment_id']}.npy"
                     np.save(emb_path, emb)
             else:
-                logger.warning(f"Failed to extract embedding for {seg['segment_id']}")
+                logger.warning(f"Failed to extract embedding for {seg['segment_id']}: embedding is None or empty")
                 
         except Exception as e:
-            logger.error(f"Failed to extract embedding for {seg['segment_id']}: {e}")
-            continue
+            logger.error(f"Failed to extract embedding for {seg['segment_id']}: {e}", exc_info=True)
+        finally:
+            # Always clean up temp file
+            if tmp_path and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
     
     if not embeddings:
-        raise ValueError("No embeddings were extracted")
+        error_msg = (
+            "No embeddings were extracted - all segments failed. "
+            "Check logs above for error details. "
+            f"Processed {len(segments)} segments."
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
     
     embeddings_array = np.vstack(embeddings)
-    logger.info(f"Extracted {len(embeddings)} embeddings, shape: {embeddings_array.shape}")
+    logger.info(f"Successfully extracted {len(embeddings)}/{len(segments)} embeddings, shape: {embeddings_array.shape}")
     
     return embeddings_array
 

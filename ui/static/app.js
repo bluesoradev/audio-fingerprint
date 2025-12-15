@@ -713,6 +713,7 @@ function loadAudioInfo() {
         const audioInfo = document.getElementById('audioInfo');
         if (audioInfo) audioInfo.style.display = 'none';
         selectedAudioFile = null;
+        updateTestDisplays(null, null);
         return;
     }
     
@@ -728,6 +729,9 @@ function loadAudioInfo() {
     if (selectedFilePath) selectedFilePath.textContent = filePath;
     if (audioPreview) audioPreview.src = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
     if (audioInfo) audioInfo.style.display = 'block';
+    
+    // Update original test display
+    updateTestDisplays(filePath, null);
 }
 
 async function applySpeedTransform() {
@@ -736,7 +740,8 @@ async function applySpeedTransform() {
         return;
     }
     
-    const speedRatio = parseFloat(document.getElementById('speedRatio').value);
+    const speedSlider = document.getElementById('speedSlider');
+    const speedRatio = parseFloat(speedSlider.value) / 100.0; // Convert from 50-200 to 0.5-2.0
     const preservePitch = document.getElementById('preservePitch').checked;
     const outputDir = document.getElementById('manipulateOutputDir').value;
     const outputName = document.getElementById('manipulateOutputName').value || null;
@@ -774,6 +779,10 @@ async function applySpeedTransform() {
             addSystemLog(`Speed transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+            }
         } else {
             showError(result.message || 'Transform failed');
         }
@@ -788,7 +797,7 @@ async function applyPitchTransform() {
         return;
     }
     
-    const semitones = parseFloat(document.getElementById('pitchSemitones').value);
+    const semitones = parseInt(document.getElementById('pitchSlider').value);
     const outputDir = document.getElementById('manipulateOutputDir').value;
     const outputName = document.getElementById('manipulateOutputName').value || null;
     
@@ -830,6 +839,170 @@ async function applyPitchTransform() {
     }
 }
 
+async function applyReverbTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const delayMs = parseInt(document.getElementById('reverbSlider').value);
+    const outputDir = document.getElementById('manipulateOutputDir').value;
+    const outputName = document.getElementById('manipulateOutputName').value || null;
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('delay_ms', delayMs);
+        formData.append('output_dir', outputDir);
+        if (outputName) formData.append('output_name', outputName);
+        
+        const response = await fetch(`${API_BASE}/manipulate/reverb`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Reverb transform applied: ${result.output_path}`, 'success');
+            loadManipulateAudioFiles();
+            loadTestFileSelects();
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+            }
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply reverb transform: ' + error.message);
+    }
+}
+
+async function applyNoiseReductionTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const reductionPercent = parseInt(document.getElementById('noiseSlider').value);
+    const reductionStrength = reductionPercent / 100.0;
+    const outputDir = document.getElementById('manipulateOutputDir').value;
+    const outputName = document.getElementById('manipulateOutputName').value || null;
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('reduction_strength', reductionStrength);
+        formData.append('output_dir', outputDir);
+        if (outputName) formData.append('output_name', outputName);
+        
+        const response = await fetch(`${API_BASE}/manipulate/noise-reduction`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Noise reduction applied: ${result.output_path}`, 'success');
+            loadManipulateAudioFiles();
+            loadTestFileSelects();
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+            }
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply noise reduction: ' + error.message);
+    }
+}
+
+async function applyEQTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const gainDb = parseInt(document.getElementById('eqSlider').value);
+    const outputDir = document.getElementById('manipulateOutputDir').value;
+    const outputName = document.getElementById('manipulateOutputName').value || null;
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('gain_db', gainDb);
+        formData.append('output_dir', outputDir);
+        if (outputName) formData.append('output_name', outputName);
+        
+        const response = await fetch(`${API_BASE}/manipulate/eq`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`EQ transform applied: ${result.output_path}`, 'success');
+            loadManipulateAudioFiles();
+            loadTestFileSelects();
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+            }
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply EQ transform: ' + error.message);
+    }
+}
+
+async function applyCompressionTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select an audio file first');
+        return;
+    }
+    
+    const codec = document.getElementById('codecSelect').value;
+    if (codec === 'None') {
+        showError('Please select a codec');
+        return;
+    }
+    
+    const bitrate = document.getElementById('bitrateSelect').value;
+    const outputDir = document.getElementById('manipulateOutputDir').value;
+    const outputName = document.getElementById('manipulateOutputName').value || null;
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_path', selectedAudioFile);
+        formData.append('codec', codec.toLowerCase());
+        formData.append('bitrate', bitrate);
+        formData.append('output_dir', outputDir);
+        if (outputName) formData.append('output_name', outputName);
+        
+        const response = await fetch(`${API_BASE}/manipulate/encode`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Compression applied: ${result.output_path}`, 'success');
+            loadManipulateAudioFiles();
+            loadTestFileSelects();
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+            }
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply compression: ' + error.message);
+    }
+}
+
 async function applyOverlayTransform() {
     if (!selectedAudioFile) {
         showError('Please select an audio file first');
@@ -837,7 +1010,7 @@ async function applyOverlayTransform() {
     }
     
     const overlayFile = document.getElementById('overlayFile').files[0];
-    const gainDb = parseFloat(document.getElementById('overlayGain').value);
+    const gainDb = parseInt(document.getElementById('overlayGainSlider').value);
     const outputDir = document.getElementById('manipulateOutputDir').value;
     const outputName = document.getElementById('manipulateOutputName').value || null;
     
@@ -878,6 +1051,9 @@ async function applyOverlayTransform() {
             addSystemLog(`Overlay transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+            }
         } else {
             showError(result.message || 'Transform failed');
         }
@@ -892,8 +1068,9 @@ async function applyNoiseTransform() {
         return;
     }
     
-    const snrDb = parseFloat(document.getElementById('noiseSNR').value);
-    const noiseType = document.getElementById('noiseType').value;
+    // This is for adding noise, not reducing it
+    const snrDb = 20; // Default SNR
+    const noiseType = 'white';
     const outputDir = document.getElementById('manipulateOutputDir').value;
     const outputName = document.getElementById('manipulateOutputName').value || null;
     
@@ -1000,44 +1177,73 @@ async function applyChopTransform() {
     }
 }
 
-function addToChain(transformType) {
+function addToChain() {
     if (!selectedAudioFile) {
         showError('Please select an audio file first');
         return;
     }
     
-    let transform = null;
+    // Get current transform settings from sliders
+    const speedSlider = document.getElementById('speedSlider');
+    const speedRatio = parseFloat(speedSlider.value) / 100.0;
+    const preservePitch = document.getElementById('preservePitch').checked;
+    const pitchSemitones = parseInt(document.getElementById('pitchSlider').value);
+    const reverbMs = parseInt(document.getElementById('reverbSlider').value);
+    const noisePercent = parseInt(document.getElementById('noiseSlider').value);
+    const eqDb = parseInt(document.getElementById('eqSlider').value);
+    const codec = document.getElementById('codecSelect').value;
+    const bitrate = document.getElementById('bitrateSelect').value;
+    const overlayGain = parseInt(document.getElementById('overlayGainSlider').value);
     
-    switch(transformType) {
-        case 'speed':
-            const speedRatio = parseFloat(document.getElementById('speedRatio').value);
-            const preservePitch = document.getElementById('preservePitch').checked;
-            transform = {
-                type: preservePitch ? 'time_stretch' : 'speed_change',
-                params: { rate: speedRatio, speed: speedRatio, preserve_pitch: preservePitch }
-            };
-            break;
-        case 'pitch':
-            const semitones = parseFloat(document.getElementById('pitchSemitones').value);
-            transform = {
-                type: 'pitch_shift',
-                params: { semitones: semitones }
-            };
-            break;
-        case 'overlay':
-            const gainDb = parseFloat(document.getElementById('overlayGain').value);
-            transform = {
-                type: 'overlay_vocals',
-                params: { level_db: gainDb }
-            };
-            break;
+    let transformDesc = [];
+    let transformParams = {};
+    
+    if (speedRatio !== 1.0) {
+        transformDesc.push(`Speed: ${speedRatio.toFixed(2)}x`);
+        transformParams.speed = speedRatio;
+        transformParams.preserve_pitch = preservePitch;
     }
     
-    if (transform) {
-        transformChain.push(transform);
-        updateChainDisplay();
-        addSystemLog(`Added ${transformType} to chain`, 'info');
+    if (pitchSemitones !== 0) {
+        transformDesc.push(`Pitch: ${pitchSemitones > 0 ? '+' : ''}${pitchSemitones} semitones`);
+        transformParams.semitones = pitchSemitones;
     }
+    
+    if (reverbMs > 0) {
+        transformDesc.push(`Reverb: ${reverbMs}ms`);
+        transformParams.delay_ms = reverbMs;
+    }
+    
+    if (noisePercent > 0) {
+        transformDesc.push(`Noise Reduction: ${noisePercent}%`);
+        transformParams.reduction_strength = noisePercent / 100.0;
+    }
+    
+    if (eqDb !== 0) {
+        transformDesc.push(`EQ: ${eqDb > 0 ? '+' : ''}${eqDb} dB`);
+        transformParams.gain_db = eqDb;
+    }
+    
+    if (codec !== 'None') {
+        transformDesc.push(`Compression: ${codec} @ ${bitrate}`);
+        transformParams.codec = codec.toLowerCase();
+        transformParams.bitrate = bitrate;
+    }
+    
+    if (transformDesc.length === 0) {
+        showError('Please configure at least one transform before adding to chain');
+        return;
+    }
+    
+    const transform = {
+        type: 'combined',
+        params: transformParams,
+        description: transformDesc.join(', ')
+    };
+    
+    transformChain.push(transform);
+    updateChainDisplay();
+    addSystemLog(`Added transform to chain: ${transform.description}`, 'info');
 }
 
 function clearChain() {
@@ -1047,21 +1253,20 @@ function clearChain() {
 }
 
 function updateChainDisplay() {
-    const chainDiv = document.getElementById('transformChain');
-    if (!chainDiv) return;
+    const chainTextarea = document.getElementById('chainList');
+    if (!chainTextarea) return;
     
     if (transformChain.length === 0) {
-        chainDiv.innerHTML = '<p style="color: #666;">No transforms added to chain yet. Apply individual transforms above or add to chain.</p>';
+        chainTextarea.value = 'No transforms in chain yet.';
         return;
     }
     
-    let html = '<div style="background: #f9f9f9; padding: 15px; border-radius: 5px;"><strong>Transform Chain:</strong><ol style="margin-top: 10px;">';
+    let chainText = '';
     transformChain.forEach((t, i) => {
-        html += `<li>${t.type} (${JSON.stringify(t.params)}) <button class="btn" style="padding: 5px 10px; font-size: 12px; margin-left: 10px;" onclick="removeFromChain(${i})">Remove</button></li>`;
+        chainText += `${i + 1}. ${t.description || t.type} (${JSON.stringify(t.params)})\n`;
     });
-    html += '</ol></div>';
     
-    chainDiv.innerHTML = html;
+    chainTextarea.value = chainText;
 }
 
 function removeFromChain(index) {
@@ -1114,6 +1319,9 @@ async function applyChainTransform() {
             clearChain();
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+            }
         } else {
             showError(result.message || 'Transform failed');
         }
@@ -1124,65 +1332,35 @@ async function applyChainTransform() {
 
 async function loadTestFileSelects() {
     // Load files for fingerprint testing
+    // The test displays are updated automatically when files are loaded/transformed
     await loadManipulateAudioFiles();
-    
-    const originalSelect = document.getElementById('testOriginalFile');
-    const manipulatedSelect = document.getElementById('testManipulatedFile');
-    
-    if (!originalSelect || !manipulatedSelect) return;
-    
-    // Populate both selects with available files
-    const directories = ['originals', 'transformed', 'test_audio', 'manipulated'];
-    const allFiles = [];
-    
-    for (const dir of directories) {
-        try {
-            const response = await fetch(`${API_BASE}/files/audio?directory=${dir}`);
-            const result = await response.json();
-            if (result.files) {
-                allFiles.push(...result.files);
-            }
-        } catch (error) {
-            console.error(`Failed to load files from ${dir}:`, error);
-        }
-    }
-    
-    originalSelect.innerHTML = '<option value="">-- Select Original --</option>';
-    manipulatedSelect.innerHTML = '<option value="">-- Select Manipulated --</option>';
-    
-    allFiles.forEach(file => {
-        const option1 = document.createElement('option');
-        option1.value = file.path;
-        option1.textContent = `${file.name} (${formatBytes(file.size)})`;
-        originalSelect.appendChild(option1);
-        
-        const option2 = document.createElement('option');
-        option2.value = file.path;
-        option2.textContent = `${file.name} (${formatBytes(file.size)})`;
-        manipulatedSelect.appendChild(option2);
-    });
 }
 
 async function testFingerprintRobustness() {
-    const originalFile = document.getElementById('testOriginalFile').value;
-    const manipulatedFile = document.getElementById('testManipulatedFile').value;
+    const originalDisplay = document.getElementById('originalTestDisplay');
+    const transformedDisplay = document.getElementById('transformedTestDisplay');
+    const originalFile = originalDisplay.value;
+    const manipulatedFile = transformedDisplay.value;
     
     if (!originalFile || !manipulatedFile) {
-        showError('Please select both original and manipulated files');
+        showError('Please load both original and transformed audio files first');
         return;
     }
     
     if (originalFile === manipulatedFile) {
-        showError('Original and manipulated files must be different');
+        showError('Original and transformed files must be different');
         return;
     }
     
-    const resultDiv = document.getElementById('fingerprintTestResult');
-    const detailsDiv = document.getElementById('fingerprintTestDetails');
+    const resultDiv = document.getElementById('testResults');
+    const detailsDiv = document.getElementById('testResultsContent');
+    const testBtn = document.getElementById('testBtn');
     
     // Show loading state
     resultDiv.style.display = 'block';
-    detailsDiv.innerHTML = '<p>🔄 Testing fingerprint match... Please wait...</p>';
+    resultDiv.className = 'test-results';
+    testBtn.disabled = true;
+    detailsDiv.innerHTML = '<p>🔄 Testing fingerprint match... This may take a moment.</p>';
     
     try {
         const formData = new FormData();
@@ -1208,51 +1386,75 @@ async function testFingerprintRobustness() {
         
         const result = await response.json();
         
+        testBtn.disabled = false;
+        
         if (result.status === 'success') {
-            const matchStatus = result.matched ? 'MATCHED ✓' : 'NOT MATCHED ✗';
+            const matchStatus = result.matched ? '✓ MATCHED' : '✗ NOT MATCHED';
             const matchClass = result.matched ? 'success' : 'error';
-            const similarityPercent = (result.similarity * 100).toFixed(2);
-            const directSim = result.direct_similarity ? (result.direct_similarity * 100).toFixed(2) : null;
+            const similarityPercent = (result.similarity * 100).toFixed(1);
+            const directSim = result.direct_similarity ? (result.direct_similarity * 100).toFixed(1) : null;
             
-            detailsDiv.innerHTML = `
-                <div style="margin-bottom: 15px;">
-                    <p><strong>Match Status:</strong> 
-                        <span style="padding: 5px 10px; border-radius: 4px; font-weight: bold; background: ${result.matched ? '#4CAF50' : '#f44336'}; color: white;">
-                            ${matchStatus}
-                        </span>
-                    </p>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
-                    <div>
-                        <p><strong>Similarity Score:</strong></p>
-                        <p style="font-size: 24px; color: ${result.matched ? '#4CAF50' : '#f44336'}; margin: 5px 0;">
-                            ${similarityPercent}%
-                        </p>
-                        ${directSim ? `<p style="font-size: 12px; color: #666;">Direct: ${directSim}%</p>` : ''}
-                    </div>
-                    <div>
-                        <p><strong>Rank:</strong> ${result.rank || 'N/A'}</p>
-                        <p><strong>Top Match:</strong></p>
-                        <p style="font-size: 12px; color: #666; word-break: break-all;">${result.top_match || 'N/A'}</p>
-                    </div>
-                </div>
-                ${result.message ? `<p style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px;"><strong>Details:</strong> ${result.message}</p>` : ''}
-                <div style="margin-top: 15px; padding: 10px; background: ${result.matched ? '#e8f5e9' : '#ffebee'}; border-radius: 4px;">
-                    <strong>Interpretation:</strong>
-                    ${result.matched 
-                        ? '✅ The fingerprint successfully matched the manipulated audio to the original. The transform did not break fingerprint identification.' 
-                        : '❌ The fingerprint could not match the manipulated audio to the original. The transform may have broken fingerprint identification.'}
-                </div>
-            `;
+            resultDiv.className = `test-results ${matchClass}`;
+            
+            let resultText = `${matchStatus}\n\n`;
+            resultText += `Similarity Score: ${result.similarity.toFixed(3)} (${similarityPercent}%)\n`;
+            if (result.rank) {
+                resultText += `Rank: ${result.rank} (position in search results)\n`;
+            } else {
+                resultText += `Rank: 1 (direct similarity match)\n`;
+            }
+            resultText += `Top Match: ${result.top_match || 'N/A'}\n\n`;
+            
+            if (result.similarity > 0.9) {
+                resultText += 'Interpretation: Strong match - fingerprint is very robust to this transformation.';
+            } else if (result.similarity > 0.7) {
+                resultText += 'Interpretation: Good match - fingerprint is robust to this transformation.';
+            } else if (result.matched) {
+                resultText += 'Interpretation: Moderate match - transformation affects fingerprint but still identifiable.';
+            } else {
+                resultText += 'Interpretation: Fingerprint could not match transformed audio to original. This transformation may break fingerprint identification.';
+            }
+            
+            detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${resultText}</pre>`;
             
             addSystemLog(`Fingerprint test: ${matchStatus} (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
         } else {
-            resultDiv.style.display = 'block';
-            detailsDiv.innerHTML = `<p style="color: #f44336;">Error: ${result.message || 'Test failed'}</p>`;
+            resultDiv.className = 'test-results error';
+            detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">Error: ${result.message || 'Test failed'}</pre>`;
         }
     } catch (error) {
-        resultDiv.style.display = 'block';
-        detailsDiv.innerHTML = `<p style="color: #f44336;">Error: ${error.message}</p>`;
-        showError('Failed to test fingerprint: ' + error.message);
+        testBtn.disabled = false;
+        resultDiv.className = 'test-results error';
+        detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">Error testing fingerprint: ${error.message}\n\nPlease ensure:\n1. Fingerprint model is properly configured\n2. Audio files are valid and accessible\n3. Required dependencies are installed</pre>`;
+    }
+}
+
+// Update test displays when files are loaded
+function updateTestDisplays(originalPath, transformedPath) {
+    const originalDisplay = document.getElementById('originalTestDisplay');
+    const transformedDisplay = document.getElementById('transformedTestDisplay');
+    const testBtn = document.getElementById('testBtn');
+    
+    if (originalDisplay && originalPath) {
+        originalDisplay.value = originalPath;
+        originalDisplay.style.color = '#4ade80';
+    } else if (originalDisplay && !originalPath) {
+        originalDisplay.value = '';
+        originalDisplay.style.color = '#9ca3af';
+    }
+    
+    if (transformedDisplay && transformedPath) {
+        transformedDisplay.value = transformedPath;
+        transformedDisplay.style.color = '#4ade80';
+    } else if (transformedDisplay && !transformedPath) {
+        transformedDisplay.value = '';
+        transformedDisplay.style.color = '#9ca3af';
+    }
+    
+    // Enable test button if both files are available
+    if (testBtn) {
+        const hasOriginal = originalDisplay && originalDisplay.value;
+        const hasTransformed = transformedDisplay && transformedDisplay.value;
+        testBtn.disabled = !(hasOriginal && hasTransformed);
     }
 }
