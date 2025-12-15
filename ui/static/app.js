@@ -6,6 +6,23 @@ let logPollInterval = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize test button state
+    const originalDisplay = document.getElementById('originalTestDisplay');
+    const transformedDisplay = document.getElementById('transformedTestDisplay');
+    const testBtn = document.getElementById('testBtn');
+    
+    if (testBtn && originalDisplay && transformedDisplay) {
+        // Check initial state and update button
+        const hasOriginal = originalDisplay.value && originalDisplay.value.trim() !== '';
+        const hasTransformed = transformedDisplay.value && transformedDisplay.value.trim() !== '';
+        testBtn.disabled = !(hasOriginal && hasTransformed);
+        console.log('[DOMContentLoaded] Initialized test button state:', {
+            hasOriginal,
+            hasTransformed,
+            disabled: testBtn.disabled
+        });
+    }
+    
     checkStatus();
     loadDashboard();
     loadManifests();
@@ -716,9 +733,13 @@ let transformedAudioPlaying = false;
 
 function loadAudioInfo() {
     const select = document.getElementById('manipulateAudioFile');
-    if (!select) return;
+    if (!select) {
+        console.error('[loadAudioInfo] manipulateAudioFile select not found!');
+        return;
+    }
     
     const filePath = select.value;
+    console.log('[loadAudioInfo] Selected file path:', filePath);
     
     if (!filePath) {
         const audioInfo = document.getElementById('audioInfo');
@@ -726,6 +747,7 @@ function loadAudioInfo() {
         selectedAudioFile = null;
         updateTestDisplays(null, null);
         updateOriginalPlayer(null);
+        console.log('[loadAudioInfo] No file selected, cleared displays');
         return;
     }
     
@@ -740,11 +762,16 @@ function loadAudioInfo() {
     if (selectedFilePath) selectedFilePath.textContent = filePath;
     if (audioInfo) audioInfo.style.display = 'block';
     
+    console.log('[loadAudioInfo] Updated audio info display with:', fileName);
+    
     // Update original audio player
     updateOriginalPlayer(filePath);
     
-    // Update original test display
-    updateTestDisplays(filePath, null);
+    // Update original test display - preserve existing transformed path
+    const transformedDisplay = document.getElementById('transformedTestDisplay');
+    const existingTransformed = transformedDisplay?.value || null;
+    console.log('[loadAudioInfo] Preserving existing transformed path:', existingTransformed);
+    updateTestDisplays(filePath, existingTransformed);
 }
 
 function updateOriginalPlayer(filePath) {
@@ -1880,30 +1907,61 @@ async function testFingerprintRobustness() {
 
 // Update test displays when files are loaded
 function updateTestDisplays(originalPath, transformedPath) {
+    console.log('[updateTestDisplays] Called with:', { originalPath, transformedPath });
+    
     const originalDisplay = document.getElementById('originalTestDisplay');
     const transformedDisplay = document.getElementById('transformedTestDisplay');
     const testBtn = document.getElementById('testBtn');
     
-    if (originalDisplay && originalPath) {
-        originalDisplay.value = originalPath;
-        originalDisplay.style.color = '#4ade80';
-    } else if (originalDisplay && !originalPath) {
-        originalDisplay.value = '';
-        originalDisplay.style.color = '#9ca3af';
+    if (!originalDisplay) {
+        console.error('[updateTestDisplays] originalTestDisplay element not found!');
+    }
+    if (!transformedDisplay) {
+        console.error('[updateTestDisplays] transformedTestDisplay element not found!');
+    }
+    if (!testBtn) {
+        console.error('[updateTestDisplays] testBtn element not found!');
     }
     
-    if (transformedDisplay && transformedPath) {
-        transformedDisplay.value = transformedPath;
-        transformedDisplay.style.color = '#4ade80';
-    } else if (transformedDisplay && !transformedPath) {
-        transformedDisplay.value = '';
-        transformedDisplay.style.color = '#9ca3af';
+    if (originalDisplay) {
+        if (originalPath) {
+            originalDisplay.value = originalPath;
+            originalDisplay.style.color = '#4ade80';
+            console.log('[updateTestDisplays] Set original path:', originalPath);
+        } else {
+            originalDisplay.value = '';
+            originalDisplay.style.color = '#9ca3af';
+            console.log('[updateTestDisplays] Cleared original path');
+        }
+    }
+    
+    if (transformedDisplay) {
+        if (transformedPath) {
+            transformedDisplay.value = transformedPath;
+            transformedDisplay.style.color = '#4ade80';
+            console.log('[updateTestDisplays] Set transformed path:', transformedPath);
+        } else {
+            // Don't clear transformed path if it's already set (preserve existing transformed audio)
+            if (!transformedDisplay.value) {
+                transformedDisplay.value = '';
+                transformedDisplay.style.color = '#9ca3af';
+            }
+        }
     }
     
     // Enable test button if both files are available
     if (testBtn) {
-        const hasOriginal = originalDisplay && originalDisplay.value;
-        const hasTransformed = transformedDisplay && transformedDisplay.value;
+        const hasOriginal = originalDisplay && originalDisplay.value && originalDisplay.value.trim() !== '';
+        const hasTransformed = transformedDisplay && transformedDisplay.value && transformedDisplay.value.trim() !== '';
+        
+        console.log('[updateTestDisplays] Button state check:', {
+            hasOriginal,
+            hasTransformed,
+            originalValue: originalDisplay?.value,
+            transformedValue: transformedDisplay?.value
+        });
+        
         testBtn.disabled = !(hasOriginal && hasTransformed);
+        console.log('[updateTestDisplays] Test button disabled:', testBtn.disabled);
     }
 }
