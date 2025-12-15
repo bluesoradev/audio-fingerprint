@@ -1753,7 +1753,7 @@ async function applyChainTransform() {
     }
     
     const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
