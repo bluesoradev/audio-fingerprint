@@ -67,19 +67,31 @@ def run_full_experiment(
         logger.info("Step 1: Ingesting original files")
         logger.info("=" * 60)
         
-        files_manifest = ingest_manifest(
-            original_files_csv,
-            base_dir,
-            normalize=True,
-            sample_rate=test_config.get("originals", {}).get("sample_rate", 44100)
-        )
-        files_manifest_path = manifests_dir / "files_manifest.csv"
-        files_manifest.to_csv(files_manifest_path, index=False)
+        try:
+            files_manifest = ingest_manifest(
+                original_files_csv,
+                base_dir,
+                normalize=True,
+                sample_rate=test_config.get("originals", {}).get("sample_rate", 44100)
+            )
+            files_manifest_path = manifests_dir / "files_manifest.csv"
+            files_manifest.to_csv(files_manifest_path, index=False)
+            logger.info(f"Ingestion completed. Processed {len(files_manifest)} files.")
+        except Exception as e:
+            logger.error(f"Ingestion failed: {e}")
+            raise
     else:
         files_manifest_path = manifests_dir / "files_manifest.csv"
         if not files_manifest_path.exists():
             raise FileNotFoundError(f"Files manifest not found: {files_manifest_path}")
-        logger.info(f"Using existing files manifest: {files_manifest_path}")
+        
+        # Verify manifest is not empty
+        import pandas as pd
+        check_df = pd.read_csv(files_manifest_path)
+        if len(check_df) == 0:
+            raise ValueError(f"Files manifest {files_manifest_path} is empty! Cannot proceed.")
+        
+        logger.info(f"Using existing files manifest: {files_manifest_path} ({len(check_df)} entries)")
     
     # Step 2: Generate transforms
     if "transforms" not in skip_steps:

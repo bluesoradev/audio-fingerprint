@@ -102,10 +102,11 @@ def ingest_manifest(
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting files"):
         file_id = row.get("id", f"file_{idx}")
         title = row.get("title", f"Track {idx}")
-        url_or_path = row.get("url") or row.get("path")
+        # Handle multiple column name variations: url, path, file_path
+        url_or_path = row.get("url") or row.get("path") or row.get("file_path")
         
         if not url_or_path:
-            logger.warning(f"Skipping {file_id}: no url or path")
+            logger.warning(f"Skipping {file_id}: no url, path, or file_path. Available columns: {list(row.index)}")
             continue
         
         # Determine if URL or local path
@@ -119,8 +120,17 @@ def ingest_manifest(
                 continue
             source_path = temp_file
         else:
+            # Resolve relative paths relative to current working directory (should be project root)
+            if not source_path.is_absolute():
+                if not source_path.exists():
+                    # Try resolving relative to current directory
+                    potential_path = Path.cwd() / source_path
+                    if potential_path.exists():
+                        source_path = potential_path
+                        logger.info(f"Resolved relative path: {url_or_path} -> {source_path}")
+            
             if not source_path.exists():
-                logger.warning(f"File not found: {source_path}")
+                logger.warning(f"File not found: {source_path} (from manifest: {url_or_path})")
                 continue
         
         # Normalize and save
@@ -187,10 +197,17 @@ def ingest_manifest(
     # Create manifest DataFrame
     manifest_df = pd.DataFrame(results)
     
+    if len(manifest_df) == 0:
+        logger.error("No files were successfully ingested! Check that:")
+        logger.error("  1. Manifest has 'url', 'path', or 'file_path' column")
+        logger.error("  2. File paths in manifest are correct and files exist")
+        logger.error("  3. Files are readable")
+        raise ValueError("No files were ingested. Cannot proceed with empty manifest.")
+    
     # Save manifest
     manifest_path = output_dir / "files_manifest.csv"
     manifest_df.to_csv(manifest_path, index=False)
-    logger.info(f"Saved manifest to {manifest_path}")
+    logger.info(f"Saved manifest to {manifest_path} with {len(manifest_df)} entries")
     
     return manifest_df
 
