@@ -2755,8 +2755,8 @@ async function loadDeliverablesAudioFiles() {
             if (result.files && result.files.length > 0) {
                 result.files.forEach(file => {
                     const option = document.createElement('option');
-                    option.value = `data/test_audio/${file}`;
-                    option.textContent = file;
+                    option.value = file.path || `data/test_audio/${file.name}`;
+                    option.textContent = file.name || file;
                     select.appendChild(option);
                 });
             }
@@ -2771,8 +2771,8 @@ async function loadDeliverablesAudioFiles() {
             if (result2.files && result2.files.length > 0) {
                 result2.files.forEach(file => {
                     const option = document.createElement('option');
-                    option.value = `data/originals/${file}`;
-                    option.textContent = file;
+                    option.value = file.path || `data/originals/${file.name}`;
+                    option.textContent = file.name || file;
                     select.appendChild(option);
                 });
             }
