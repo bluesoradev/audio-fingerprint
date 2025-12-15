@@ -12,7 +12,6 @@ from fingerprint.embed import segment_audio, extract_embeddings, normalize_embed
 from fingerprint.query_index import build_index, load_index
 from fingerprint.run_queries import run_queries
 from evaluation.analyze import analyze_results
-from evaluation.failure_capture import capture_failures
 from reports.render_report import generate_plots, render_html_report, package_report
 
 logging.basicConfig(
@@ -20,6 +19,15 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Optional import for failure capture (requires matplotlib/PIL)
+try:
+    from evaluation.failure_capture import capture_failures
+    HAS_FAILURE_CAPTURE = True
+except ImportError as e:
+    logger.warning(f"Could not import failure_capture module: {e}. Failure capture will be skipped.")
+    HAS_FAILURE_CAPTURE = False
+    capture_failures = None
 
 
 def run_full_experiment(
@@ -244,17 +252,20 @@ def run_full_experiment(
         
         failure_config = test_config.get("failure_capture", {})
         if failure_config.get("enabled", True):
-            proofs_dir = reports_dir / "proofs"
-            query_results_json_dir = run_dir / "query_results"
-            
-            capture_failures(
-                query_summary_path,
-                transform_manifest_path,
-                files_manifest_path,
-                query_results_json_dir,
-                proofs_dir,
-                max_failures_per_transform=failure_config.get("max_failures_per_transform", 10)
-            )
+            if not HAS_FAILURE_CAPTURE or capture_failures is None:
+                logger.warning("Failure capture is enabled but the module is not available (missing matplotlib/PIL). Skipping failure capture.")
+            else:
+                proofs_dir = reports_dir / "proofs"
+                query_results_json_dir = run_dir / "query_results"
+                
+                capture_failures(
+                    query_summary_path,
+                    transform_manifest_path,
+                    files_manifest_path,
+                    query_results_json_dir,
+                    proofs_dir,
+                    max_failures_per_transform=failure_config.get("max_failures_per_transform", 10)
+                )
     
     # Step 7: Generate report
     if "report" not in skip_steps:

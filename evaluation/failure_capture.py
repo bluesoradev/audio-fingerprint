@@ -4,10 +4,6 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 import librosa
-import librosa.display
-import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import soundfile as sf
@@ -15,9 +11,25 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+# Optional imports for spectrogram generation
+HAS_DISPLAY = False
+try:
+    import librosa.display
+    import matplotlib
+    matplotlib.use('Agg')  # Non-interactive backend
+    import matplotlib.pyplot as plt
+    HAS_DISPLAY = True
+except ImportError as e:
+    logger.warning(f"Could not import display libraries (matplotlib/librosa.display): {e}. Spectrogram generation will be disabled.")
+    plt = None
+
 
 def save_spectrogram(audio_path: Path, out_path: Path, sample_rate: int = 44100):
     """Generate and save spectrogram image."""
+    if not HAS_DISPLAY:
+        logger.debug(f"Skipping spectrogram generation (display libraries not available): {audio_path}")
+        return
+    
     try:
         y, sr = librosa.load(str(audio_path), sr=sample_rate, mono=True)
         
