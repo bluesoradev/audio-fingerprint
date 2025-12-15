@@ -2280,13 +2280,17 @@ async def get_run_details(run_id: str):
 
 @app.delete("/api/runs/{run_id}")
 async def delete_run(run_id: str):
-    """Delete a report/run."""
+    """Delete a report/run. Idempotent: returns success if already gone."""
     import shutil
     
     report_dir = REPORTS_DIR / run_id
     
     if not report_dir.exists():
-        return JSONResponse({"error": "Run not found"}, status_code=404)
+        # Idempotent success
+        return JSONResponse({
+            "status": "success",
+            "message": f"Report '{run_id}' already removed"
+        })
     
     try:
         # Delete the entire report directory

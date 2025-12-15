@@ -2733,15 +2733,30 @@ async function deleteReport(runId) {
             method: 'DELETE'
         });
         
-        const result = await response.json();
-        
-        if (result.status === 'success') {
-            addSystemLog(`✅ Report "${runId}" deleted successfully`, 'success');
-            // Reload deliverables list
-            setTimeout(() => loadDeliverables(), 500);
+        if (response.ok) {
+            const result = await response.json();
+            if (result.status === 'success') {
+                addSystemLog(`✅ Report "${runId}" deleted successfully`, 'success');
+            } else {
+                throw new Error(result.message || 'Failed to delete report');
+            }
+        } else if (response.status === 404) {
+            // Treat missing as already deleted (idempotent)
+            addSystemLog(`⚠️ Report "${runId}" already removed`, 'info');
         } else {
-            throw new Error(result.message || 'Failed to delete report');
+            let msg = `HTTP ${response.status}`;
+            try {
+                const errJson = await response.json();
+                msg = errJson.message || msg;
+            } catch {
+                const errText = await response.text();
+                msg = `${msg}: ${errText.substring(0, 200)}`;
+            }
+            throw new Error(msg);
         }
+        
+        // Reload deliverables list
+        setTimeout(() => loadDeliverables(), 300);
     } catch (error) {
         console.error('Failed to delete report:', error);
         showError('Failed to delete report: ' + error.message);
