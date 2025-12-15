@@ -104,6 +104,92 @@ process_logs = {}
 process_queues = {}
 
 
+def add_file_to_manifest(file_path: Path, manifest_path: Path = None) -> bool:
+    """
+    Add a file entry to the manifest CSV.
+    
+    Args:
+        file_path: Path to the audio file (relative to PROJECT_ROOT or absolute)
+        manifest_path: Path to manifest CSV (defaults to data/manifests/files_manifest.csv)
+    
+    Returns:
+        True if successfully added, False otherwise
+    """
+    try:
+        if manifest_path is None:
+            manifest_path = PROJECT_ROOT / "data" / "manifests" / "files_manifest.csv"
+        else:
+            manifest_path = Path(manifest_path)
+        
+        # Ensure manifest directory exists
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Resolve file path relative to PROJECT_ROOT
+        if file_path.is_absolute():
+            try:
+                file_path_rel = file_path.relative_to(PROJECT_ROOT)
+            except ValueError:
+                # File is outside project root, use absolute path
+                file_path_rel = file_path
+        else:
+            file_path_rel = file_path
+        
+        # Normalize path separators
+        file_path_str = str(file_path_rel).replace("\\", "/")
+        
+        # Read existing manifest or create new one
+        existing_df = None
+        if manifest_path.exists() and manifest_path.stat().st_size > 0:
+            try:
+                existing_df = pd.read_csv(manifest_path)
+                # Check if file already exists in manifest
+                if len(existing_df) > 0:
+                    if "file_path" in existing_df.columns:
+                        if file_path_str in existing_df["file_path"].values:
+                            logger.info(f"File already in manifest: {file_path_str}")
+                            return True
+                    elif "path" in existing_df.columns:
+                        if file_path_str in existing_df["path"].values:
+                            logger.info(f"File already in manifest: {file_path_str}")
+                            return True
+            except (pd.errors.EmptyDataError, Exception) as e:
+                logger.warning(f"Could not read existing manifest, creating new one: {e}")
+                existing_df = None
+        
+        # Generate ID and title from filename
+        # Use a simple counter-based ID if manifest exists, otherwise start from 1
+        if existing_df is not None and len(existing_df) > 0:
+            next_id = len(existing_df) + 1
+        else:
+            next_id = 1
+        
+        file_id = f"track{next_id}"
+        file_title = file_path.stem
+        
+        # Create new entry
+        new_entry = pd.DataFrame([{
+            "id": file_id,
+            "title": file_title,
+            "file_path": file_path_str
+        }])
+        
+        # Combine with existing or use new
+        if existing_df is not None and len(existing_df) > 0:
+            updated_df = pd.concat([existing_df, new_entry], ignore_index=True)
+        else:
+            updated_df = new_entry
+        
+        # Save manifest
+        updated_df.to_csv(manifest_path, index=False)
+        
+        logger.info(f"Added file to manifest: {file_path_str} -> {manifest_path}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to add file to manifest: {e}", exc_info=True)
+        return False
+
+
 def run_command_async(command_id: str, command: List[str], log_queue: queue.Queue):
     """Run a command and capture output in real-time."""
     try:
@@ -609,20 +695,36 @@ async def serve_audio_file(path: str):
 
 @app.post("/api/upload/audio")
 async def upload_audio(file: UploadFile = File(...), directory: str = Form("originals")):
-    """Upload audio file."""
+    """Upload audio file and automatically add to manifest CSV."""
     upload_dir = DATA_DIR / directory
     upload_dir.mkdir(parents=True, exist_ok=True)
     
     file_path = upload_dir / file.filename
+    
+    # Save uploaded file
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    return JSONResponse({
+    # Get relative path for manifest
+    relative_path = file_path.relative_to(PROJECT_ROOT)
+    
+    # Automatically add to manifest CSV
+    manifest_added = add_file_to_manifest(relative_path)
+    
+    response_data = {
         "status": "success",
         "filename": file.filename,
-        "path": str(file_path.relative_to(PROJECT_ROOT)),
-        "size": file_path.stat().st_size
-    })
+        "path": str(relative_path),
+        "size": file_path.stat().st_size,
+        "added_to_manifest": manifest_added
+    }
+    
+    if manifest_added:
+        logger.info(f"Uploaded file {file.filename} and added to manifest")
+    else:
+        logger.warning(f"Uploaded file {file.filename} but failed to add to manifest")
+    
+    return JSONResponse(response_data)
 
 
 @app.post("/api/manipulate/speed")

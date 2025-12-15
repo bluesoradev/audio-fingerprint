@@ -93,9 +93,42 @@ def ingest_manifest(
     originals_dir = output_dir / "originals"
     originals_dir.mkdir(parents=True, exist_ok=True)
     
-    # Read manifest
-    df = pd.read_csv(csv_path)
-    logger.info(f"Loaded manifest with {len(df)} entries")
+    # Validate manifest file exists and is not empty
+    csv_path = Path(csv_path)
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Manifest file not found: {csv_path}")
+    
+    # Check if file is empty
+    file_size = csv_path.stat().st_size
+    if file_size == 0:
+        raise ValueError(
+            f"Manifest file is empty: {csv_path}\n"
+            f"The manifest file exists but contains no data.\n"
+            f"This means no audio files were found or the file was corrupted.\n\n"
+            f"Please ensure audio files exist in:\n"
+            f"  - data/originals/\n"
+            f"  - data/test_audio/\n\n"
+            f"Or manually create a valid manifest with at least one audio file entry."
+        )
+    
+    # Read manifest with exception handling
+    try:
+        df = pd.read_csv(csv_path)
+        if len(df) == 0:
+            raise ValueError(
+                f"Manifest file has no data rows: {csv_path}\n"
+                f"The file exists but contains only headers or is empty.\n"
+                f"Please ensure the manifest has at least one row with audio file information."
+            )
+    except pd.errors.EmptyDataError as e:
+        raise ValueError(
+            f"Manifest file is empty or corrupted: {csv_path}\n"
+            f"Cannot proceed with empty manifest.\n"
+            f"Please ensure audio files exist and recreate the manifest."
+        ) from e
+    
+    logger.info(f"Loaded manifest with {len(df)} entries from {csv_path}")
+    logger.info(f"Manifest columns: {list(df.columns)}")
     
     results = []
     

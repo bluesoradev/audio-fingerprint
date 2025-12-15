@@ -59,8 +59,37 @@ def generate_transforms(
     import numpy as np
     np.random.seed(random_seed)
     
-    # Load files manifest
-    files_df = pd.read_csv(manifest_path)
+    # Validate manifest file exists and is not empty
+    manifest_path = Path(manifest_path)
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Manifest file not found: {manifest_path}")
+    
+    # Check if file is empty
+    file_size = manifest_path.stat().st_size
+    if file_size == 0:
+        raise ValueError(
+            f"Manifest file is empty: {manifest_path}\n"
+            f"The manifest file exists but contains no data.\n"
+            f"Cannot generate transforms without source files.\n\n"
+            f"Please ensure audio files exist and the manifest is properly populated."
+        )
+    
+    # Load files manifest with exception handling
+    try:
+        files_df = pd.read_csv(manifest_path)
+        if len(files_df) == 0:
+            raise ValueError(
+                f"Manifest file has no data rows: {manifest_path}\n"
+                f"The file exists but contains only headers or is empty.\n"
+                f"Cannot generate transforms without source files."
+            )
+    except pd.errors.EmptyDataError as e:
+        raise ValueError(
+            f"Manifest file is empty or corrupted: {manifest_path}\n"
+            f"Cannot generate transforms without source files.\n"
+            f"Please ensure audio files exist and recreate the manifest."
+        ) from e
+    
     logger.info(f"Loaded {len(files_df)} original files from {manifest_path}")
     logger.info(f"Manifest columns: {list(files_df.columns)}")
     logger.info(f"First few rows:\n{files_df.head()}")
