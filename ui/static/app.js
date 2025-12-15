@@ -2077,7 +2077,7 @@ function updateSliderDisplay(type, value) {
             break;
         case 'noiseSNR':
             displayElement = document.getElementById('noiseSNRDisplay');
-            if (displayElement) displayElement.textContent = value + ' dB SNR';
+            if (displayElement) displayElement.textContent = value + ' dB';
             break;
         default:
             // Try generic pattern

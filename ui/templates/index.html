@@ -832,13 +832,13 @@
                                 </div>
                             </div>
                             
-                            <!-- Right: Audio Players -->
-                            <div style="display: flex; flex-direction: column; gap: 20px;">
+                            <!-- Right: Audio Players Side-by-Side -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                                 <!-- Original Audio -->
                                 <div>
                                     <h4 style="margin-bottom: 8px; font-size: 14px; color: #ffffff;">Original Audio</h4>
                                     <p id="originalPlayerInfo" style="color: #9ca3af; font-size: 12px; margin-bottom: 10px;">No audio loaded.</p>
-                                    <div class="waveform-container" id="originalWaveform">
+                                    <div class="waveform-container" id="originalWaveform" style="height: 80px;">
                                         <div class="waveform-placeholder">🎤</div>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
@@ -852,7 +852,7 @@
                                 <div>
                                     <h4 style="margin-bottom: 8px; font-size: 14px; color: #ffffff;">Transformed Audio</h4>
                                     <p id="transformedPlayerInfo" style="color: #9ca3af; font-size: 12px; margin-bottom: 10px;">No transformed audio available.</p>
-                                    <div class="waveform-container" id="transformedWaveform">
+                                    <div class="waveform-container" id="transformedWaveform" style="height: 80px;">
                                         <div class="waveform-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%;">
                                             <div style="width: 100%; height: 2px; background: #3d3d3d;"></div>
                                         </div>
@@ -879,12 +879,12 @@
                             <div class="transform-card">
                                 <h4>⚡ Speed Change</h4>
                                 <div class="form-group">
-                                    <label>Speed Ratio</label>
+                                    <label>Ratio</label>
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="speedSlider" min="50" max="200" value="100" oninput="updateSpeedValue(this.value)">
                                         </div>
-                                        <span class="slider-value" id="speedValue">1.0x</span>
+                                        <span class="slider-value" id="speedValue">1x</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -904,7 +904,7 @@
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="pitchSlider" min="-12" max="12" value="0" oninput="updatePitchValue(this.value)">
                                         </div>
-                                        <span class="slider-value" id="pitchValue">0</span>
+                                        <span class="slider-value" id="pitchValue">0 semitones</span>
                                     </div>
                                 </div>
                                 <button class="btn" onclick="applyTransform('pitch')">Apply Pitch Shift</button>
@@ -935,7 +935,7 @@
                             <div class="transform-card">
                                 <h4>🔊 Noise Reduction</h4>
                                 <div class="form-group">
-                                    <label>Reduction (%)</label>
+                                    <label>Reduction</label>
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="noiseSlider" min="0" max="100" value="50" oninput="updateNoiseValue(this.value)">
@@ -943,14 +943,14 @@
                                         <span class="slider-value" id="noiseValue">50%</span>
                                     </div>
                                 </div>
-                                <button class="btn" onclick="applyTransform('noise')">Apply Noise Reduction</button>
+                                <button class="btn" onclick="applyTransform('noise')">Apply Noise-Reduction</button>
                             </div>
 
                             <!-- EQ Adjustment -->
                             <div class="transform-card">
                                 <h4>🎛️ EQ Adjustment</h4>
                                 <div class="form-group">
-                                    <label>Gain (dB)</label>
+                                    <label>Gain</label>
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="eqSlider" min="-20" max="20" value="0" oninput="updateEQValue(this.value)">
@@ -963,7 +963,7 @@
 
                             <!-- Audio Compression -->
                             <div class="transform-card">
-                                <h4>✓ Audio Compression</h4>
+                                <h4>💾 Audio Compression</h4>
                                 <div class="form-group">
                                     <label>Bitrate</label>
                                     <select id="bitrateSelect">
@@ -985,7 +985,7 @@
                             <div class="transform-grid">
                             <!-- Overlay Vocals -->
                             <div class="transform-card">
-                                <h4>📚 Overlay/Mixing</h4>
+                                <h4>🎤 Overlay/Mixing</h4>
                                 <div class="form-group">
                                     <label>Overlay Audio File (optional)</label>
                                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -1009,7 +1009,7 @@
 
                             <!-- High-Pass Filter -->
                             <div class="transform-card">
-                                <h4>🔽 High-Pass Filter</h4>
+                                <h4>🔊 High-Pass Filter</h4>
                                 <div class="form-group">
                                     <label>Cutoff</label>
                                     <div class="slider-container">
@@ -1024,7 +1024,7 @@
 
                             <!-- Low-Pass Filter -->
                             <div class="transform-card">
-                                <h4>🔽 Low-Pass Filter</h4>
+                                <h4>🔉 Low-Pass Filter</h4>
                                 <div class="form-group">
                                     <label>Cutoff</label>
                                     <div class="slider-container">
@@ -1045,7 +1045,7 @@
                             <div class="transform-grid">
                             <!-- Boost Highs -->
                             <div class="transform-card">
-                                <h4>➕ Boost Highs</h4>
+                                <h4>⬆️ Boost Highs</h4>
                                 <div class="form-group">
                                     <label>Gain</label>
                                     <div class="slider-container">
@@ -1060,7 +1060,7 @@
 
                             <!-- Boost Lows -->
                             <div class="transform-card">
-                                <h4>➖ Boost Lows</h4>
+                                <h4>⬇️ Boost Lows</h4>
                                 <div class="form-group">
                                     <label>Gain</label>
                                     <div class="slider-container">
@@ -1076,13 +1076,13 @@
                             <!-- Telephone Filter -->
                             <div class="transform-card">
                                 <h4>📞 Telephone Filter</h4>
-                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Band-pass filter (300-3000 Hz).</p>
-                                <button class="btn" onclick="applyTransform('telephone')">Apply Telephone Fil.</button>
+                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Band-pass filter (300-3000 Hz)</p>
+                                <button class="btn" onclick="applyTransform('telephone')">Apply Telephone Fil</button>
                             </div>
 
                             <!-- Limiting -->
                             <div class="transform-card">
-                                <h4>▭ Limiting</h4>
+                                <h4>🔒 Limiting</h4>
                                 <div class="form-group">
                                     <label>Threshold</label>
                                     <div class="slider-container">
@@ -1097,14 +1097,14 @@
 
                             <!-- Multiband Compression -->
                             <div class="transform-card">
-                                <h4>📊 Multiband Compression</h4>
-                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Multi-band dynamic compression.</p>
+                                <h4>🎚️ Multiband Compression</h4>
+                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Multi-band dynamic compression</p>
                                 <button class="btn" onclick="applyTransform('multiband')">Apply Multiband</button>
                             </div>
 
                             <!-- Add Noise -->
                             <div class="transform-card">
-                                <h4>🔊 Add Noise</h4>
+                                <h4>📢 Add Noise</h4>
                                 <div class="form-group">
                                     <label>Noise Type</label>
                                     <select id="noiseTypeSelect">
@@ -1121,7 +1121,7 @@
                                         <span class="slider-value" id="noiseSNRDisplay">20 dB</span>
                                     </div>
                                 </div>
-                                <button class="btn" onclick="applyTransform('addNoise')">Add Noise</button>
+                                <button class="btn" onclick="applyTransform('addNoise')">Apply Noise</button>
                             </div>
                             </div>
                         </div>
@@ -1151,22 +1151,13 @@
                     <!-- Section 3: Test Fingerprint Robustness -->
                     <div class="workflow-step">
                         <h3>3. Test Fingerprint Robustness</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-size: 14px; color: #ffffff;">Original Audio:</label>
-                                <p id="originalTestStatus" style="color: #9ca3af; font-size: 12px; margin: 0;">No original audio selected.</p>
-                                <input type="hidden" id="originalTestDisplay">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-size: 14px; color: #ffffff;">Transformed Audio:</label>
-                                <p id="transformedTestStatus" style="color: #9ca3af; font-size: 12px; margin: 0;">No transformed audio available. Apply transforms first.</p>
-                                <input type="hidden" id="transformedTestDisplay">
-                            </div>
+                        <div style="margin-bottom: 15px;">
+                            <p style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;"><strong style="color: #ffffff;">Original Audio:</strong> <span id="originalTestStatus">No original audio selected.</span></p>
+                            <p style="color: #9ca3af; font-size: 12px; margin: 0;"><strong style="color: #ffffff;">Transformed Audio:</strong> <span id="transformedTestStatus">No transformed audio available. Apply transforms first.</span></p>
+                            <input type="hidden" id="originalTestDisplay">
+                            <input type="hidden" id="transformedTestDisplay">
                         </div>
-                        <button class="btn btn-success" id="testBtn" onclick="testFingerprintRobustness()" style="display: flex; align-items: center; gap: 8px;">
-                            <span>🔍</span>
-                            <span>Test Fingerprint Match</span>
-                        </button>
+                        <button class="btn btn-success" id="testBtn" onclick="testFingerprintRobustness()">🔍 Test Fingerprint Match</button>
                     </div>
                     
                     <!-- Section 4: Test Results -->
@@ -1616,33 +1607,53 @@
     <script>
         // Slider value update functions
         function updateSpeedValue(value) {
-            document.getElementById('speedValue').textContent = (value / 100).toFixed(1) + 'x';
+            const speedValueEl = document.getElementById('speedValue');
+            if (speedValueEl) {
+                speedValueEl.textContent = (value / 100).toFixed(0) + 'x';
+            }
         }
 
         function updatePitchValue(value) {
-            document.getElementById('pitchValue').textContent = value;
+            const pitchValueEl = document.getElementById('pitchValue');
+            if (pitchValueEl) {
+                pitchValueEl.textContent = value + ' semitones';
+            }
         }
 
         function updateReverbValue(value) {
-            document.getElementById('reverbValue').textContent = value;
+            const reverbValueEl = document.getElementById('reverbValue');
+            if (reverbValueEl) {
+                reverbValueEl.textContent = value + ' ms';
+            }
         }
 
         function updateNoiseValue(value) {
-            document.getElementById('noiseValue').textContent = value + '%';
+            const noiseValueEl = document.getElementById('noiseValue');
+            if (noiseValueEl) {
+                noiseValueEl.textContent = value + '%';
+            }
         }
 
         function updateEQValue(value) {
-            const eqValue = document.getElementById('eqValue');
-            eqValue.textContent = value == 0 ? '0' : value + ' dB';
+            const eqValueEl = document.getElementById('eqValue');
+            if (eqValueEl) {
+                eqValueEl.textContent = value == 0 ? '0 dB' : value + ' dB';
+            }
         }
 
         function updateOverlayGainValue(value) {
-            document.getElementById('overlayGainValue').textContent = value;
+            const overlayGainValueEl = document.getElementById('overlayGainValue');
+            if (overlayGainValueEl) {
+                overlayGainValueEl.textContent = value + ' dB';
+            }
         }
 
         function updateBitrateEnabled() {
-            const codec = document.getElementById('codecSelect').value;
-            document.getElementById('bitrateSelect').disabled = codec === 'None';
+            const codec = document.getElementById('codecSelect');
+            const bitrate = document.getElementById('bitrateSelect');
+            if (codec && bitrate) {
+                bitrate.disabled = codec.value === 'None';
+            }
         }
     </script>
 </body>
