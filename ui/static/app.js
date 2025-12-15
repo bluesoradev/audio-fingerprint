@@ -2785,6 +2785,8 @@ async function loadDeliverablesAudioFiles() {
 }
 
 function loadDeliverablesAudioInfo(filePath) {
+    console.log('[loadDeliverablesAudioInfo] Called with filePath:', filePath);
+    
     if (!filePath) {
         deliverablesSelectedAudioFile = null;
         const infoDiv = document.getElementById('deliverablesAudioInfo');
@@ -2796,6 +2798,8 @@ function loadDeliverablesAudioInfo(filePath) {
     }
     
     deliverablesSelectedAudioFile = filePath;
+    console.log('[loadDeliverablesAudioInfo] Set deliverablesSelectedAudioFile to:', deliverablesSelectedAudioFile);
+    
     const infoDiv = document.getElementById('deliverablesAudioInfo');
     const fileNameSpan = document.getElementById('deliverablesSelectedFileName');
     const filePathSpan = document.getElementById('deliverablesSelectedFilePath');
@@ -2805,7 +2809,14 @@ function loadDeliverablesAudioInfo(filePath) {
         fileNameSpan.textContent = fileName;
         filePathSpan.textContent = filePath;
         infoDiv.style.display = 'block';
+    } else {
+        console.warn('[loadDeliverablesAudioInfo] Missing elements:', {
+            infoDiv: !!infoDiv,
+            fileNameSpan: !!fileNameSpan,
+            filePathSpan: !!filePathSpan
+        });
     }
+    
     updateDeliverablesTransformState();
 }
 
@@ -2980,12 +2991,35 @@ function updateDeliverablesTransformState() {
     const countElement = document.getElementById('deliverablesTransformCount');
     const applyBtn = document.getElementById('deliverablesApplyAllBtn');
     
+    console.log('[updateDeliverablesTransformState]', {
+        deliverablesSelectedAudioFile,
+        count,
+        applyBtnFound: !!applyBtn
+    });
+    
     if (countElement) {
         countElement.textContent = `${count} transformation${count !== 1 ? 's' : ''} selected: ${enabledTransforms.join(', ')}`;
     }
     
     if (applyBtn) {
-        applyBtn.disabled = !deliverablesSelectedAudioFile || count === 0;
+        // Enable button if file is selected (transformations can be added/removed)
+        const shouldDisable = !deliverablesSelectedAudioFile;
+        applyBtn.disabled = shouldDisable;
+        console.log('[updateDeliverablesTransformState] Button disabled:', shouldDisable, 'File:', deliverablesSelectedAudioFile);
+        
+        // Update button text to indicate if transformations are selected
+        if (deliverablesSelectedAudioFile && count === 0) {
+            applyBtn.textContent = '⚠️ Please Enable At Least One Transformation';
+            applyBtn.style.opacity = '0.7';
+        } else if (deliverablesSelectedAudioFile && count > 0) {
+            applyBtn.textContent = '🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports';
+            applyBtn.style.opacity = '1';
+        } else {
+            applyBtn.textContent = '🚀 Apply All Transformations & Generate Phase 1 & Phase 2 Reports';
+            applyBtn.style.opacity = '1';
+        }
+    } else {
+        console.error('[updateDeliverablesTransformState] Apply button not found!');
     }
 }
 
