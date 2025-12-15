@@ -3297,16 +3297,18 @@ async function runPhaseSuite(phase = 'both') {
                         
                         if (completed || failed) {
                             const exitCodeLog = logData.logs.find(l => l.type === 'exit_code');
-                            const exitCode = exitCodeLog ? exitCodeLog.message : 'unknown';
+                            // Convert exit code to number: 0 = success, non-zero = failure
+                            // Backend sends exit_code as INTEGER, not string
+                            const exitCodeNum = exitCodeLog ? Number(exitCodeLog.message) : -1;
                             
-                            if (failed || exitCode !== '0') {
+                            if (failed || exitCodeNum !== 0) {
                                 const errorLogs = logData.logs.filter(l => 
                                     l.type === 'error' || 
                                     (l.type === 'stderr' && l.message.toLowerCase().includes('error'))
                                 );
                                 const errorMsg = errorLogs.length > 0 
                                     ? errorLogs.map(l => l.message).join('; ')
-                                    : `Process exited with code ${exitCode}`;
+                                    : `Process exited with code ${exitCodeNum}`;
                                 throw new Error(`Process failed: ${errorMsg}`);
                             }
                             // Success - reload deliverables
