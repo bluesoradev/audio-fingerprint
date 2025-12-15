@@ -200,6 +200,12 @@ def render_html_report(
     
     summary_df = pd.read_csv(summary_csv_path)
     
+    # Extract run_id from the output path for API endpoint URLs
+    # Path format: reports/run_YYYYMMDD_HHMMSS/final_report/report.html
+    run_id = None
+    if output_path.parent.parent.name.startswith("run_"):
+        run_id = output_path.parent.parent.name
+    
     # Load test matrix for thresholds
     thresholds_info = ""
     if test_matrix_path and test_matrix_path.exists():
@@ -316,10 +322,10 @@ def render_html_report(
         
         <h2>Visualizations</h2>
         <div class="plots">
-            <img src="plots/recall_by_severity.png" alt="Recall by Severity" />
-            <img src="plots/similarity_by_severity.png" alt="Similarity by Severity" />
-            <img src="plots/recall_by_transform.png" alt="Recall by Transform Type" />
-            <img src="plots/latency_by_transform.png" alt="Latency by Transform" />
+            {f'<img src="/api/files/plots/recall_by_severity.png?run_id={run_id}" alt="Recall by Severity" />' if run_id else '<img src="plots/recall_by_severity.png" alt="Recall by Severity" />'}
+            {f'<img src="/api/files/plots/similarity_by_severity.png?run_id={run_id}" alt="Similarity by Severity" />' if run_id else '<img src="plots/similarity_by_severity.png" alt="Similarity by Severity" />'}
+            {f'<img src="/api/files/plots/recall_by_transform.png?run_id={run_id}" alt="Recall by Transform Type" />' if run_id else '<img src="plots/recall_by_transform.png" alt="Recall by Transform Type" />'}
+            {f'<img src="/api/files/plots/latency_by_transform.png?run_id={run_id}" alt="Latency by Transform" />' if run_id else '<img src="plots/latency_by_transform.png" alt="Latency by Transform" />'}
         </div>
         
         <h2>Overall Metrics</h2>

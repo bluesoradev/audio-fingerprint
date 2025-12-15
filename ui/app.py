@@ -693,6 +693,40 @@ async def serve_audio_file(path: str):
         return JSONResponse({"error": f"Audio file not found: {path}"}, status_code=404)
 
 
+@app.get("/api/files/plots/{filename}")
+async def serve_plot_image(filename: str, run_id: str = None):
+    """Serve plot image files from reports directory."""
+    logger.info(f"[Plot API] Requested filename: {filename}, run_id: {run_id}")
+    
+    file_path = None
+    
+    # If run_id is provided, use it directly
+    if run_id:
+        potential_path = REPORTS_DIR / run_id / "final_report" / "plots" / filename
+        if potential_path.exists():
+            file_path = potential_path
+            logger.info(f"[Plot API] Found file using run_id: {file_path}")
+    
+    # Otherwise, search for the file in the most recent report directory
+    if not file_path:
+        # Find the most recent run directory
+        run_dirs = sorted([d for d in REPORTS_DIR.glob("run_*") if d.is_dir()], reverse=True)
+        for report_dir in run_dirs:
+            potential_path = report_dir / "final_report" / "plots" / filename
+            if potential_path.exists():
+                file_path = potential_path
+                logger.info(f"[Plot API] Found file in: {file_path}")
+                break
+    
+    if file_path and file_path.exists() and file_path.suffix.lower() in [".png", ".jpg", ".jpeg", ".svg"]:
+        logger.info(f"[Plot API] Serving plot image: {file_path}")
+        media_type = "image/png" if file_path.suffix.lower() == ".png" else "image/jpeg"
+        return FileResponse(file_path, media_type=media_type)
+    else:
+        logger.warning(f"[Plot API] Plot image not found: {filename}")
+        return JSONResponse({"error": f"Plot image not found: {filename}"}, status_code=404)
+
+
 @app.post("/api/upload/audio")
 async def upload_audio(file: UploadFile = File(...), directory: str = Form("originals")):
     """Upload audio file and automatically add to manifest CSV."""
@@ -2516,15 +2550,46 @@ async def list_runs_legacy():
 
 @app.get("/api/files/report")
 async def serve_report_html(path: str):
-    """Serve report HTML file."""
+    """Serve report HTML file with proper image paths."""
     file_path = PROJECT_ROOT / path
     
     logger.info(f"[Report API] Requested path: {path}")
     logger.info(f"[Report API] Full file path: {file_path}")
     
     if file_path.exists() and file_path.suffix == ".html":
-        logger.info(f"[Report API] Serving report: {file_path}")
-        return FileResponse(file_path, media_type="text/html")
+        # Extract run_id from path (format: reports/run_YYYYMMDD_HHMMSS/final_report/report.html)
+        run_id = None
+        path_parts = Path(path).parts
+        for part in path_parts:
+            if part.startswith("run_"):
+                run_id = part
+                break
+        
+        # Read HTML content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Replace relative plot paths with API endpoints if run_id is available
+        if run_id:
+            html_content = html_content.replace(
+                'src="plots/recall_by_severity.png"',
+                f'src="/api/files/plots/recall_by_severity.png?run_id={run_id}"'
+            )
+            html_content = html_content.replace(
+                'src="plots/similarity_by_severity.png"',
+                f'src="/api/files/plots/similarity_by_severity.png?run_id={run_id}"'
+            )
+            html_content = html_content.replace(
+                'src="plots/recall_by_transform.png"',
+                f'src="/api/files/plots/recall_by_transform.png?run_id={run_id}"'
+            )
+            html_content = html_content.replace(
+                'src="plots/latency_by_transform.png"',
+                f'src="/api/files/plots/latency_by_transform.png?run_id={run_id}"'
+            )
+        
+        logger.info(f"[Report API] Serving report: {file_path} (run_id: {run_id})")
+        return HTMLResponse(content=html_content)
     else:
         logger.warning(f"[Report API] Report file not found: {file_path}")
         return JSONResponse({"error": "Report file not found"}, status_code=404)
