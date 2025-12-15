@@ -61,20 +61,31 @@ async function checkStatus() {
         
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
+        const sidebarStatusText = document.getElementById('sidebarStatusText');
         
         if (status.running_processes && status.running_processes.length > 0) {
             statusDot.className = 'status-dot warning';
             statusText.textContent = `${status.running_processes.length} process(es) running`;
+            if (sidebarStatusText) {
+                sidebarStatusText.textContent = `${status.running_processes.length} process(es) running`;
+            }
             document.getElementById('currentProcess').textContent = `Running: ${status.running_processes.join(', ')}`;
         } else {
             statusDot.className = 'status-dot';
             statusText.textContent = 'System Ready';
+            if (sidebarStatusText) {
+                sidebarStatusText.textContent = 'System Ready';
+            }
             document.getElementById('currentProcess').textContent = '';
         }
     } catch (error) {
         console.error('Status check failed:', error);
         document.getElementById('statusDot').className = 'status-dot error';
         document.getElementById('statusText').textContent = 'Connection Error';
+        const sidebarStatusText = document.getElementById('sidebarStatusText');
+        if (sidebarStatusText) {
+            sidebarStatusText.textContent = 'Connection Error';
+        }
     }
 }
 
@@ -768,10 +779,44 @@ function loadAudioInfo() {
     console.log('[loadAudioInfo] ✅ Original audio set in Test Fingerprint Robustness section');
 }
 
+function clearAudioSelection() {
+    const select = document.getElementById('manipulateAudioFile');
+    if (select) {
+        select.value = '';
+        loadAudioInfo();
+    }
+}
+
+function updateOverlayFileName() {
+    const fileInput = document.getElementById('overlayFile');
+    const fileNameDisplay = document.getElementById('overlayFileName');
+    if (fileInput && fileNameDisplay) {
+        if (fileInput.files && fileInput.files.length > 0) {
+            fileNameDisplay.textContent = fileInput.files[0].name;
+        } else {
+            fileNameDisplay.textContent = 'No file chosen';
+        }
+    }
+}
+
+function generateWaveform(container, filePath) {
+    // Simple waveform visualization - can be enhanced later
+    if (!container) return;
+    
+    const bars = [];
+    for (let i = 0; i < 50; i++) {
+        const height = Math.random() * 60 + 20;
+        bars.push(`<div class="waveform-bar" style="height: ${height}%;"></div>`);
+    }
+    container.innerHTML = `<div class="waveform-bars">${bars.join('')}</div>`;
+}
+
 function updateOriginalPlayer(filePath) {
     const player = document.getElementById('originalAudioPlayer');
     const playBtn = document.getElementById('originalPlayBtn');
     const infoDiv = document.getElementById('originalPlayerInfo');
+    const waveformDiv = document.getElementById('originalWaveform');
+    const testStatus = document.getElementById('originalTestStatus');
     
     if (!filePath) {
         if (player) {
@@ -785,7 +830,13 @@ function updateOriginalPlayer(filePath) {
             playBtn.disabled = true;
         }
         if (infoDiv) {
-            infoDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px; margin: 0;">No audio loaded</p>';
+            infoDiv.textContent = 'No audio loaded.';
+        }
+        if (waveformDiv) {
+            waveformDiv.innerHTML = '<div class="waveform-placeholder">🎤</div>';
+        }
+        if (testStatus) {
+            testStatus.textContent = 'No original audio selected.';
         }
         originalAudioPlaying = false;
         return;
@@ -809,7 +860,13 @@ function updateOriginalPlayer(filePath) {
     }
     if (infoDiv) {
         const fileName = filePath.split('/').pop();
-        infoDiv.innerHTML = `<p style="color: #4ade80; font-size: 12px; margin: 0;">Loaded: ${fileName}</p>`;
+        infoDiv.textContent = `Loaded: ${fileName}`;
+    }
+    if (waveformDiv) {
+        generateWaveform(waveformDiv, filePath);
+    }
+    if (testStatus) {
+        testStatus.textContent = filePath.split('/').pop();
     }
     originalAudioPlaying = false;
 }
@@ -820,6 +877,8 @@ function updateTransformedPlayer(filePath) {
     const player = document.getElementById('transformedAudioPlayer');
     const playBtn = document.getElementById('transformedPlayBtn');
     const infoDiv = document.getElementById('transformedPlayerInfo');
+    const waveformDiv = document.getElementById('transformedWaveform');
+    const testStatus = document.getElementById('transformedTestStatus');
     
     if (!filePath) {
         console.log('[updateTransformedPlayer] No filePath provided, clearing player');
@@ -834,7 +893,13 @@ function updateTransformedPlayer(filePath) {
             playBtn.disabled = true;
         }
         if (infoDiv) {
-            infoDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px; margin: 0;">No transformed audio available</p>';
+            infoDiv.textContent = 'No transformed audio available.';
+        }
+        if (waveformDiv) {
+            waveformDiv.innerHTML = '<div class="waveform-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%;"><div style="width: 100%; height: 2px; background: #3d3d3d;"></div></div>';
+        }
+        if (testStatus) {
+            testStatus.textContent = 'No transformed audio available. Apply transforms first.';
         }
         transformedAudioPlaying = false;
         return;
@@ -888,8 +953,14 @@ function updateTransformedPlayer(filePath) {
     }
     if (infoDiv) {
         const fileName = filePath.split('/').pop();
-        infoDiv.innerHTML = `<p style="color: #4ade80; font-size: 12px; margin: 0;">Loaded: ${fileName}</p>`;
+        infoDiv.textContent = `Loaded: ${fileName}`;
         console.log('[updateTransformedPlayer] Updated info display with:', fileName);
+    }
+    if (waveformDiv) {
+        generateWaveform(waveformDiv, filePath);
+    }
+    if (testStatus) {
+        testStatus.textContent = filePath.split('/').pop();
     }
     transformedAudioPlaying = false;
 }
@@ -2358,13 +2429,15 @@ function updateTestDisplays(originalPath, transformedPath) {
     // Try new IDs first (manipulate_section.html), fallback to old IDs (index.html)
     const originalDisplay = document.getElementById('testOriginalPath') || document.getElementById('originalTestDisplay');
     const transformedDisplay = document.getElementById('testTransformedPath') || document.getElementById('transformedTestDisplay');
+    const originalStatus = document.getElementById('originalTestStatus');
+    const transformedStatus = document.getElementById('transformedTestStatus');
     const testBtn = document.getElementById('testFingerprintBtn') || document.getElementById('testBtn');
     
-    if (!originalDisplay) {
-        console.error('[updateTestDisplays] originalTestDisplay element not found!');
+    if (!originalDisplay && !originalStatus) {
+        console.error('[updateTestDisplays] originalTestDisplay/originalTestStatus element not found!');
     }
-    if (!transformedDisplay) {
-        console.error('[updateTestDisplays] transformedTestDisplay element not found!');
+    if (!transformedDisplay && !transformedStatus) {
+        console.error('[updateTestDisplays] transformedTestDisplay/transformedTestStatus element not found!');
     }
     if (!testBtn) {
         console.error('[updateTestDisplays] testBtn element not found!');
@@ -2382,6 +2455,14 @@ function updateTestDisplays(originalPath, transformedPath) {
         }
     }
     
+    if (originalStatus) {
+        if (originalPath && originalPath.trim() !== '') {
+            originalStatus.textContent = originalPath.split('/').pop();
+        } else {
+            originalStatus.textContent = 'No original audio selected.';
+        }
+    }
+    
     if (transformedDisplay) {
         if (transformedPath) {
             transformedDisplay.value = transformedPath;
@@ -2396,10 +2477,18 @@ function updateTestDisplays(originalPath, transformedPath) {
         }
     }
     
+    if (transformedStatus) {
+        if (transformedPath && transformedPath.trim() !== '') {
+            transformedStatus.textContent = transformedPath.split('/').pop();
+        } else {
+            transformedStatus.textContent = 'No transformed audio available. Apply transforms first.';
+        }
+    }
+    
     // Enable test button if both files are available
     if (testBtn) {
-        const hasOriginal = originalDisplay && originalDisplay.value && originalDisplay.value.trim() !== '';
-        const hasTransformed = transformedDisplay && transformedDisplay.value && transformedDisplay.value.trim() !== '';
+        const hasOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim() !== '') || (originalStatus && originalStatus.textContent !== 'No original audio selected.');
+        const hasTransformed = (transformedDisplay && transformedDisplay.value && transformedDisplay.value.trim() !== '') || (transformedStatus && transformedStatus.textContent !== 'No transformed audio available. Apply transforms first.');
         
         console.log('[updateTestDisplays] Button state check:', {
             hasOriginal,
