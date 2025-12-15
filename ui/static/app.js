@@ -2807,48 +2807,68 @@ async function viewRunDetails(runId) {
             <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
                 <h5 style="color: #427eea; margin-bottom: 20px; font-size: 16px; font-weight: 600;">📊 Visualizations</h5>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Recall@K by Transform Severity</h6>
-                        <img src="/api/files/plots/recall_by_severity.png?run_id=${runId}" 
-                             alt="Recall by Severity" 
-                             style="width: 100%; height: auto; border-radius: 4px;"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                        <div style="display: none; color: #9ca3af; text-align: center; padding: 20px;">
-                            <p>Recall by Severity</p>
-                            <p style="font-size: 12px; color: #6b7280;">Chart not available</p>
+                        <div id="plot-recall-severity-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                            <img src="/api/files/plots/recall_by_severity.png?run_id=${runId}" 
+                                 alt="Recall by Severity" 
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
+                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
+                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
+                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Recall by Severity</p>
+                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
+                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
+                            </div>
                         </div>
                     </div>
-                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Similarity Score by Severity</h6>
-                        <img src="/api/files/plots/similarity_by_severity.png?run_id=${runId}" 
-                             alt="Similarity by Severity" 
-                             style="width: 100%; height: auto; border-radius: 4px;"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                        <div style="display: none; color: #9ca3af; text-align: center; padding: 20px;">
-                            <p>Similarity by Severity</p>
-                            <p style="font-size: 12px; color: #6b7280;">Chart not available</p>
+                        <div id="plot-similarity-severity-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                            <img src="/api/files/plots/similarity_by_severity.png?run_id=${runId}" 
+                                 alt="Similarity by Severity" 
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
+                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
+                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
+                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Similarity by Severity</p>
+                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
+                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
+                            </div>
                         </div>
                     </div>
-                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Recall@K by Transform Type</h6>
-                        <img src="/api/files/plots/recall_by_transform.png?run_id=${runId}" 
-                             alt="Recall by Transform Type" 
-                             style="width: 100%; height: auto; border-radius: 4px;"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                        <div style="display: none; color: #9ca3af; text-align: center; padding: 20px;">
-                            <p>Recall by Transform Type</p>
-                            <p style="font-size: 12px; color: #6b7280;">Chart not available</p>
+                        <div id="plot-recall-transform-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                            <img src="/api/files/plots/recall_by_transform.png?run_id=${runId}" 
+                                 alt="Recall by Transform Type" 
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
+                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
+                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
+                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Recall by Transform Type</p>
+                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
+                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
+                            </div>
                         </div>
                     </div>
-                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Latency by Transform Type</h6>
-                        <img src="/api/files/plots/latency_by_transform.png?run_id=${runId}" 
-                             alt="Latency by Transform Type" 
-                             style="width: 100%; height: auto; border-radius: 4px;"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                        <div style="display: none; color: #9ca3af; text-align: center; padding: 20px;">
-                            <p>Latency by Transform</p>
-                            <p style="font-size: 12px; color: #6b7280;">Chart not available</p>
+                        <div id="plot-latency-transform-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                            <img src="/api/files/plots/latency_by_transform.png?run_id=${runId}" 
+                                 alt="Latency by Transform Type" 
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
+                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
+                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
+                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
+                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Latency by Transform</p>
+                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
+                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
+                            </div>
                         </div>
                     </div>
                 </div>
