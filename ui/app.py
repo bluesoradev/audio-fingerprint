@@ -589,8 +589,11 @@ async def manipulate_pitch(
     try:
         from transforms.pitch import pitch_shift
         
+        logger.info(f"[Pitch Transform API] Received request: input_path={input_path}, semitones={semitones}, output_dir={output_dir}, output_name={output_name}")
+        
         input_file = PROJECT_ROOT / input_path
         if not input_file.exists():
+            logger.error(f"[Pitch Transform API] Input file not found: {input_path}")
             return JSONResponse({
                 "status": "error",
                 "message": f"Input file not found: {input_path}"
@@ -604,11 +607,19 @@ async def manipulate_pitch(
         else:
             out_file = output_path / f"{input_file.stem}_pitch_{semitones:+g}st.wav"
         
-        logger.info(f"Applying pitch transform: {input_file} -> {out_file} (semitones={semitones})")
+        logger.info(f"[Pitch Transform API] Applying pitch transform: {input_file} -> {out_file} (semitones={semitones})")
+        logger.info(f"[Pitch Transform API] Semitones value type: {type(semitones)}, value: {semitones}")
+        
         pitch_shift(input_file, semitones, out_file)
         
+        logger.info(f"[Pitch Transform API] Pitch shift completed. Output file exists: {out_file.exists()}, size: {out_file.stat().st_size if out_file.exists() else 0} bytes")
+        
         if not out_file.exists():
+            logger.error(f"[Pitch Transform API] Output file was not created: {out_file}")
             raise Exception("Output file was not created")
+        
+        file_size = out_file.stat().st_size
+        logger.info(f"[Pitch Transform API] Success! Output file: {out_file} ({file_size} bytes)")
         
         return JSONResponse({
             "status": "success",
@@ -616,7 +627,7 @@ async def manipulate_pitch(
             "message": f"Pitch shift applied: {semitones:+g} semitones"
         })
     except Exception as e:
-        logger.error(f"Pitch transform failed: {e}")
+        logger.error(f"[Pitch Transform API] Pitch transform failed: {e}", exc_info=True)
         import traceback
         logger.error(traceback.format_exc())
         return JSONResponse({

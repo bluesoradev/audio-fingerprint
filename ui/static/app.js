@@ -1074,6 +1074,9 @@ async function applyPitchTransform() {
         return;
     }
     const semitones = parseInt(pitchSlider.value);
+    console.log('[Pitch Transform] Slider value:', pitchSlider.value, 'Parsed semitones:', semitones);
+    addSystemLog(`Applying pitch shift: ${semitones} semitones`, 'info');
+    
     const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
@@ -1083,6 +1086,13 @@ async function applyPitchTransform() {
         formData.append('semitones', semitones);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
+        
+        console.log('[Pitch Transform] Sending request:', {
+            input_path: selectedAudioFile,
+            semitones: semitones,
+            output_dir: outputDir,
+            output_name: outputName
+        });
         
         const response = await fetch(`${API_BASE}/manipulate/pitch`, {
             method: 'POST',
@@ -1102,15 +1112,26 @@ async function applyPitchTransform() {
         }
         
         const result = await response.json();
+        console.log('[Pitch Transform] Response:', result);
+        
         if (result.status === 'success') {
             showCompletionAlert(result.message);
-            addSystemLog(`Pitch transform applied: ${result.output_path}`, 'success');
+            addSystemLog(`Pitch transform applied: ${result.output_path} (${semitones} semitones)`, 'success');
+            console.log('[Pitch Transform] Success! Output file:', result.output_path);
             loadManipulateAudioFiles();
             loadTestFileSelects();
+            // Update transformed test display and player
+            if (result.output_path) {
+                updateTestDisplays(null, result.output_path);
+                updateTransformedPlayer(result.output_path);
+            }
         } else {
+            console.error('[Pitch Transform] Failed:', result.message);
             showError(result.message || 'Transform failed');
         }
     } catch (error) {
+        console.error('[Pitch Transform] Error:', error);
+        addSystemLog(`Pitch transform error: ${error.message}`, 'error');
         showError('Failed to apply pitch transform: ' + error.message);
     }
 }
