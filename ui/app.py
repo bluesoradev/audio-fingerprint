@@ -2571,6 +2571,62 @@ async def get_run_details(run_id: str):
         return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)
 
 
+@app.get("/api/runs/{run_id}/download")
+async def download_report_zip(run_id: str):
+    """Download report as ZIP file."""
+    try:
+        report_dir = REPORTS_DIR / run_id
+        
+        if not report_dir.exists():
+            return JSONResponse({"error": "Run not found"}, status_code=404)
+        
+        # Import package_report function
+        try:
+            from reports.render_report import package_report
+        except ImportError:
+            logger.error("Could not import package_report from reports.render_report")
+            return JSONResponse({"error": "Report packaging not available"}, status_code=500)
+        
+        # Create temporary ZIP file
+        import tempfile
+        import zipfile
+        from pathlib import Path
+        
+        temp_dir = Path(tempfile.gettempdir())
+        zip_filename = f"{run_id}_report.zip"
+        zip_path = temp_dir / zip_filename
+        
+        # Package the entire report directory
+        logger.info(f"Packaging report {run_id} to {zip_path}")
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file_path in report_dir.rglob('*'):
+                if file_path.is_file():
+                    # Get relative path from report_dir
+                    arcname = file_path.relative_to(report_dir)
+                    zipf.write(file_path, arcname)
+                    logger.debug(f"Added to ZIP: {arcname}")
+        
+        if not zip_path.exists():
+            return JSONResponse({"error": "Failed to create ZIP file"}, status_code=500)
+        
+        zip_size = zip_path.stat().st_size
+        logger.info(f"Created ZIP file: {zip_path} ({zip_size:,} bytes)")
+        
+        # Return the file
+        return FileResponse(
+            zip_path,
+            media_type="application/zip",
+            filename=zip_filename,
+            headers={
+                "Content-Disposition": f'attachment; filename="{zip_filename}"'
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error downloading report {run_id}: {e}", exc_info=True)
+        return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)
+
+
 @app.delete("/api/runs/{run_id}")
 async def delete_run(run_id: str):
     """Delete a report/run. Idempotent: returns success if already gone."""
