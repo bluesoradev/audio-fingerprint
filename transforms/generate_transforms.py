@@ -61,14 +61,21 @@ def generate_transforms(
     
     # Load files manifest
     files_df = pd.read_csv(manifest_path)
-    logger.info(f"Loaded {len(files_df)} original files")
+    logger.info(f"Loaded {len(files_df)} original files from {manifest_path}")
+    logger.info(f"Manifest columns: {list(files_df.columns)}")
+    logger.info(f"First few rows:\n{files_df.head()}")
     
     # Load test matrix
+    logger.info(f"Loading test matrix from {test_matrix_path}")
     with open(test_matrix_path, 'r') as f:
         test_config = yaml.safe_load(f)
     
     transform_configs = test_config.get("transforms", {})
     global_seed = test_config.get("global", {}).get("random_seed", random_seed)
+    
+    logger.info(f"Found {len(transform_configs)} transform types in config")
+    enabled_transforms = [t for t, cfg in transform_configs.items() if cfg.get("enabled", False)]
+    logger.info(f"Enabled transforms: {enabled_transforms}")
     
     output_dir = Path(output_dir)
     transformed_dir = output_dir / "transformed"
@@ -79,11 +86,29 @@ def generate_transforms(
     # Iterate over original files
     for _, file_row in tqdm(files_df.iterrows(), total=len(files_df), desc="Processing originals"):
         orig_id = file_row["id"]
-        orig_path = Path(file_row["file_path"])
+        # Handle both "file_path" and "path" column names for compatibility
+        orig_path_str = file_row.get("file_path") or file_row.get("path")
+        if not orig_path_str:
+            logger.error(f"Manifest row {orig_id} missing 'file_path' or 'path' column. Available columns: {list(file_row.index)}")
+            continue
+        
+        orig_path = Path(orig_path_str)
+        
+        # Resolve relative paths relative to current working directory
+        if not orig_path.is_absolute():
+            # Try to resolve relative to current directory
+            if not orig_path.exists():
+                # If still not found, try resolving relative to output_dir parent (project root)
+                potential_path = output_dir.parent / orig_path
+                if potential_path.exists():
+                    orig_path = potential_path
+                    logger.info(f"Resolved relative path: {orig_path_str} -> {orig_path}")
         
         if not orig_path.exists():
-            logger.warning(f"Original file not found: {orig_path}")
+            logger.warning(f"Original file not found: {orig_path} (resolved from: {orig_path_str})")
             continue
+        
+        logger.info(f"Processing original file: {orig_id} -> {orig_path}")
         
         # Apply each enabled transform
         for transform_type, transform_config in transform_configs.items():
@@ -207,6 +232,16 @@ def generate_transforms(
     
     logger.info(f"Generated {len(transform_df)} transformed files")
     logger.info(f"Saved transform manifest to {manifest_path_out}")
+    
+    if len(transform_df) == 0:
+        logger.warning("WARNING: No transformed files were generated! Check that:")
+        logger.warning("  1. Original files exist and are readable")
+        logger.warning("  2. Transform configs have 'enabled: true'")
+        logger.warning("  3. File paths in manifest are correct")
+    else:
+        logger.info(f"Successfully generated transformations. Sample outputs:")
+        for i, row in transform_df.head(5).iterrows():
+            logger.info(f"  - {row['transformed_id']}: {row['transform_type']} -> {row['output_path']}")
     
     return transform_df
 

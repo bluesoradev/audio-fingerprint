@@ -3269,20 +3269,74 @@ async function runPhaseSuite(phase = 'both') {
             throw new Error(msg);
         }
 
-        // Retry load to catch completion
-        const reload = async (retries = 6) => {
+        const result = await resp.json();
+        const commandId = result.command_id;
+
+        // Poll for logs and show progress
+        let lastLogCount = 0;
+        const pollLogs = async () => {
             try {
-                await loadDeliverables();
-                await loadDashboard();
-                if (retries > 0) {
-                    setTimeout(() => reload(retries - 1), 5000);
+                const logResp = await fetch(`${API_BASE}/process/${commandId}/logs`);
+                if (logResp.ok) {
+                    const logData = await logResp.json();
+                    if (logData.logs && logData.logs.length > 0) {
+                        // Show new logs since last poll
+                        const newLogs = logData.logs.slice(lastLogCount);
+                        if (newLogs.length > 0) {
+                            newLogs.forEach(log => {
+                                if (log.type === 'stdout' || log.type === 'stderr') {
+                                    console.log(`[${commandId}] ${log.message}`);
+                                }
+                            });
+                            lastLogCount = logData.logs.length;
+                        }
+                        
+                        // Check if completed
+                        const completed = logData.logs.some(l => l.type === 'status' && l.message === 'completed');
+                        const failed = logData.logs.some(l => l.type === 'status' && l.message === 'failed');
+                        
+                        if (completed || failed) {
+                            const exitCodeLog = logData.logs.find(l => l.type === 'exit_code');
+                            const exitCode = exitCodeLog ? exitCodeLog.message : 'unknown';
+                            
+                            if (failed || exitCode !== '0') {
+                                const errorLogs = logData.logs.filter(l => 
+                                    l.type === 'error' || 
+                                    (l.type === 'stderr' && l.message.toLowerCase().includes('error'))
+                                );
+                                const errorMsg = errorLogs.length > 0 
+                                    ? errorLogs.map(l => l.message).join('; ')
+                                    : `Process exited with code ${exitCode}`;
+                                throw new Error(`Process failed: ${errorMsg}`);
+                            }
+                            // Success - reload deliverables
+                            showCompletionAlert(`${btnText} completed successfully!`, 'success');
+                            setTimeout(() => {
+                                loadDeliverables();
+                                loadDashboard();
+                            }, 2000);
+                            return;
+                        }
+                    }
                 }
-            } catch {
-                if (retries > 0) setTimeout(() => reload(retries - 1), 5000);
+                // Continue polling every 2 seconds
+                setTimeout(pollLogs, 2000);
+            } catch (error) {
+                if (error.message && error.message.includes('Process failed')) {
+                    showError('Failed to run suite: ' + error.message);
+                } else {
+                    console.error('Error polling logs:', error);
+                    // Continue polling even on fetch errors (process might still be running)
+                    setTimeout(pollLogs, 2000);
+                }
             }
         };
-        reload();
+        
+        // Start polling after 1 second
+        setTimeout(pollLogs, 1000);
+
     } catch (e) {
         showError(`Failed to run suite: ${e.message}`);
+        console.error('Suite run error:', e);
     }
 }

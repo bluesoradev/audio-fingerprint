@@ -107,26 +107,41 @@ process_queues = {}
 def run_command_async(command_id: str, command: List[str], log_queue: queue.Queue):
     """Run a command and capture output in real-time."""
     try:
+        logger.info(f"[run_command_async] Starting command: {' '.join(command)}")
+        logger.info(f"[run_command_async] Working directory: {PROJECT_ROOT}")
+        
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            universal_newlines=True
+            universal_newlines=True,
+            cwd=str(PROJECT_ROOT)  # CRITICAL: Run from project root
         )
         running_processes[command_id] = process
         
         for line in iter(process.stdout.readline, ''):
             if line:
-                log_queue.put(('stdout', line.strip()))
+                line_stripped = line.strip()
+                log_queue.put(('stdout', line_stripped))
+                logger.info(f"[{command_id}] {line_stripped}")  # Also log to server logs
         
         process.wait()
+        exit_code = process.returncode
         log_queue.put(('status', 'completed'))
-        log_queue.put(('exit_code', process.returncode))
+        log_queue.put(('exit_code', exit_code))
+        
+        if exit_code != 0:
+            logger.error(f"[run_command_async] Command failed with exit code {exit_code}")
+            log_queue.put(('error', f'Process exited with code {exit_code}'))
+        else:
+            logger.info(f"[run_command_async] Command completed successfully")
         
     except Exception as e:
-        log_queue.put(('error', str(e)))
+        error_msg = str(e)
+        logger.error(f"[run_command_async] Exception: {error_msg}", exc_info=True)
+        log_queue.put(('error', error_msg))
         log_queue.put(('status', 'failed'))
     finally:
         if command_id in running_processes:
@@ -371,10 +386,16 @@ async def generate_deliverables_api(
                 manifest_file.parent.mkdir(parents=True, exist_ok=True)
                 import csv
                 with open(manifest_file, "w", newline="", encoding="utf-8") as f:
-                    writer = csv.DictWriter(f, fieldnames=["id", "title", "path"])
+                    # Use "file_path" to match what the code expects
+                    writer = csv.DictWriter(f, fieldnames=["id", "title", "file_path"])
                     writer.writeheader()
                     for row in entries:
-                        writer.writerow(row)
+                        # Normalize column name: use "file_path" consistently
+                        writer.writerow({
+                            "id": row.get("id", ""),
+                            "title": row.get("title", ""),
+                            "file_path": row.get("path") or row.get("file_path", "")
+                        })
                 logger.info(f"[generate-deliverables] Auto-created manifest with {len(entries)} entries at {manifest_file}")
             else:
                 return JSONResponse({
@@ -2280,30 +2301,51 @@ async def list_runs():
 @app.get("/api/runs/{run_id}")
 async def get_run_details(run_id: str):
     """Get detailed run information."""
-    report_dir = REPORTS_DIR / run_id
-    
-    if not report_dir.exists():
-        return JSONResponse({"error": "Run not found"}, status_code=404)
-    
-    details = {
-        "id": run_id,
-        "path": str(report_dir.relative_to(PROJECT_ROOT)),
-        "files": {}
-    }
-    
-    # Load metrics
-    metrics_file = report_dir / "metrics.json"
-    if metrics_file.exists():
-        with open(metrics_file, 'r') as f:
-            details["metrics"] = json.load(f)
-    
-    # Load summary
-    summary_file = report_dir / "suite_summary.csv"
-    if summary_file.exists():
-        df = pd.read_csv(summary_file)
-        details["summary"] = df.to_dict('records')
-    
-    return JSONResponse(details)
+    try:
+        report_dir = REPORTS_DIR / run_id
+        
+        if not report_dir.exists():
+            return JSONResponse({"error": "Run not found"}, status_code=404)
+        
+        details = {
+            "id": run_id,
+            "path": str(report_dir.relative_to(PROJECT_ROOT)),
+            "files": {}
+        }
+        
+        # Load metrics
+        metrics_file = report_dir / "metrics.json"
+        if metrics_file.exists():
+            try:
+                with open(metrics_file, 'r') as f:
+                    details["metrics"] = json.load(f)
+            except Exception as e:
+                logger.error(f"Failed to load metrics.json for {run_id}: {e}")
+                details["metrics"] = {"error": f"Failed to load metrics: {str(e)}"}
+        else:
+            details["metrics"] = None
+        
+        # Load summary
+        summary_file = report_dir / "suite_summary.csv"
+        if summary_file.exists():
+            try:
+                # Check if file is empty
+                if summary_file.stat().st_size > 0:
+                    df = pd.read_csv(summary_file)
+                    details["summary"] = df.to_dict('records')
+                else:
+                    details["summary"] = []
+                    logger.warning(f"Summary file {summary_file} is empty")
+            except Exception as e:
+                logger.error(f"Failed to load suite_summary.csv for {run_id}: {e}")
+                details["summary"] = {"error": f"Failed to load summary: {str(e)}"}
+        else:
+            details["summary"] = None
+        
+        return JSONResponse(details)
+    except Exception as e:
+        logger.error(f"Error in get_run_details for {run_id}: {e}", exc_info=True)
+        return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)
 
 
 @app.delete("/api/runs/{run_id}")

@@ -115,14 +115,34 @@ def run_full_experiment(
         
         # Process all original files
         files_df = pd.read_csv(files_manifest_path)
+        logger.info(f"Loaded manifest with {len(files_df)} files. Columns: {list(files_df.columns)}")
         all_embeddings = []
         all_ids = []
         
         for _, row in files_df.iterrows():
-            file_path = Path(row["file_path"])
+            # Handle both "file_path" and "path" column names for compatibility
+            file_path_str = row.get("file_path") or row.get("path")
+            if not file_path_str:
+                logger.error(f"Manifest row missing 'file_path' or 'path' column. Available columns: {list(row.index)}")
+                continue
+            
+            file_path = Path(file_path_str)
             file_id = row["id"]
             
-            logger.info(f"Processing {file_id}...")
+            # Resolve relative paths
+            if not file_path.is_absolute():
+                if not file_path.exists():
+                    # Try resolving relative to project root (current working directory)
+                    potential_path = Path.cwd() / file_path
+                    if potential_path.exists():
+                        file_path = potential_path
+                        logger.info(f"Resolved relative path: {file_path_str} -> {file_path}")
+            
+            if not file_path.exists():
+                logger.error(f"File not found: {file_path} (from manifest: {file_path_str})")
+                continue
+            
+            logger.info(f"Processing {file_id} -> {file_path}")
             
             # Segment and extract embeddings
             segments = segment_audio(
