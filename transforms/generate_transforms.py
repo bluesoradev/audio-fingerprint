@@ -38,7 +38,17 @@ logger = logging.getLogger(__name__)
 
 def generate_transform_id(orig_id: str, transform_type: str, params: Dict, seed: int = None) -> str:
     """Generate deterministic ID for transformed file."""
-    param_str = "_".join(f"{k}_{v}" for k, v in sorted(params.items()))
+    # Sanitize parameter values to remove filesystem-invalid characters
+    sanitized_params = {}
+    for k, v in params.items():
+        if v is None:
+            safe_value = 'None'
+        else:
+            # Replace filesystem-invalid characters with underscore
+            safe_value = str(v).replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
+        sanitized_params[k] = safe_value
+    
+    param_str = "_".join(f"{k}_{v}" for k, v in sorted(sanitized_params.items()))
     if seed is not None:
         param_str += f"_seed_{seed}"
     return f"{orig_id}__{transform_type}__{param_str}"

@@ -178,7 +178,11 @@ def run_queries(
         )
         
         # Save individual result JSON
-        result_path = results_dir / f"{row['transformed_id']}_query.json"
+        # Sanitize transformed_id to remove filesystem-invalid characters (/, \, :, *, ?, ", <, >, |)
+        safe_id = str(row['transformed_id']).replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
+        result_path = results_dir / f"{safe_id}_query.json"
+        # Ensure parent directory exists
+        result_path.parent.mkdir(parents=True, exist_ok=True)
         with open(result_path, 'w') as f:
             json.dump(result, f, indent=2)
         
