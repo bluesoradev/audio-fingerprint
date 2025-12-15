@@ -214,122 +214,581 @@ def render_html_report(
         thresholds = test_config.get("thresholds", {})
         thresholds_info = f"<h3>Thresholds</h3><pre>{json.dumps(thresholds, indent=2)}</pre>"
     
-    # Build pass/fail summary
+    # Build pass/fail summary with modern design
     pass_fail = metrics.get("pass_fail", {})
     
+    # Calculate overall pass rate
+    total_checks = 0
+    passed_checks = 0
+    
     # Recall table (per-severity)
-    pf_html = "<h3>Pass/Fail Status</h3>"
-    pf_html += "<h4>Recall Metrics</h4><table border='1'><tr><th>Severity</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th></tr>"
+    recall_rows = []
     for severity in ["mild", "moderate", "severe"]:
         if severity in pass_fail:
             pf_data = pass_fail[severity]
-            pf_html += f"<tr><td>{severity}</td>"
+            row_data = {"severity": severity.capitalize()}
             for k in [1, 5, 10]:
                 k_data = pf_data.get(f"recall_at_{k}", {})
                 passed = k_data.get("passed", False)
                 actual = k_data.get("actual", 0.0)
                 threshold = k_data.get("threshold", 0.0)
-                status = "✅ PASS" if passed else "❌ FAIL"
-                pf_html += f"<td>{status}<br/>{actual:.3f} / {threshold:.3f}</td>"
-            pf_html += "</tr>"
-    pf_html += "</table>"
+                total_checks += 1
+                if passed:
+                    passed_checks += 1
+                row_data[f"recall_{k}"] = {
+                    "passed": passed,
+                    "actual": actual,
+                    "threshold": threshold
+                }
+            recall_rows.append(row_data)
     
     # Similarity table (per-severity)
-    pf_html += "<h4>Similarity Metrics</h4><table border='1'><tr><th>Severity</th><th>Mean Similarity</th><th>Threshold</th><th>Status</th></tr>"
+    similarity_rows = []
     for severity in ["mild", "moderate", "severe"]:
         if severity in pass_fail and "similarity" in pass_fail[severity]:
             sim_data = pass_fail[severity]["similarity"]
             passed = sim_data.get("passed", False)
             actual = sim_data.get("actual", 0.0)
             threshold = sim_data.get("threshold", 0.0)
-            status = "✅ PASS" if passed else "❌ FAIL"
-            pf_html += f"<tr><td>{severity}</td><td>{actual:.3f}</td><td>{threshold:.3f}</td><td>{status}</td></tr>"
-    pf_html += "</table>"
+            total_checks += 1
+            if passed:
+                passed_checks += 1
+            similarity_rows.append({
+                "severity": severity.capitalize(),
+                "passed": passed,
+                "actual": actual,
+                "threshold": threshold
+            })
     
     # Latency table (overall)
+    latency_rows = []
     if "overall" in pass_fail and "latency" in pass_fail["overall"]:
         latency_data = pass_fail["overall"]["latency"]
-        pf_html += "<h4>Latency Metrics</h4><table border='1'><tr><th>Metric</th><th>Actual</th><th>Threshold</th><th>Status</th></tr>"
         
         mean_data = latency_data.get("mean_ms", {})
         mean_passed = mean_data.get("passed", False)
-        pf_html += f"<tr><td>Mean Latency</td><td>{mean_data.get('actual', 0.0):.1f}ms</td><td>{mean_data.get('threshold', 0.0):.1f}ms</td><td>{'✅ PASS' if mean_passed else '❌ FAIL'}</td></tr>"
+        total_checks += 1
+        if mean_passed:
+            passed_checks += 1
+        latency_rows.append({
+            "metric": "Mean Latency",
+            "passed": mean_passed,
+            "actual": mean_data.get('actual', 0.0),
+            "threshold": mean_data.get('threshold', 0.0),
+            "unit": "ms"
+        })
         
         p95_data = latency_data.get("p95_ms", {})
         p95_passed = p95_data.get("passed", False)
-        pf_html += f"<tr><td>P95 Latency</td><td>{p95_data.get('actual', 0.0):.1f}ms</td><td>{p95_data.get('threshold', 0.0):.1f}ms</td><td>{'✅ PASS' if p95_passed else '❌ FAIL'}</td></tr>"
-        
-        pf_html += "</table>"
+        total_checks += 1
+        if p95_passed:
+            passed_checks += 1
+        latency_rows.append({
+            "metric": "P95 Latency",
+            "passed": p95_passed,
+            "actual": p95_data.get('actual', 0.0),
+            "threshold": p95_data.get('threshold', 0.0),
+            "unit": "ms"
+        })
     
-    # Build summary table
-    summary_html = summary_df.to_html(classes='table', table_id='summary-table', escape=False)
+    overall_pass_rate = (passed_checks / total_checks * 100) if total_checks > 0 else 0
+    
+    # Determine overall status color
+    status_color = "#10b981" if overall_pass_rate >= 80 else "#f59e0b" if overall_pass_rate >= 50 else "#f87171"
+    status_text = "PASS" if overall_pass_rate >= 80 else "WARNING" if overall_pass_rate >= 50 else "FAIL"
+    
+    # Build recall table HTML
+    recall_table_html = ""
+    if recall_rows:
+        recall_table_html = "<div class='metric-card'><h3 class='card-title'>📊 Recall Metrics</h3><table class='data-table'><thead><tr><th>Severity</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th></tr></thead><tbody>"
+        for row in recall_rows:
+            recall_table_html += f"<tr><td class='severity-cell'>{row['severity']}</td>"
+            for k in [1, 5, 10]:
+                k_data = row[f"recall_{k}"]
+                passed = k_data["passed"]
+                actual = k_data["actual"]
+                threshold = k_data["threshold"]
+                status_class = "status-pass" if passed else "status-fail"
+                status_icon = "✓" if passed else "✗"
+                recall_table_html += f"<td class='{status_class}'><span class='status-badge'>{status_icon}</span><div class='metric-value'>{actual:.3f}</div><div class='metric-threshold'>/{threshold:.3f}</div></td>"
+            recall_table_html += "</tr>"
+        recall_table_html += "</tbody></table></div>"
+    
+    # Build similarity table HTML
+    similarity_table_html = ""
+    if similarity_rows:
+        similarity_table_html = "<div class='metric-card'><h3 class='card-title'>🎯 Similarity Metrics</h3><table class='data-table'><thead><tr><th>Severity</th><th>Mean Similarity</th><th>Threshold</th><th>Status</th></tr></thead><tbody>"
+        for row in similarity_rows:
+            status_class = "status-pass" if row["passed"] else "status-fail"
+            status_icon = "✓" if row["passed"] else "✗"
+            similarity_table_html += f"<tr><td class='severity-cell'>{row['severity']}</td><td class='metric-value-large'>{row['actual']:.3f}</td><td class='metric-threshold-large'>{row['threshold']:.3f}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
+        similarity_table_html += "</tbody></table></div>"
+    
+    # Build latency table HTML
+    latency_table_html = ""
+    if latency_rows:
+        latency_table_html = "<div class='metric-card'><h3 class='card-title'>⚡ Latency Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Threshold</th><th>Status</th></tr></thead><tbody>"
+        for row in latency_rows:
+            status_class = "status-pass" if row["passed"] else "status-fail"
+            status_icon = "✓" if row["passed"] else "✗"
+            latency_table_html += f"<tr><td class='metric-name'>{row['metric']}</td><td class='metric-value-large'>{row['actual']:.1f}{row['unit']}</td><td class='metric-threshold-large'>{row['threshold']:.1f}{row['unit']}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
+        latency_table_html += "</tbody></table></div>"
+    
+    # Build per-transform table HTML
+    per_transform_html = ""
+    per_transform_data = metrics.get('per_transform', {})
+    if per_transform_data:
+        per_transform_html = "<div class='metric-card'><h3 class='card-title'>🔧 Per-Transform Analysis</h3><table class='data-table transform-table'><thead><tr><th>Transform</th><th>Count</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Mean Similarity</th><th>Mean Latency</th></tr></thead><tbody>"
+        for transform_type, data in per_transform_data.items():
+            per_transform_html += f"""<tr>
+                <td class='transform-name'>{transform_type}</td>
+                <td class='metric-count'>{data.get('count', 0)}</td>
+                <td class='metric-value'>{data.get('recall', {}).get('recall_at_1', 0.0):.3f}</td>
+                <td class='metric-value'>{data.get('recall', {}).get('recall_at_5', 0.0):.3f}</td>
+                <td class='metric-value'>{data.get('recall', {}).get('recall_at_10', 0.0):.3f}</td>
+                <td class='metric-value'>{data.get('similarity', {}).get('mean_similarity_correct', 0.0):.3f}</td>
+                <td class='metric-value'>{data.get('latency', {}).get('mean_latency_ms', 0.0):.1f}ms</td>
+            </tr>"""
+        per_transform_html += "</tbody></table></div>"
+    
+    # Build summary table HTML (styled)
+    summary_table_html = ""
+    if not summary_df.empty:
+        summary_table_html = f"<div class='metric-card'><h3 class='card-title'>📋 Detailed Test Results</h3><div class='table-wrapper'>{summary_df.to_html(classes='data-table', table_id='summary-table', escape=False, index=False)}</div></div>"
+    
+    # Get overall metrics for display
+    overall_metrics = metrics.get('overall', {})
+    overall_recall = overall_metrics.get('recall', {})
+    overall_similarity = overall_metrics.get('similarity', {})
+    overall_rank = overall_metrics.get('rank', {})
     
     html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Audio Fingerprint Robustness Report</title>
         <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            h1 {{ color: #333; }}
-            h2 {{ color: #666; }}
-            table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #f2f2f2; }}
-            .plots {{ margin: 20px 0; }}
-            .plots img {{ max-width: 100%; height: auto; margin: 10px; }}
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: #1f2937;
+                line-height: 1.6;
+                padding: 20px;
+                min-height: 100vh;
+            }}
+            
+            .report-container {{
+                max-width: 1400px;
+                margin: 0 auto;
+                background: #ffffff;
+                border-radius: 16px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                overflow: hidden;
+            }}
+            
+            .report-header {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: #ffffff;
+                padding: 40px;
+                text-align: center;
+            }}
+            
+            .report-header h1 {{
+                font-size: 2.5em;
+                font-weight: 700;
+                margin-bottom: 10px;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            }}
+            
+            .report-header .subtitle {{
+                font-size: 1.1em;
+                opacity: 0.95;
+                margin-bottom: 20px;
+            }}
+            
+            .report-header .meta-info {{
+                display: flex;
+                justify-content: center;
+                gap: 30px;
+                margin-top: 20px;
+                flex-wrap: wrap;
+            }}
+            
+            .meta-item {{
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.95em;
+            }}
+            
+            .status-banner {{
+                background: {status_color};
+                color: #ffffff;
+                padding: 20px 40px;
+                text-align: center;
+                font-size: 1.3em;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+            }}
+            
+            .status-banner .pass-rate {{
+                font-size: 1.5em;
+                font-weight: 700;
+            }}
+            
+            .report-content {{
+                padding: 40px;
+            }}
+            
+            .summary-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin-bottom: 40px;
+            }}
+            
+            .summary-card {{
+                background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+                border-radius: 12px;
+                padding: 24px;
+                text-align: center;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }}
+            
+            .summary-card:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            }}
+            
+            .summary-card .value {{
+                font-size: 2.5em;
+                font-weight: 700;
+                color: #667eea;
+                margin-bottom: 8px;
+            }}
+            
+            .summary-card .label {{
+                font-size: 0.95em;
+                color: #6b7280;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+            
+            .metric-card {{
+                background: #ffffff;
+                border-radius: 12px;
+                padding: 28px;
+                margin-bottom: 30px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e5e7eb;
+            }}
+            
+            .card-title {{
+                font-size: 1.4em;
+                font-weight: 600;
+                color: #1f2937;
+                margin-bottom: 20px;
+                padding-bottom: 12px;
+                border-bottom: 2px solid #e5e7eb;
+            }}
+            
+            .data-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }}
+            
+            .data-table thead {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: #ffffff;
+            }}
+            
+            .data-table th {{
+                padding: 14px 16px;
+                text-align: left;
+                font-weight: 600;
+                font-size: 0.95em;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+            
+            .data-table td {{
+                padding: 14px 16px;
+                border-bottom: 1px solid #e5e7eb;
+            }}
+            
+            .data-table tbody tr {{
+                transition: background-color 0.2s;
+            }}
+            
+            .data-table tbody tr:hover {{
+                background-color: #f9fafb;
+            }}
+            
+            .data-table tbody tr:last-child td {{
+                border-bottom: none;
+            }}
+            
+            .status-pass {{
+                color: #10b981;
+                font-weight: 600;
+            }}
+            
+            .status-fail {{
+                color: #f87171;
+                font-weight: 600;
+            }}
+            
+            .status-badge {{
+                display: inline-block;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                background: currentColor;
+                color: #ffffff;
+                text-align: center;
+                line-height: 24px;
+                font-size: 0.85em;
+                margin-right: 8px;
+                vertical-align: middle;
+            }}
+            
+            .status-pass .status-badge {{
+                background: #10b981;
+            }}
+            
+            .status-fail .status-badge {{
+                background: #f87171;
+            }}
+            
+            .severity-cell {{
+                font-weight: 600;
+                color: #374151;
+                text-transform: capitalize;
+            }}
+            
+            .metric-value {{
+                font-weight: 500;
+                color: #1f2937;
+            }}
+            
+            .metric-value-large {{
+                font-size: 1.1em;
+                font-weight: 600;
+                color: #1f2937;
+            }}
+            
+            .metric-threshold {{
+                font-size: 0.85em;
+                color: #6b7280;
+            }}
+            
+            .metric-threshold-large {{
+                font-size: 0.95em;
+                color: #6b7280;
+            }}
+            
+            .metric-count {{
+                text-align: center;
+                font-weight: 600;
+                color: #667eea;
+            }}
+            
+            .transform-name {{
+                font-weight: 600;
+                color: #374151;
+            }}
+            
+            .metric-name {{
+                font-weight: 600;
+                color: #374151;
+            }}
+            
+            .plots-section {{
+                margin: 40px 0;
+            }}
+            
+            .plots-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+                gap: 24px;
+                margin-top: 20px;
+            }}
+            
+            .plot-card {{
+                background: #ffffff;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e5e7eb;
+            }}
+            
+            .plot-card img {{
+                width: 100%;
+                height: auto;
+                border-radius: 8px;
+            }}
+            
+            .plot-title {{
+                font-size: 1.1em;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 12px;
+                text-align: center;
+            }}
+            
+            .table-wrapper {{
+                overflow-x: auto;
+            }}
+            
+            .overall-metrics {{
+                background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+                border-radius: 12px;
+                padding: 24px;
+                margin-top: 30px;
+            }}
+            
+            .overall-metrics h3 {{
+                font-size: 1.3em;
+                font-weight: 600;
+                color: #1f2937;
+                margin-bottom: 16px;
+            }}
+            
+            .overall-metrics pre {{
+                background: #ffffff;
+                padding: 16px;
+                border-radius: 8px;
+                overflow-x: auto;
+                font-size: 0.9em;
+                border: 1px solid #e5e7eb;
+            }}
+            
+            @media (max-width: 768px) {{
+                .report-header h1 {{
+                    font-size: 1.8em;
+                }}
+                
+                .report-content {{
+                    padding: 20px;
+                }}
+                
+                .summary-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                
+                .plots-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                
+                .data-table {{
+                    font-size: 0.9em;
+                }}
+                
+                .data-table th,
+                .data-table td {{
+                    padding: 10px 8px;
+                }}
+            }}
         </style>
     </head>
     <body>
-        <h1>Audio Fingerprint Robustness Test Report</h1>
-        <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-        
-        <h2>Executive Summary</h2>
-        <p>Total queries: {metrics['summary']['total_queries']}</p>
-        <p>Transform types tested: {', '.join(metrics['summary']['transform_types'])}</p>
-        
-        {pf_html}
-        
-        <h2>Detailed Metrics</h2>
-        {summary_html}
-        
-        {thresholds_info}
-        
-        <h2>Per-Transform Analysis</h2>
-        <table border='1'>
-            <tr>
-                <th>Transform</th>
-                <th>Count</th>
-                <th>Recall@1</th>
-                <th>Recall@5</th>
-                <th>Recall@10</th>
-                <th>Mean Similarity</th>
-                <th>Mean Latency (ms)</th>
-            </tr>
-            {''.join([
-                f'''<tr>
-                    <td>{transform_type}</td>
-                    <td>{data.get('count', 0)}</td>
-                    <td>{data.get('recall', {}).get('recall_at_1', 0.0):.3f}</td>
-                    <td>{data.get('recall', {}).get('recall_at_5', 0.0):.3f}</td>
-                    <td>{data.get('recall', {}).get('recall_at_10', 0.0):.3f}</td>
-                    <td>{data.get('similarity', {}).get('mean_similarity_correct', 0.0):.3f}</td>
-                    <td>{data.get('latency', {}).get('mean_latency_ms', 0.0):.1f}</td>
-                </tr>'''
-                for transform_type, data in metrics.get('per_transform', {}).items()
-            ])}
-        </table>
-        
-        <h2>Visualizations</h2>
-        <div class="plots">
-            {f'<img src="/api/files/plots/recall_by_severity.png?run_id={run_id}" alt="Recall by Severity" />' if run_id else '<img src="plots/recall_by_severity.png" alt="Recall by Severity" />'}
-            {f'<img src="/api/files/plots/similarity_by_severity.png?run_id={run_id}" alt="Similarity by Severity" />' if run_id else '<img src="plots/similarity_by_severity.png" alt="Similarity by Severity" />'}
-            {f'<img src="/api/files/plots/recall_by_transform.png?run_id={run_id}" alt="Recall by Transform Type" />' if run_id else '<img src="plots/recall_by_transform.png" alt="Recall by Transform Type" />'}
-            {f'<img src="/api/files/plots/latency_by_transform.png?run_id={run_id}" alt="Latency by Transform" />' if run_id else '<img src="plots/latency_by_transform.png" alt="Latency by Transform" />'}
+        <div class="report-container">
+            <div class="report-header">
+                <h1>🎵 Audio Fingerprint Robustness Report</h1>
+                <div class="subtitle">Comprehensive Analysis & Performance Metrics</div>
+                <div class="meta-info">
+                    <div class="meta-item">
+                        <span>📅</span>
+                        <span>{datetime.now().strftime('%B %d, %Y at %H:%M:%S')}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>🔬</span>
+                        <span>{metrics['summary'].get('total_queries', 0)} Total Queries</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>⚙️</span>
+                        <span>{len(metrics['summary'].get('transform_types', []))} Transform Types</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status-banner">
+                <span>Overall Status:</span>
+                <span class="pass-rate">{overall_pass_rate:.1f}%</span>
+                <span>({status_text})</span>
+            </div>
+            
+            <div class="report-content">
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="value">{metrics['summary'].get('total_queries', 0)}</div>
+                        <div class="label">Total Queries</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="value">{overall_recall.get('recall_at_1', 0.0):.1%}</div>
+                        <div class="label">Overall Recall@1</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="value">{overall_similarity.get('mean_similarity_correct', 0.0):.3f}</div>
+                        <div class="label">Mean Similarity</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="value">{overall_rank.get('mean_rank', 0.0):.1f}</div>
+                        <div class="label">Mean Rank</div>
+                    </div>
+                </div>
+                
+                <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;">📊 Pass/Fail Status</h2>
+                
+                {recall_table_html}
+                {similarity_table_html}
+                {latency_table_html}
+                
+                {per_transform_html}
+                
+                {summary_table_html}
+                
+                <div class="plots-section">
+                    <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;">📈 Visualizations</h2>
+                    <div class="plots-grid">
+                        <div class="plot-card">
+                            <div class="plot-title">Recall@K by Transform Severity</div>
+                            {f'<img src="/api/files/plots/recall_by_severity.png?run_id={run_id}" alt="Recall by Severity" />' if run_id else '<img src="plots/recall_by_severity.png" alt="Recall by Severity" />'}
+                        </div>
+                        <div class="plot-card">
+                            <div class="plot-title">Similarity Score by Severity</div>
+                            {f'<img src="/api/files/plots/similarity_by_severity.png?run_id={run_id}" alt="Similarity by Severity" />' if run_id else '<img src="plots/similarity_by_severity.png" alt="Similarity by Severity" />'}
+                        </div>
+                        <div class="plot-card">
+                            <div class="plot-title">Recall@K by Transform Type</div>
+                            {f'<img src="/api/files/plots/recall_by_transform.png?run_id={run_id}" alt="Recall by Transform Type" />' if run_id else '<img src="plots/recall_by_transform.png" alt="Recall by Transform Type" />'}
+                        </div>
+                        <div class="plot-card">
+                            <div class="plot-title">Latency by Transform Type</div>
+                            {f'<img src="/api/files/plots/latency_by_transform.png?run_id={run_id}" alt="Latency by Transform" />' if run_id else '<img src="plots/latency_by_transform.png" alt="Latency by Transform" />'}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="overall-metrics">
+                    <h3>📋 Overall Metrics</h3>
+                    <pre>{json.dumps(metrics['overall'], indent=2, default=str)}</pre>
+                </div>
+            </div>
         </div>
-        
-        <h2>Overall Metrics</h2>
-        <pre>{json.dumps(metrics['overall'], indent=2, default=str)}</pre>
     </body>
     </html>
     """

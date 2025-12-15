@@ -250,11 +250,3 @@ def my_transform(input_path, param, out_path, **kwargs):
 ### Extending Metrics
 
 Add functions in `evaluation/metrics.py` and call from `evaluation/analyze.py`.
-
-## License
-
-[Specify your license]
-
-## Contact
-
-[Your contact information]

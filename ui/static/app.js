@@ -3350,19 +3350,30 @@ function updateProgressIndicator(type, percentage, status) {
     const statusEl = document.getElementById(`${type}Status`);
     const circleEl = document.querySelector(`.progress-circle-fill.${type}`);
     
-    if (percentageEl) percentageEl.textContent = `${Math.round(percentage)}%`;
-    if (statusEl) statusEl.textContent = status;
+    // Clamp percentage to valid range
+    const clampedPercentage = Math.max(0, Math.min(100, percentage));
+    
+    if (percentageEl) percentageEl.textContent = `${Math.round(clampedPercentage)}%`;
+    if (statusEl) {
+        // Truncate long status text if needed
+        const maxStatusLength = 30;
+        const displayStatus = status.length > maxStatusLength 
+            ? status.substring(0, maxStatusLength - 3) + '...' 
+            : status;
+        statusEl.textContent = displayStatus;
+        statusEl.title = status; // Show full text on hover
+    }
     
     if (circleEl) {
         const radius = 54;
         const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (percentage / 100) * circumference;
+        const offset = circumference - (clampedPercentage / 100) * circumference;
         circleEl.style.strokeDasharray = `${circumference} ${circumference}`;
         circleEl.style.strokeDashoffset = offset;
         
         // Update color based on status
         circleEl.classList.remove('pending', 'error');
-        if (percentage === 0) {
+        if (clampedPercentage === 0) {
             circleEl.classList.add('pending');
         } else if (status.toLowerCase().includes('failed') || status.toLowerCase().includes('error')) {
             circleEl.classList.add('error');
@@ -3371,9 +3382,9 @@ function updateProgressIndicator(type, percentage, status) {
     
     // Update state
     if (type === 'overall') {
-        progressModalState.overallProgress = percentage;
+        progressModalState.overallProgress = clampedPercentage;
     } else if (type === 'step') {
-        progressModalState.stepProgress = percentage;
+        progressModalState.stepProgress = clampedPercentage;
     }
 }
 
@@ -3418,6 +3429,7 @@ function parseLogForProgress(logMessage, currentActivePhase) {
     if (!logMessage) return null;
     
     const message = logMessage.toLowerCase();
+    const originalMessage = logMessage; // Keep original for parsing
     
     // Detect which phase is running
     let detectedPhase = null;
@@ -3429,7 +3441,42 @@ function parseLogForProgress(logMessage, currentActivePhase) {
         detectedPhase = currentActivePhase;
     }
     
+    // Parse tqdm progress bar format: "desc: 45%|████▌     | 23/50 [00:30<00:35, 1.23s/it]"
+    // Or simpler: "desc: 45%|████▌     | 23/50"
+    const tqdmPattern = /(\d+)%\s*\|\s*[█▌▎▏\s]+\|\s*(\d+)\/(\d+)/;
+    const tqdmMatch = originalMessage.match(tqdmPattern);
+    
+    let extractedProgress = null;
+    let progressText = '';
+    
+    if (tqdmMatch) {
+        const percentage = parseInt(tqdmMatch[1]);
+        const current = parseInt(tqdmMatch[2]);
+        const total = parseInt(tqdmMatch[3]);
+        extractedProgress = percentage;
+        progressText = `${current}/${total}`;
+    } else {
+        // Try to parse other progress formats
+        // Pattern: "Processing file 3 of 10" or "Step 5 of 7"
+        const filePattern = /(\d+)\s*(?:of|/)\s*(\d+)/i;
+        const fileMatch = originalMessage.match(filePattern);
+        if (fileMatch) {
+            const current = parseInt(fileMatch[1]);
+            const total = parseInt(fileMatch[2]);
+            extractedProgress = Math.round((current / total) * 100);
+            progressText = `${current}/${total}`;
+        }
+        
+        // Pattern: "X%" standalone
+        const percentPattern = /(\d+)%/;
+        const percentMatch = originalMessage.match(percentPattern);
+        if (percentMatch && !extractedProgress) {
+            extractedProgress = parseInt(percentMatch[1]);
+        }
+    }
+    
     // Check for step markers
+    let matchedStep = null;
     for (let i = 0; i < STEP_DEFINITIONS.length; i++) {
         const stepDef = STEP_DEFINITIONS[i];
         const stepLower = stepDef.text.toLowerCase();
@@ -3437,11 +3484,49 @@ function parseLogForProgress(logMessage, currentActivePhase) {
         // Check if this step is mentioned in the log
         if (message.includes(stepLower) || 
             stepDef.keywords.some(keyword => message.includes(keyword))) {
-            return {
+            matchedStep = {
                 phase: detectedPhase,
                 stepIndex: stepDef.stepIndex,
                 stepText: stepDef.text,
-                stepProgress: 0 // Will be updated based on time/activity
+                stepProgress: extractedProgress !== null ? extractedProgress : 0,
+                progressText: progressText
+            };
+            break;
+        }
+    }
+    
+    // If we found a step match, return it with progress
+    if (matchedStep) {
+        return matchedStep;
+    }
+    
+    // If we extracted progress but didn't match a step, try to infer step from context
+    if (extractedProgress !== null) {
+        // Try to infer step from log content
+        let inferredStep = null;
+        if (message.includes('ingest') || message.includes('processing original')) {
+            inferredStep = STEP_DEFINITIONS[0]; // Step 1: Ingesting
+        } else if (message.includes('transform') || message.includes('generating')) {
+            inferredStep = STEP_DEFINITIONS[1]; // Step 2: Generating transforms
+        } else if (message.includes('index') || message.includes('faiss') || message.includes('building') || message.includes('embedding')) {
+            inferredStep = STEP_DEFINITIONS[2]; // Step 3: Building FAISS index
+        } else if (message.includes('query') || message.includes('running queries')) {
+            inferredStep = STEP_DEFINITIONS[3]; // Step 4: Running queries
+        } else if (message.includes('analyze') || message.includes('analyzing')) {
+            inferredStep = STEP_DEFINITIONS[4]; // Step 5: Analyzing results
+        } else if (message.includes('failure') || message.includes('capturing')) {
+            inferredStep = STEP_DEFINITIONS[5]; // Step 6: Capturing failures
+        } else if (message.includes('report') || message.includes('generating report')) {
+            inferredStep = STEP_DEFINITIONS[6]; // Step 7: Generating report
+        }
+        
+        if (inferredStep) {
+            return {
+                phase: detectedPhase,
+                stepIndex: inferredStep.stepIndex,
+                stepText: inferredStep.text,
+                stepProgress: extractedProgress,
+                progressText: progressText
             };
         }
     }
@@ -3454,7 +3539,8 @@ function parseLogForProgress(logMessage, currentActivePhase) {
             stepIndex: STEP_DEFINITIONS.length - 1,
             stepText: 'Complete',
             stepProgress: 100,
-            completed: true
+            completed: true,
+            progressText: '100%'
         };
     }
     
@@ -3602,6 +3688,9 @@ async function runPhaseSuite(phase = 'both') {
                         // Process new logs
                         const newLogs = logData.logs.slice(lastLogCount);
                         if (newLogs.length > 0) {
+                            // Track progress even if no step marker found (for continuous updates)
+                            let foundProgressInBatch = false;
+                            
                             newLogs.forEach(log => {
                                 if (log.type === 'stdout' || log.type === 'stderr') {
                                     console.log(`[${commandId}] ${log.message}`);
@@ -3609,6 +3698,7 @@ async function runPhaseSuite(phase = 'both') {
                                     // Parse log for progress
                                     const progressInfo = parseLogForProgress(log.message, currentActivePhase);
                                     if (progressInfo) {
+                                        foundProgressInBatch = true;
                                         if (progressInfo.error) {
                                             updateProgressIndicator('overall', progressModalState.overallProgress, 'Error');
                                             updateProgressIndicator('step', progressModalState.stepProgress, 'Error');
@@ -3625,12 +3715,22 @@ async function runPhaseSuite(phase = 'both') {
                                                 progressModalState.stepStartTime = Date.now();
                                             }
                                             
-                                            // Estimate step progress based on time (each step estimated to take ~30 seconds)
-                                            // This is a rough estimate - in reality, steps take different amounts of time
-                                            const estimatedStepDuration = 30000; // 30 seconds per step
+                                            // Use extracted progress from logs if available, otherwise estimate based on time
                                             let stepProgress = progressInfo.stepProgress !== undefined ? progressInfo.stepProgress : 0;
                                             
+                                            // If no progress extracted from log, use time-based estimation as fallback
                                             if (stepProgress === 0 && progressModalState.stepStartTime) {
+                                                // Estimate step duration based on step type
+                                                const stepDurations = {
+                                                    0: 60000,  // Ingesting: ~60s
+                                                    1: 120000, // Generating transforms: ~120s
+                                                    2: 180000, // Building index: ~180s
+                                                    3: 150000, // Running queries: ~150s
+                                                    4: 30000,  // Analyzing: ~30s
+                                                    5: 20000,  // Capturing failures: ~20s
+                                                    6: 15000   // Generating report: ~15s
+                                                };
+                                                const estimatedStepDuration = stepDurations[progressModalState.currentStepIndex] || 60000;
                                                 const timeInStep = Date.now() - progressModalState.stepStartTime;
                                                 stepProgress = Math.min((timeInStep / estimatedStepDuration) * 100, 95); // Cap at 95% until completion
                                             }
@@ -3645,10 +3745,18 @@ async function runPhaseSuite(phase = 'both') {
                                             );
                                             progressModalState.overallProgress = overallProgress;
                                             
+                                            // Build step display text with progress details
+                                            let stepDisplayText = progressInfo.stepText;
+                                            if (progressInfo.progressText) {
+                                                stepDisplayText = `${progressInfo.stepText}: ${progressInfo.progressText}`;
+                                            } else if (stepProgress > 0) {
+                                                stepDisplayText = `${progressInfo.stepText}: ${Math.round(stepProgress)}%`;
+                                            }
+                                            
                                             // Update UI
                                             updateProgressIndicator('overall', overallProgress, progressInfo.completed ? 'Complete' : `${Math.round(overallProgress)}%`);
-                                            updateProgressIndicator('step', stepProgress, progressInfo.stepText);
-                                            updateCurrentStep(progressInfo.stepText);
+                                            updateProgressIndicator('step', stepProgress, stepDisplayText);
+                                            updateCurrentStep(stepDisplayText);
                                             
                                             // If phase1 completes and we're running both, switch to phase2
                                             if (phase === 'both' && progressInfo.phase === 'phase1' && progressInfo.completed) {
@@ -3662,12 +3770,27 @@ async function runPhaseSuite(phase = 'both') {
                                             // If step completed, set to 100%
                                             if (progressInfo.completed) {
                                                 progressModalState.stepProgress = 100;
-                                                updateProgressIndicator('step', 100, 'Complete');
+                                                updateProgressIndicator('step', 100, `${progressInfo.stepText}: Complete`);
                                             }
                                         }
                                     }
                                 }
                             });
+                            
+                            // If we found progress in this batch, update UI even if step didn't change
+                            if (foundProgressInBatch && progressModalState.currentStepIndex !== undefined) {
+                                // Recalculate overall progress based on current step progress
+                                const overallProgress = calculateOverallProgress(
+                                    currentActivePhase,
+                                    progressModalState.currentStepIndex,
+                                    progressModalState.stepProgress
+                                );
+                                progressModalState.overallProgress = overallProgress;
+                                
+                                // Update overall progress indicator
+                                updateProgressIndicator('overall', overallProgress, `${Math.round(overallProgress)}%`);
+                            }
+                            
                             lastLogCount = logData.logs.length;
                         }
                         
