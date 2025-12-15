@@ -840,6 +840,15 @@ function updateTransformedPlayer(filePath) {
     
     player.onloadeddata = () => {
         console.log('[updateTransformedPlayer] Audio loaded successfully:', audioUrl);
+        console.log('[updateTransformedPlayer] Audio duration:', player.duration);
+    };
+    
+    player.oncanplay = () => {
+        console.log('[updateTransformedPlayer] Audio can play:', audioUrl);
+    };
+    
+    player.onloadstart = () => {
+        console.log('[updateTransformedPlayer] Audio loading started:', audioUrl);
     };
     
     player.load();

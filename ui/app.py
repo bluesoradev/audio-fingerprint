@@ -900,7 +900,9 @@ async def manipulate_eq(
         if output_name:
             out_file = output_path / output_name
         else:
-            out_file = output_path / f"{input_file.stem}_eq_{gain_db:+d}db.wav"
+            # Convert gain_db to int for filename, or use float format
+            gain_str = f"{int(gain_db):+d}" if gain_db == int(gain_db) else f"{gain_db:+.1f}"
+            out_file = output_path / f"{input_file.stem}_eq_{gain_str}db.wav"
         
         logger.info(f"[EQ Transform API] Applying EQ: input={input_file}, gain_db={gain_db}, output={out_file}")
         
