@@ -18,6 +18,23 @@ document.addEventListener('DOMContentLoaded', () => {
         testBtn.disabled = !(hasOriginal && hasTransformed);
     }
     
+    // Initialize progress indicators
+    const radius = 54;
+    const circumference = 2 * Math.PI * radius;
+    const phase1Circle = document.querySelector('.progress-circle-fill.phase1');
+    const phase2Circle = document.querySelector('.progress-circle-fill.phase2');
+    
+    if (phase1Circle) {
+        phase1Circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        phase1Circle.style.strokeDashoffset = circumference;
+        phase1Circle.classList.add('pending');
+    }
+    if (phase2Circle) {
+        phase2Circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        phase2Circle.style.strokeDashoffset = circumference;
+        phase2Circle.classList.add('pending');
+    }
+    
     checkStatus();
     loadDashboard();
     loadDeliverablesAudioFiles(); // Load deliverables audio files on page load
@@ -129,7 +146,10 @@ async function loadDashboard() {
                         <td>${run.id}</td>
                         <td><span class="badge badge-${run.has_metrics ? 'success' : 'info'}">${run.has_metrics ? 'Complete' : 'In Progress'}</span></td>
                         <td>${date}</td>
-                        <td><button class="btn" onclick="viewRun('${run.id}')">View</button></td>
+                        <td>
+                            <button class="btn" onclick="viewRun('${run.id}')" style="margin-right: 8px;">View</button>
+                            <button class="btn" onclick="deleteReport('${run.id}')" style="background: #f87171; color: #ffffff;" title="Delete Report">🗑️ Delete</button>
+                        </td>
                     </tr>
                 `;
             });
@@ -2520,8 +2540,6 @@ async function loadDeliverables() {
         const response = await fetch(`${API_BASE}/runs`);
         const result = await response.json();
         
-        const phase1Card = document.getElementById('phase1ReportCard');
-        const phase2Card = document.getElementById('phase2ReportCard');
         const deliverablesListDiv = document.getElementById('deliverablesList');
         
         if (result.runs && result.runs.length > 0) {
@@ -2553,72 +2571,38 @@ async function loadDeliverables() {
             const sortByTime = (a, b) => (b.timestamp || 0) - (a.timestamp || 0);
             phase1Runs.sort(sortByTime);
             phase2Runs.sort(sortByTime);
-            otherRuns.sort(sortByTime);
             
-            // Update Phase 1 Card
-            if (phase1Card) {
-                const mostRecentPhase1 = phase1Runs.length > 0 ? phase1Runs[0] : null;
-                if (mostRecentPhase1) {
-                    const date = new Date(mostRecentPhase1.timestamp * 1000);
-                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    const reportPath = `${mostRecentPhase1.path}/final_report/report.html`;
-                    const hasReport = mostRecentPhase1.has_summary || mostRecentPhase1.has_metrics;
-                    
-                    phase1Card.innerHTML = `
-                        <div style="font-size: 48px; margin-bottom: 10px;">${hasReport ? '✅' : '⏳'}</div>
-                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${mostRecentPhase1.id}</p>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${dateStr}</p>
-                        ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${mostRecentPhase1.id}')" style="margin-top: 10px; font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
-                    `;
-                } else {
-                    phase1Card.innerHTML = `
-                        <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 1 reports found.</p>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 1 tests to generate reports.</p>
-                    `;
-                }
-            }
-            
-            // Update Phase 2 Card
-            if (phase2Card) {
-                const mostRecentPhase2 = phase2Runs.length > 0 ? phase2Runs[0] : null;
-                if (mostRecentPhase2) {
-                    const date = new Date(mostRecentPhase2.timestamp * 1000);
-                    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    const reportPath = `${mostRecentPhase2.path}/final_report/report.html`;
-                    const hasReport = mostRecentPhase2.has_summary || mostRecentPhase2.has_metrics;
-                    
-                    phase2Card.innerHTML = `
-                        <div style="font-size: 48px; margin-bottom: 10px;">${hasReport ? '✅' : '⏳'}</div>
-                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${mostRecentPhase2.id}</p>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">${dateStr}</p>
-                        ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${mostRecentPhase2.id}')" style="margin-top: 10px; font-size: 12px; padding: 6px 12px;">View Report</button>` : ''}
-                    `;
-                } else {
-                    phase2Card.innerHTML = `
-                        <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                        <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 2 reports found.</p>
-                        <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 2 tests to generate reports.</p>
-                    `;
-                }
-            }
-            
-            // Update Other Reports List
+            // Only show the most recent Phase 1 and Phase 2 reports
             if (deliverablesListDiv) {
-                const combinedOthers = [...otherRuns, ...phase1Runs.slice(1), ...phase2Runs.slice(1)];
-                combinedOthers.sort(sortByTime);
+                const latestReports = [];
                 
-                if (combinedOthers.length > 0) {
+                // Add most recent Phase 1 report if available
+                if (phase1Runs.length > 0) {
+                    latestReports.push(phase1Runs[0]);
+                }
+                
+                // Add most recent Phase 2 report if available
+                if (phase2Runs.length > 0) {
+                    latestReports.push(phase2Runs[0]);
+                }
+                
+                if (latestReports.length > 0) {
                     let html = '';
-                    combinedOthers.forEach(run => {
+                    latestReports.forEach(run => {
                         const date = run.timestamp ? new Date(run.timestamp * 1000) : null;
                         const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pending';
                         const reportPath = `${run.path}/final_report/report.html`;
                         const hasReport = run.has_summary || run.has_metrics;
+                        
+                        // Determine phase label
+                        const runPath = (run.path || '').toLowerCase();
+                        const runId = (run.id || '').toLowerCase();
+                        const runPhase = (run.phase || run.summary?.phase || '').toLowerCase();
+                        const isPhase1 = runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') ||
+                                         runPath.includes('phase_1') || runId.includes('phase_1');
+                        const isPhase2 = runPhase === 'phase2' || runPath.includes('phase2') || runId.includes('phase2') ||
+                                         runPath.includes('phase_2') || runId.includes('phase_2');
+                        const phaseLabel = isPhase1 ? 'Phase 1' : (isPhase2 ? 'Phase 2' : 'Report');
                         
                         // Calculate size (placeholder - would need actual file size)
                         const sizeStr = '1.2 MB'; // Placeholder
@@ -2626,63 +2610,34 @@ async function loadDeliverables() {
                         html += `
                             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: #2d2d2d; border-radius: 6px; border: 1px solid #3d3d3d;">
                                 <div style="flex: 1;">
-                                    <strong style="color: #ffffff; font-size: 13px;">${run.id}</strong>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: ${isPhase1 ? '#427eea' : isPhase2 ? '#10b981' : '#9ca3af'}; font-size: 11px; font-weight: 600;">${phaseLabel}</span>
+                                        <strong style="color: #ffffff; font-size: 13px;">${run.id}</strong>
+                                    </div>
                                     <p style="color: #9ca3af; font-size: 11px; margin: 3px 0 0 0;">${dateStr} | ${sizeStr}</p>
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #3d3d3d;">Details</button>
                                     ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #427eea; color: #ffffff;" title="Download">⬇️</button>` : ''}
+                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 11px; padding: 5px 10px; background: #f87171; color: #ffffff;" title="Delete Report">🗑️</button>
                                 </div>
                             </div>
                         `;
                     });
                     deliverablesListDiv.innerHTML = html;
                 } else {
-                    deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No other reports found.</p>';
+                    deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No Phase 1 or Phase 2 reports found. Generate reports using the "Full Test Suites" section above.</p>';
                 }
             }
         } else {
             // No reports found
-            if (phase1Card) {
-                phase1Card.innerHTML = `
-                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                    <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
-                    <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 1 reports found.</p>
-                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 1 tests to generate reports.</p>
-                `;
-            }
-            if (phase2Card) {
-                phase2Card.innerHTML = `
-                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                    <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
-                    <p style="color: #9ca3af; font-size: 12px; margin: 5px 0;">No Phase 2 reports found.</p>
-                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">Run Phase 2 tests to generate reports.</p>
-                `;
-            }
             if (deliverablesListDiv) {
-                deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No other reports found.</p>';
+                deliverablesListDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px;">No reports found.</p>';
             }
         }
     } catch (error) {
         console.error('Failed to load deliverables:', error);
-        const phase1Card = document.getElementById('phase1ReportCard');
-        const phase2Card = document.getElementById('phase2ReportCard');
         const deliverablesListDiv = document.getElementById('deliverablesList');
-        
-        if (phase1Card) {
-            phase1Card.innerHTML = `
-                <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 1: Core Manipulation</h4>
-                <p style="color: #f87171; font-size: 12px; margin: 5px 0;">Error loading reports.</p>
-            `;
-        }
-        if (phase2Card) {
-            phase2Card.innerHTML = `
-                <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                <h4 style="color: #ffffff; margin-bottom: 10px;">Phase 2: Structural Manipulation</h4>
-                <p style="color: #f87171; font-size: 12px; margin: 5px 0;">Error loading reports.</p>
-            `;
-        }
         if (deliverablesListDiv) {
             deliverablesListDiv.innerHTML = `<p style="color: #f87171; font-size: 12px;">Error loading reports: ${error.message}</p>`;
         }
@@ -2860,8 +2815,11 @@ async function deleteReport(runId) {
             throw new Error(msg);
         }
         
-        // Reload deliverables list
-        setTimeout(() => loadDeliverables(), 300);
+        // Reload deliverables list and dashboard
+        setTimeout(() => {
+            loadDeliverables();
+            loadDashboard();
+        }, 300);
     } catch (error) {
         console.error('Failed to delete report:', error);
         showError('Failed to delete report: ' + error.message);
@@ -3118,36 +3076,7 @@ function updateDeliverablesTransformState() {
     if (document.getElementById('deliverablesCropEnabled')?.checked) enabledTransforms.push('Crop');
     
     const count = enabledTransforms.length;
-    const countElement = document.getElementById('deliverablesTransformCount');
-    const applyBtn = document.getElementById('deliverablesApplyAllBtn');
-    
-    if (countElement) {
-        if (count > 0) {
-            countElement.textContent = `${count} transformation${count !== 1 ? 's' : ''} selected: ${enabledTransforms.join(', ')}`;
-        } else {
-            countElement.textContent = '0 transformations selected';
-        }
-    }
-    
-    if (applyBtn) {
-        // Enable button if file is selected (transformations can be added/removed)
-        const shouldDisable = !deliverablesSelectedAudioFile;
-        applyBtn.disabled = shouldDisable;
-        
-        // Update button text to indicate if transformations are selected
-        if (deliverablesSelectedAudioFile && count === 0) {
-            applyBtn.textContent = '⚠️ Please Enable At Least One Transformation (Quick Apply)';
-            applyBtn.style.opacity = '0.7';
-        } else if (deliverablesSelectedAudioFile && count > 0) {
-            applyBtn.textContent = '⚡ Quick Apply (Single Transform Run)';
-            applyBtn.style.opacity = '1';
-        } else {
-            applyBtn.textContent = '⚡ Quick Apply (Single Transform Run)';
-            applyBtn.style.opacity = '1';
-        }
-    } else {
-        console.error('[updateDeliverablesTransformState] Apply button not found!');
-    }
+    // Transform count and apply button removed - no longer needed
 }
 
 // Apply all selected transformations (quick single run, no full reports)
@@ -3288,13 +3217,6 @@ async function applyAllDeliverablesTransforms() {
         return;
     }
     
-    // Disable button and show progress
-    const applyBtn = document.getElementById('deliverablesApplyAllBtn');
-    if (applyBtn) {
-        applyBtn.disabled = true;
-        applyBtn.textContent = '⏳ Processing quick apply...';
-    }
-    
     try {
         // Call backend endpoint to apply all transforms (no full reports)
         const formData = new FormData();
@@ -3340,11 +3262,230 @@ async function applyAllDeliverablesTransforms() {
     } catch (error) {
         showError('Failed to apply transformations: ' + error.message);
         console.error('Deliverables transform error:', error);
-    } finally {
-        if (applyBtn) {
-            applyBtn.disabled = false;
-            applyBtn.textContent = '⚡ Quick Apply (Single Transform Run)';
+    }
+}
+
+// Progress Modal Management
+let progressModalState = {
+    phase: 'both',
+    commandId: null,
+    startTime: null,
+    phase1Progress: 0,
+    phase2Progress: 0,
+    currentStep: 'Initializing...',
+    isCancelled: false,
+    pollInterval: null
+};
+
+// Step mapping for progress calculation
+const STEP_MAPPING = {
+    'Step 1: Ingesting': 15,
+    'Step 2: Generating transforms': 30,
+    'Step 3: Building FAISS index': 50,
+    'Step 4: Running queries': 70,
+    'Step 5: Analyzing results': 85,
+    'Step 6: Capturing failures': 95,
+    'Step 7: Generating report': 100
+};
+
+function showProgressModal(phase) {
+    const modal = document.getElementById('progressModal');
+    if (!modal) return;
+    
+    progressModalState.phase = phase;
+    progressModalState.startTime = Date.now();
+    progressModalState.phase1Progress = 0;
+    progressModalState.phase2Progress = 0;
+    progressModalState.currentStep = 'Initializing...';
+    progressModalState.isCancelled = false;
+    
+    // Reset UI
+    updateProgressIndicator('phase1', 0, 'Waiting...');
+    updateProgressIndicator('phase2', 0, 'Waiting...');
+    updateCurrentStep('Initializing...');
+    updateTimeInfo();
+    
+    // Disable close button
+    const closeBtn = document.getElementById('progressModalClose');
+    if (closeBtn) closeBtn.disabled = true;
+    
+    modal.style.display = 'flex';
+    
+    // Start time update interval
+    if (progressModalState.timeInterval) {
+        clearInterval(progressModalState.timeInterval);
+    }
+    progressModalState.timeInterval = setInterval(updateTimeInfo, 1000);
+}
+
+function closeProgressModal() {
+    const modal = document.getElementById('progressModal');
+    if (!modal) return;
+    
+    modal.style.display = 'none';
+    
+    // Clear intervals
+    if (progressModalState.pollInterval) {
+        clearInterval(progressModalState.pollInterval);
+        progressModalState.pollInterval = null;
+    }
+    if (progressModalState.timeInterval) {
+        clearInterval(progressModalState.timeInterval);
+        progressModalState.timeInterval = null;
+    }
+    
+    // Re-enable close button
+    const closeBtn = document.getElementById('progressModalClose');
+    if (closeBtn) closeBtn.disabled = false;
+}
+
+function updateProgressIndicator(phase, percentage, status) {
+    const percentageEl = document.getElementById(`${phase}Percentage`);
+    const statusEl = document.getElementById(`${phase}Status`);
+    const circleEl = document.querySelector(`.progress-circle-fill.${phase}`);
+    
+    if (percentageEl) percentageEl.textContent = `${Math.round(percentage)}%`;
+    if (statusEl) statusEl.textContent = status;
+    
+    if (circleEl) {
+        const radius = 54;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (percentage / 100) * circumference;
+        circleEl.style.strokeDasharray = `${circumference} ${circumference}`;
+        circleEl.style.strokeDashoffset = offset;
+        
+        // Update color based on status
+        circleEl.classList.remove('pending', 'error');
+        if (percentage === 0) {
+            circleEl.classList.add('pending');
+        } else if (status.toLowerCase().includes('failed') || status.toLowerCase().includes('error')) {
+            circleEl.classList.add('error');
         }
+    }
+    
+    // Update state
+    if (phase === 'phase1') {
+        progressModalState.phase1Progress = percentage;
+    } else if (phase === 'phase2') {
+        progressModalState.phase2Progress = percentage;
+    }
+}
+
+function updateCurrentStep(step) {
+    const stepEl = document.getElementById('currentStep');
+    if (stepEl) {
+        stepEl.textContent = `Current Step: ${step}`;
+        progressModalState.currentStep = step;
+    }
+}
+
+function updateTimeInfo() {
+    if (!progressModalState.startTime) return;
+    
+    const elapsed = Date.now() - progressModalState.startTime;
+    const seconds = Math.floor(elapsed / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    const h = String(hours).padStart(2, '0');
+    const m = String(minutes % 60).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    
+    const timeEl = document.getElementById('timeInfo');
+    if (timeEl) {
+        timeEl.textContent = `Time elapsed: ${h}:${m}:${s}`;
+    }
+}
+
+function parseLogForProgress(logMessage, currentActivePhase) {
+    if (!logMessage) return null;
+    
+    const message = logMessage.toLowerCase();
+    
+    // Detect which phase is running based on log content and current active phase
+    let detectedPhase = null;
+    
+    // Check for explicit phase markers in log
+    if (message.includes('phase1') || message.includes('phase_1') || message.includes('test_matrix_phase1')) {
+        detectedPhase = 'phase1';
+    } else if (message.includes('phase2') || message.includes('phase_2') || message.includes('test_matrix_phase2')) {
+        detectedPhase = 'phase2';
+    } else {
+        // Use current active phase if no explicit marker
+        detectedPhase = currentActivePhase;
+    }
+    
+    // Check for step markers (case-insensitive partial match)
+    for (const [stepText, percentage] of Object.entries(STEP_MAPPING)) {
+        const stepLower = stepText.toLowerCase();
+        // Match various formats: "Step 1:", "Step 1", "ingesting", etc.
+        if (message.includes(stepLower) || 
+            message.includes(stepLower.replace('step ', '').replace(':', '')) ||
+            (stepLower.includes('ingesting') && message.includes('ingest')) ||
+            (stepLower.includes('generating transforms') && message.includes('transform')) ||
+            (stepLower.includes('building faiss') && message.includes('index')) ||
+            (stepLower.includes('running queries') && message.includes('query')) ||
+            (stepLower.includes('analyzing results') && message.includes('analyze')) ||
+            (stepLower.includes('capturing failures') && message.includes('failure')) ||
+            (stepLower.includes('generating report') && message.includes('report'))) {
+            return {
+                phase: detectedPhase,
+                percentage: percentage,
+                step: stepText
+            };
+        }
+    }
+    
+    // Check for completion markers
+    if (message.includes('completed') || message.includes('finished') || 
+        message.includes('experiment run:') || message.includes('report generated')) {
+        return {
+            phase: detectedPhase,
+            percentage: 100,
+            step: 'Complete'
+        };
+    }
+    
+    // Check for errors
+    if (message.includes('error') || message.includes('failed') || 
+        message.includes('exception') || message.includes('traceback')) {
+        return {
+            phase: detectedPhase,
+            percentage: null,
+            step: 'Error',
+            error: true
+        };
+    }
+    
+    return null;
+}
+
+async function cancelProgress() {
+    if (!progressModalState.commandId) return;
+    
+    if (!confirm('Are you sure you want to cancel the report generation?')) {
+        return;
+    }
+    
+    try {
+        const resp = await fetch(`${API_BASE}/process/${progressModalState.commandId}/cancel`, {
+            method: 'POST'
+        });
+        
+        if (resp.ok) {
+            progressModalState.isCancelled = true;
+            updateCurrentStep('Cancelling...');
+            showCompletionAlert('Report generation cancelled', 'info');
+            setTimeout(() => {
+                closeProgressModal();
+                loadDeliverables();
+                loadDashboard();
+            }, 2000);
+        } else {
+            showError('Failed to cancel process');
+        }
+    } catch (error) {
+        showError('Error cancelling process: ' + error.message);
     }
 }
 
@@ -3357,7 +3498,8 @@ async function runPhaseSuite(phase = 'both') {
             phase2: 'Generating Phase 2…'
         }[phase] || 'Generating…';
 
-        showCompletionAlert(btnText, 'info');
+        // Show progress modal
+        showProgressModal(phase);
 
         const resp = await fetch(`${API_BASE}/process/generate-deliverables`, {
             method: 'POST',
@@ -3378,26 +3520,52 @@ async function runPhaseSuite(phase = 'both') {
                 const text = await resp.text();
                 msg = `${msg}: ${text.substring(0, 200)}`;
             }
+            closeProgressModal();
             throw new Error(msg);
         }
 
         const result = await resp.json();
         const commandId = result.command_id;
+        progressModalState.commandId = commandId;
 
         // Poll for logs and show progress
         let lastLogCount = 0;
+        let currentActivePhase = phase === 'both' ? 'phase1' : phase;
+        
         const pollLogs = async () => {
+            if (progressModalState.isCancelled) {
+                return;
+            }
+            
             try {
                 const logResp = await fetch(`${API_BASE}/process/${commandId}/logs`);
                 if (logResp.ok) {
                     const logData = await logResp.json();
                     if (logData.logs && logData.logs.length > 0) {
-                        // Show new logs since last poll
+                        // Process new logs
                         const newLogs = logData.logs.slice(lastLogCount);
                         if (newLogs.length > 0) {
                             newLogs.forEach(log => {
                                 if (log.type === 'stdout' || log.type === 'stderr') {
                                     console.log(`[${commandId}] ${log.message}`);
+                                    
+                                    // Parse log for progress
+                                    const progressInfo = parseLogForProgress(log.message, currentActivePhase);
+                                    if (progressInfo && progressInfo.phase) {
+                                        if (progressInfo.error) {
+                                            updateProgressIndicator(progressInfo.phase, progressModalState[`${progressInfo.phase}Progress`], 'Error');
+                                            updateCurrentStep('Error occurred');
+                                        } else {
+                                            updateProgressIndicator(progressInfo.phase, progressInfo.percentage, progressInfo.step);
+                                            updateCurrentStep(progressInfo.step);
+                                            
+                                            // If phase1 completes and we're running both, switch to phase2
+                                            if (phase === 'both' && progressInfo.phase === 'phase1' && progressInfo.percentage === 100) {
+                                                currentActivePhase = 'phase2';
+                                                updateProgressIndicator('phase2', 0, 'Starting...');
+                                            }
+                                        }
+                                    }
                                 }
                             });
                             lastLogCount = logData.logs.length;
@@ -3409,8 +3577,6 @@ async function runPhaseSuite(phase = 'both') {
                         
                         if (completed || failed) {
                             const exitCodeLog = logData.logs.find(l => l.type === 'exit_code');
-                            // Convert exit code to number: 0 = success, non-zero = failure
-                            // Backend sends exit_code as INTEGER, not string
                             const exitCodeNum = exitCodeLog ? Number(exitCodeLog.message) : -1;
                             
                             if (failed || exitCodeNum !== 0) {
@@ -3421,11 +3587,41 @@ async function runPhaseSuite(phase = 'both') {
                                 const errorMsg = errorLogs.length > 0 
                                     ? errorLogs.map(l => l.message).join('; ')
                                     : `Process exited with code ${exitCodeNum}`;
-                                throw new Error(`Process failed: ${errorMsg}`);
+                                
+                                // Update progress to show error
+                                if (currentActivePhase === 'phase1' || phase === 'both') {
+                                    updateProgressIndicator('phase1', progressModalState.phase1Progress, 'Failed');
+                                }
+                                if (currentActivePhase === 'phase2' || phase === 'both') {
+                                    updateProgressIndicator('phase2', progressModalState.phase2Progress, 'Failed');
+                                }
+                                updateCurrentStep('Process failed');
+                                
+                                setTimeout(() => {
+                                    closeProgressModal();
+                                    showError('Failed to run suite: ' + errorMsg);
+                                }, 3000);
+                                return;
                             }
-                            // Success - reload deliverables
-                            showCompletionAlert(`${btnText} completed successfully!`, 'success');
+                            
+                            // Success - update progress to 100%
+                            if (phase === 'both') {
+                                updateProgressIndicator('phase1', 100, 'Complete ✓');
+                                updateProgressIndicator('phase2', 100, 'Complete ✓');
+                            } else if (phase === 'phase1') {
+                                updateProgressIndicator('phase1', 100, 'Complete ✓');
+                            } else if (phase === 'phase2') {
+                                updateProgressIndicator('phase2', 100, 'Complete ✓');
+                            }
+                            updateCurrentStep('Reports generated successfully!');
+                            
+                            // Re-enable close button
+                            const closeBtn = document.getElementById('progressModalClose');
+                            if (closeBtn) closeBtn.disabled = false;
+                            
                             setTimeout(() => {
+                                closeProgressModal();
+                                showCompletionAlert(`${btnText} completed successfully!`, 'success');
                                 loadDeliverables();
                                 loadDashboard();
                             }, 2000);
@@ -3433,23 +3629,26 @@ async function runPhaseSuite(phase = 'both') {
                         }
                     }
                 }
-                // Continue polling every 2 seconds
-                setTimeout(pollLogs, 2000);
+                
+                // Continue polling every 1-2 seconds
+                progressModalState.pollInterval = setTimeout(pollLogs, 1500);
             } catch (error) {
                 if (error.message && error.message.includes('Process failed')) {
+                    closeProgressModal();
                     showError('Failed to run suite: ' + error.message);
                 } else {
                     console.error('Error polling logs:', error);
                     // Continue polling even on fetch errors (process might still be running)
-                    setTimeout(pollLogs, 2000);
+                    progressModalState.pollInterval = setTimeout(pollLogs, 2000);
                 }
             }
         };
         
         // Start polling after 1 second
-        setTimeout(pollLogs, 1000);
+        progressModalState.pollInterval = setTimeout(pollLogs, 1000);
 
     } catch (e) {
+        closeProgressModal();
         showError(`Failed to run suite: ${e.message}`);
         console.error('Suite run error:', e);
     }

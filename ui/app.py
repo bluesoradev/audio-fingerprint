@@ -649,27 +649,41 @@ async def list_manifests():
 @app.get("/api/files/audio")
 async def list_audio_files(directory: str = "originals"):
     """List audio files in a directory."""
-    audio_dir = DATA_DIR / directory
-    files = []
-    
-    if audio_dir.exists():
-        for file in audio_dir.glob("*.wav"):
-            files.append({
-                "name": file.name,
-                "path": str(file.relative_to(PROJECT_ROOT)),
-                "size": file.stat().st_size,
-                "modified": file.stat().st_mtime
-            })
-        # Also include MP3 files
-        for file in audio_dir.glob("*.mp3"):
-            files.append({
-                "name": file.name,
-                "path": str(file.relative_to(PROJECT_ROOT)),
-                "size": file.stat().st_size,
-                "modified": file.stat().st_mtime
-            })
-    
-    return JSONResponse({"files": sorted(files, key=lambda x: x["modified"], reverse=True)})
+    try:
+        logger.info(f"[Audio Files API] Listing files in directory: {directory}")
+        audio_dir = DATA_DIR / directory
+        logger.info(f"[Audio Files API] Full path: {audio_dir}")
+        logger.info(f"[Audio Files API] Directory exists: {audio_dir.exists()}")
+        
+        files = []
+        
+        if audio_dir.exists() and audio_dir.is_dir():
+            # Include multiple audio formats
+            audio_extensions = ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.ogg", "*.aac"]
+            for ext in audio_extensions:
+                try:
+                    for file in audio_dir.glob(ext):
+                        try:
+                            files.append({
+                                "name": file.name,
+                                "path": str(file.relative_to(PROJECT_ROOT)),
+                                "size": file.stat().st_size,
+                                "modified": file.stat().st_mtime
+                            })
+                        except Exception as e:
+                            logger.warning(f"[Audio Files API] Error reading file {file}: {e}")
+                            continue
+                except Exception as e:
+                    logger.warning(f"[Audio Files API] Error globbing {ext} in {audio_dir}: {e}")
+                    continue
+        else:
+            logger.warning(f"[Audio Files API] Directory does not exist or is not a directory: {audio_dir}")
+        
+        logger.info(f"[Audio Files API] Found {len(files)} files")
+        return JSONResponse({"files": sorted(files, key=lambda x: x["modified"], reverse=True)})
+    except Exception as e:
+        logger.error(f"[Audio Files API] Error listing audio files: {e}", exc_info=True)
+        return JSONResponse({"error": str(e), "files": []}, status_code=500)
 
 
 @app.get("/api/files/audio-file")
