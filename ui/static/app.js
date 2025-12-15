@@ -1210,21 +1210,41 @@ async function applyNoiseReductionTransform() {
             body: formData
         });
         
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch {
+                const errorText = await response.text();
+                errorMessage = errorText.substring(0, 200);
+            }
+            throw new Error(errorMessage);
+        }
+        
         const result = await response.json();
+        console.log('[Noise Reduction] Response:', result);
+        
         if (result.status === 'success') {
             showCompletionAlert(result.message);
             addSystemLog(`Noise reduction applied: ${result.output_path}`, 'success');
+            console.log('[Noise Reduction] Success! Output file:', result.output_path);
             loadManipulateAudioFiles();
             loadTestFileSelects();
             // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
                 updateTransformedPlayer(result.output_path);
+            } else {
+                console.error('[Noise Reduction] No output_path in response:', result);
             }
         } else {
+            console.error('[Noise Reduction] Failed:', result.message);
             showError(result.message || 'Transform failed');
         }
     } catch (error) {
+        console.error('[Noise Reduction] Error:', error);
+        addSystemLog(`Noise reduction error: ${error.message}`, 'error');
         showError('Failed to apply noise reduction: ' + error.message);
     }
 }
@@ -1256,21 +1276,41 @@ async function applyEQTransform() {
             body: formData
         });
         
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch {
+                const errorText = await response.text();
+                errorMessage = errorText.substring(0, 200);
+            }
+            throw new Error(errorMessage);
+        }
+        
         const result = await response.json();
+        console.log('[EQ Transform] Response:', result);
+        
         if (result.status === 'success') {
             showCompletionAlert(result.message);
             addSystemLog(`EQ transform applied: ${result.output_path}`, 'success');
+            console.log('[EQ Transform] Success! Output file:', result.output_path);
             loadManipulateAudioFiles();
             loadTestFileSelects();
             // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
                 updateTransformedPlayer(result.output_path);
+            } else {
+                console.error('[EQ Transform] No output_path in response:', result);
             }
         } else {
+            console.error('[EQ Transform] Failed:', result.message);
             showError(result.message || 'Transform failed');
         }
     } catch (error) {
+        console.error('[EQ Transform] Error:', error);
+        addSystemLog(`EQ transform error: ${error.message}`, 'error');
         showError('Failed to apply EQ transform: ' + error.message);
     }
 }

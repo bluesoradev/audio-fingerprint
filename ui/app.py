@@ -858,6 +858,65 @@ async def manipulate_chop(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+@app.post("/api/manipulate/eq")
+async def manipulate_eq(
+    input_path: str = Form(...),
+    gain_db: float = Form(0.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Apply EQ adjustment (boost highs or lows based on gain)."""
+    try:
+        from transforms.eq import boost_highs, boost_lows
+        
+        input_file = PROJECT_ROOT / input_path
+        if not input_file.exists():
+            return JSONResponse({
+                "status": "error",
+                "message": f"Input file not found: {input_path}"
+            }, status_code=404)
+        
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            out_file = output_path / f"{input_file.stem}_eq_{gain_db:+d}db.wav"
+        
+        logger.info(f"[EQ Transform API] Applying EQ: input={input_file}, gain_db={gain_db}, output={out_file}")
+        
+        # Apply boost based on gain sign
+        if gain_db > 0:
+            boost_highs(input_file, gain_db, out_file)
+            message = f"High frequencies boosted by {gain_db} dB"
+        elif gain_db < 0:
+            boost_lows(input_file, abs(gain_db), out_file)
+            message = f"Low frequencies boosted by {abs(gain_db)} dB"
+        else:
+            # No change, just copy file
+            import shutil
+            shutil.copy2(input_file, out_file)
+            message = "No EQ adjustment (0 dB)"
+        
+        if not out_file.exists():
+            raise Exception("Output file was not created")
+        
+        file_size = out_file.stat().st_size
+        logger.info(f"[EQ Transform API] Success! Output file: {out_file} ({file_size} bytes)")
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": message
+        })
+    except Exception as e:
+        logger.error(f"[EQ Transform API] EQ transform failed: {e}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 @app.post("/api/manipulate/eq/highpass")
 async def manipulate_eq_highpass(
     input_path: str = Form(...),
