@@ -25,9 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     checkStatus();
     loadDashboard();
-    loadManifests();
-    loadRuns();
-    loadTestMatrix();
     setInterval(checkStatus, 5000); // Check status every 5 seconds
 });
 
@@ -50,9 +47,7 @@ function showSection(sectionId, eventElement) {
     }
 
     // Load section-specific data
-    if (sectionId === 'runs') {
-        loadRuns();
-    } else if (sectionId === 'manipulate') {
+    if (sectionId === 'manipulate') {
         loadManipulateAudioFiles();
         loadTestFileSelects();
     }
@@ -293,11 +288,12 @@ async function runExperiment() {
 // Process Monitoring
 function startProcessMonitoring(commandId, message, processName = 'Process') {
     currentProcessId = commandId;
-    showSection('workflow', null);
+    showSection('logs', null);
     
-    const logsDiv = document.getElementById('processLogs');
-    logsDiv.style.display = 'block';
-    logsDiv.innerHTML = `<div class="log-line">${message}</div>`;
+    const logsDiv = document.getElementById('systemLogs');
+    if (logsDiv) {
+        logsDiv.innerHTML = `<div class="log-line">${message}</div>`;
+    }
     
     // Store process name for alerts
     if (!window.processNames) {
@@ -325,7 +321,7 @@ async function pollLogs(commandId) {
         const result = await response.json();
         
         if (result.logs && result.logs.length > 0) {
-            const logsDiv = document.getElementById('processLogs');
+            const logsDiv = document.getElementById('systemLogs');
             result.logs.forEach(log => {
                 const line = document.createElement('div');
                 line.className = `log-line ${log.type}`;

@@ -607,10 +607,7 @@
                 <h2>Navigation</h2>
                 <ul class="nav-menu">
                     <li><a href="#" onclick="showSection('dashboard', this); return false;" class="active">📊 Dashboard</a></li>
-                    <li><a href="#" onclick="showSection('workflow', this); return false;">⚙️ Workflow</a></li>
                     <li><a href="#" onclick="showSection('manipulate', this); return false;">🎵 Manipulate Audio</a></li>
-                    <li><a href="#" onclick="showSection('runs', this); return false;">📈 Results</a></li>
-                    <li><a href="#" onclick="showSection('config', this); return false;">⚙️ Configuration</a></li>
                     <li><a href="#" onclick="showSection('logs', this); return false;">📋 Logs</a></li>
                 </ul>
             </div>
@@ -621,82 +618,6 @@
                     <h2>Dashboard</h2>
                     <div class="stats-grid" id="dashboardStats"></div>
                     <div id="recentRuns"></div>
-                </div>
-
-                <!-- Workflow Section -->
-                <div id="workflow" class="section">
-                    <h2>Workflow Control</h2>
-                    
-                    <div class="workflow-step">
-                        <h3>Step 1: Create Test Audio</h3>
-                        <div class="form-group">
-                            <label>Number of Files</label>
-                            <input type="number" id="numFiles" value="2" min="1" max="10">
-                        </div>
-                        <div class="form-group">
-                            <label>Duration (seconds)</label>
-                            <input type="number" id="duration" value="5" min="1" max="60" step="0.1">
-                        </div>
-                        <div class="form-group">
-                            <label>Output Directory</label>
-                            <input type="text" id="audioOutputDir" value="data/test_audio">
-                        </div>
-                        <button class="btn" onclick="createTestAudio()">Create Test Audio</button>
-                    </div>
-
-                    <div class="workflow-step">
-                        <h3>Step 2: Create Manifest</h3>
-                        <div class="form-group">
-                            <label>Audio Directory</label>
-                            <input type="text" id="audioDir" value="data/test_audio">
-                        </div>
-                        <div class="form-group">
-                            <label>Output Manifest</label>
-                            <input type="text" id="manifestOutput" value="data/manifests/test_manifest.csv">
-                        </div>
-                        <button class="btn" onclick="createManifest()">Create Manifest</button>
-                    </div>
-
-                    <div class="workflow-step">
-                        <h3>Step 3: Ingest Files</h3>
-                        <div class="form-group">
-                            <label>Manifest File</label>
-                            <select id="ingestManifest"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Sample Rate</label>
-                            <input type="number" id="sampleRate" value="44100">
-                        </div>
-                        <button class="btn" onclick="ingestFiles()">Ingest Files</button>
-                    </div>
-
-                    <div class="workflow-step">
-                        <h3>Step 4: Generate Transforms</h3>
-                        <div class="form-group">
-                            <label>Manifest File</label>
-                            <select id="transformManifest"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Test Matrix Config</label>
-                            <input type="text" id="testMatrix" value="config/test_matrix.yaml" readonly>
-                        </div>
-                        <button class="btn" onclick="generateTransforms()">Generate Transforms</button>
-                    </div>
-
-                    <div class="workflow-step">
-                        <h3>Step 5: Run Full Experiment</h3>
-                        <div class="form-group">
-                            <label>Originals Manifest</label>
-                            <select id="experimentManifest"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Config File</label>
-                            <input type="text" id="experimentConfig" value="config/test_matrix.yaml" readonly>
-                        </div>
-                        <button class="btn btn-success" onclick="runExperiment()">🚀 Run Full Experiment</button>
-                    </div>
-
-                    <div id="processLogs" class="log-container" style="display: none;"></div>
                 </div>
 
                 <!-- Audio Manipulation Section -->
@@ -937,22 +858,6 @@
                     </div>
 
                     <div id="manipulateLogs" class="log-container" style="display: none; margin-top: 20px;"></div>
-                </div>
-
-                <!-- Results Section -->
-                <div id="runs" class="section">
-                    <h2>Experiment Results</h2>
-                    <div id="runsList"></div>
-                </div>
-
-                <!-- Configuration Section -->
-                <div id="config" class="section">
-                    <h2>Configuration</h2>
-                    <div class="workflow-step">
-                        <h3>Test Matrix Configuration</h3>
-                        <textarea id="testMatrixConfig" style="width: 100%; height: 400px; font-family: monospace; background: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d;"></textarea>
-                        <button class="btn" onclick="saveTestMatrix()" style="margin-top: 15px;">Save Configuration</button>
-                    </div>
                 </div>
 
                 <!-- Logs Section -->
