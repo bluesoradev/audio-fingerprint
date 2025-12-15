@@ -16,11 +16,12 @@ import asyncio
 import shutil
 import pandas as pd
 import numpy as np
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 import yaml
 import threading
 import queue
+import math
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -102,6 +103,29 @@ if str(PROJECT_ROOT) not in sys.path:
 running_processes = {}
 process_logs = {}
 process_queues = {}
+
+
+def sanitize_json_floats(obj: Any) -> Any:
+    """
+    Recursively sanitize float values in a JSON-serializable object.
+    Replaces inf, -inf, and nan with None or 0.
+    """
+    if isinstance(obj, dict):
+        return {k: sanitize_json_floats(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_json_floats(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isinf(obj) or math.isnan(obj):
+            return None
+        return obj
+    elif isinstance(obj, np.floating):
+        if math.isinf(obj) or math.isnan(obj):
+            return None
+        return float(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    else:
+        return obj
 
 
 def add_file_to_manifest(file_path: Path, manifest_path: Path = None) -> bool:
@@ -2480,7 +2504,9 @@ async def get_run_details(run_id: str):
         if metrics_file.exists():
             try:
                 with open(metrics_file, 'r') as f:
-                    details["metrics"] = json.load(f)
+                    metrics = json.load(f)
+                    # Sanitize invalid float values (inf, -inf, nan) before returning
+                    details["metrics"] = sanitize_json_floats(metrics)
             except Exception as e:
                 logger.error(f"Failed to load metrics.json for {run_id}: {e}")
                 details["metrics"] = {"error": f"Failed to load metrics: {str(e)}"}
