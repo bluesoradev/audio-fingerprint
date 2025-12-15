@@ -27,214 +27,290 @@ except ImportError as e:
 
 def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path = None):
     """Generate visualization plots."""
+    logger.info("=" * 60)
+    logger.info("=== Starting plot generation ===")
+    logger.info(f"Metrics path: {metrics_path}")
+    logger.info(f"Output dir: {output_dir}")
+    logger.info(f"Test matrix path: {test_matrix_path}")
+    logger.info(f"HAS_PLOTTING: {HAS_PLOTTING}")
+    
     if not HAS_PLOTTING:
         logger.error("Plot generation is disabled (matplotlib/PIL not available). Skipping plot generation.")
         logger.error("To enable plots, install: pip install matplotlib pillow seaborn")
         # Create empty plots directory so the structure exists
         plots_dir = output_dir / "plots"
         plots_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("Created empty plots directory")
         return
     
+    # Load metrics
     try:
+        logger.info("Loading metrics.json...")
+        if not metrics_path.exists():
+            logger.error(f"Metrics file does not exist: {metrics_path}")
+            return
         with open(metrics_path, 'r') as f:
             metrics = json.load(f)
+        logger.info("Successfully loaded metrics.json")
     except Exception as e:
-        logger.error(f"Failed to load metrics.json for plot generation: {e}")
+        logger.error(f"Failed to load metrics.json for plot generation: {e}", exc_info=True)
         return
     
+    # Create plots directory
     plots_dir = output_dir / "plots"
     plots_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Set style
-    sns.set_style("whitegrid")
-    plt.rcParams['figure.figsize'] = (10, 6)
-    
-    # Load thresholds if available
-    similarity_thresholds = {}
-    if test_matrix_path and test_matrix_path.exists():
-        with open(test_matrix_path, 'r') as f:
-            test_config = yaml.safe_load(f)
-        thresholds = test_config.get("thresholds", {})
-        similarity_thresholds = thresholds.get("similarity", {})
-    
-    # Extract per_transform and per_severity early (needed for multiple plots)
-    per_transform = metrics.get("per_transform", {})
-    per_severity = metrics.get("per_severity", {})
-    
-    # Plot 1: Recall@K by severity
-    fig, ax = plt.subplots()
-    
-    severities = []
-    recall_1 = []
-    recall_5 = []
-    recall_10 = []
-    
-    for severity in ["mild", "moderate", "severe", "none"]:
-        if severity in per_severity:
-            severities.append(severity)
-            rec = per_severity[severity]["recall"]
-            recall_1.append(rec.get("recall_at_1", 0.0))
-            recall_5.append(rec.get("recall_at_5", 0.0))
-            recall_10.append(rec.get("recall_at_10", 0.0))
-    
-    if severities:
-        x = range(len(severities))
-        width = 0.25
-        
-        ax.bar([i - width for i in x], recall_1, width, label='Recall@1')
-        ax.bar(x, recall_5, width, label='Recall@5')
-        ax.bar([i + width for i in x], recall_10, width, label='Recall@10')
-        
-        ax.set_xlabel('Severity')
-        ax.set_ylabel('Recall')
-        ax.set_title('Recall@K by Transform Severity')
-        ax.set_xticks(x)
-        ax.set_xticklabels(severities)
-        ax.legend()
-        ax.set_ylim(0, 1.1)
-    else:
-        ax.text(0.5, 0.5, 'No severity data available', 
-                horizontalalignment='center', verticalalignment='center',
-                transform=ax.transAxes, fontsize=14)
-        ax.set_title('Recall@K by Transform Severity')
+    logger.info(f"Plots directory: {plots_dir}")
     
     try:
-        plt.tight_layout()
-        plt.savefig(plots_dir / "recall_by_severity.png", dpi=150)
-        plt.close()
-        logger.info(f"Generated plot: recall_by_severity.png")
-    except Exception as e:
-        logger.error(f"Failed to generate recall_by_severity.png: {e}", exc_info=True)
-        plt.close()
+        # Set style
+        logger.info("Configuring matplotlib style...")
+        sns.set_style("whitegrid")
+        plt.rcParams['figure.figsize'] = (10, 6)
+        logger.info("Matplotlib configured successfully")
     
-    # Plot 2: Similarity score distribution by severity
-    fig, ax = plt.subplots()
-    severities = []
-    similarity_scores = []
-    thresholds_list = []
-    
-    for severity in ["mild", "moderate", "severe"]:
-        if severity in per_severity:
-            severities.append(severity)
-            sim_data = per_severity[severity]["similarity"]
-            similarity_scores.append(sim_data.get("mean_similarity_correct", 0.0))
-            thresholds_list.append(similarity_thresholds.get(f"min_score_{severity}", 0.0))
-    
-    if severities:
-        x = range(len(severities))
-        width = 0.35
-        ax.bar([i - width/2 for i in x], similarity_scores, width, label='Actual Similarity', color='steelblue')
-        ax.bar([i + width/2 for i in x], thresholds_list, width, label='Threshold', color='lightcoral', alpha=0.7)
-        ax.set_xlabel('Severity')
-        ax.set_ylabel('Similarity Score')
-        ax.set_title('Similarity Scores vs Thresholds by Severity')
-        ax.set_xticks(x)
-        ax.set_xticklabels(severities)
-        ax.legend()
-        ax.set_ylim(0, 1.0)
-    else:
-        ax.text(0.5, 0.5, 'No similarity data available', 
-                horizontalalignment='center', verticalalignment='center',
-                transform=ax.transAxes, fontsize=14)
-        ax.set_title('Similarity Scores vs Thresholds by Severity')
-    
-    try:
-        plt.tight_layout()
-        plt.savefig(plots_dir / "similarity_by_severity.png", dpi=150)
-        plt.close()
-        logger.info(f"Generated plot: similarity_by_severity.png")
-    except Exception as e:
-        logger.error(f"Failed to generate similarity_by_severity.png: {e}", exc_info=True)
-        plt.close()
-    
-    # Plot 3: Recall by transform type
-    fig, ax = plt.subplots(figsize=(14, 6))
-    
-    if per_transform:
-        transform_types = list(per_transform.keys())
-        recall_1 = [per_transform[t]["recall"].get("recall_at_1", 0.0) for t in transform_types]
-        recall_5 = [per_transform[t]["recall"].get("recall_at_5", 0.0) for t in transform_types]
-        recall_10 = [per_transform[t]["recall"].get("recall_at_10", 0.0) for t in transform_types]
+        # Load thresholds if available
+        similarity_thresholds = {}
+        if test_matrix_path and test_matrix_path.exists():
+            try:
+                with open(test_matrix_path, 'r') as f:
+                    test_config = yaml.safe_load(f)
+                thresholds = test_config.get("thresholds", {})
+                similarity_thresholds = thresholds.get("similarity", {})
+                logger.info("Loaded similarity thresholds from test matrix")
+            except Exception as e:
+                logger.warning(f"Failed to load test matrix for thresholds: {e}")
         
-        if transform_types:
-            x = range(len(transform_types))
+        # Extract per_transform and per_severity early (needed for multiple plots)
+        per_transform = metrics.get("per_transform", {})
+        per_severity = metrics.get("per_severity", {})
+        logger.info(f"Found {len(per_transform)} transform types and {len(per_severity)} severity levels")
+    
+        # Plot 1: Recall@K by severity
+        logger.info("Generating plot 1: Recall@K by Transform Severity...")
+        fig, ax = plt.subplots()
+        
+        severities = []
+        recall_1 = []
+        recall_5 = []
+        recall_10 = []
+        
+        for severity in ["mild", "moderate", "severe", "none"]:
+            if severity in per_severity:
+                severities.append(severity)
+                rec = per_severity[severity].get("recall", {})
+                recall_1.append(rec.get("recall_at_1", 0.0))
+                recall_5.append(rec.get("recall_at_5", 0.0))
+                recall_10.append(rec.get("recall_at_10", 0.0))
+        
+        if severities:
+            x = range(len(severities))
             width = 0.25
+            
             ax.bar([i - width for i in x], recall_1, width, label='Recall@1')
             ax.bar(x, recall_5, width, label='Recall@5')
             ax.bar([i + width for i in x], recall_10, width, label='Recall@10')
-            ax.set_xlabel('Transform Type')
+            
+            ax.set_xlabel('Severity')
             ax.set_ylabel('Recall')
-            ax.set_title('Recall@K by Transform Type')
+            ax.set_title('Recall@K by Transform Severity')
             ax.set_xticks(x)
-            ax.set_xticklabels(transform_types, rotation=45, ha='right')
+            ax.set_xticklabels(severities)
             ax.legend()
             ax.set_ylim(0, 1.1)
+            logger.info(f"Plot 1: Found data for {len(severities)} severity levels")
+        else:
+            ax.text(0.5, 0.5, 'No severity data available', 
+                    horizontalalignment='center', verticalalignment='center',
+                    transform=ax.transAxes, fontsize=14)
+            ax.set_title('Recall@K by Transform Severity')
+            logger.warning("Plot 1: No severity data available")
+        
+        try:
+            plt.tight_layout()
+            plot_path = plots_dir / "recall_by_severity.png"
+            plt.savefig(plot_path, dpi=150)
+            plt.close()
+            if plot_path.exists():
+                logger.info(f"✓ Successfully generated: recall_by_severity.png ({plot_path.stat().st_size} bytes)")
+            else:
+                logger.error(f"✗ Plot file was not created: {plot_path}")
+        except Exception as e:
+            logger.error(f"✗ Failed to generate recall_by_severity.png: {e}", exc_info=True)
+            try:
+                plt.close()
+            except:
+                pass
+    
+        # Plot 2: Similarity score distribution by severity
+        logger.info("Generating plot 2: Similarity Score by Severity...")
+        fig, ax = plt.subplots()
+        severities = []
+        similarity_scores = []
+        thresholds_list = []
+        
+        for severity in ["mild", "moderate", "severe"]:
+            if severity in per_severity:
+                severities.append(severity)
+                sim_data = per_severity[severity].get("similarity", {})
+                similarity_scores.append(sim_data.get("mean_similarity_correct", 0.0))
+                thresholds_list.append(similarity_thresholds.get(f"min_score_{severity}", 0.0))
+        
+        if severities:
+            x = range(len(severities))
+            width = 0.35
+            ax.bar([i - width/2 for i in x], similarity_scores, width, label='Actual Similarity', color='steelblue')
+            ax.bar([i + width/2 for i in x], thresholds_list, width, label='Threshold', color='lightcoral', alpha=0.7)
+            ax.set_xlabel('Severity')
+            ax.set_ylabel('Similarity Score')
+            ax.set_title('Similarity Scores vs Thresholds by Severity')
+            ax.set_xticks(x)
+            ax.set_xticklabels(severities)
+            ax.legend()
+            ax.set_ylim(0, 1.0)
+            logger.info(f"Plot 2: Found data for {len(severities)} severity levels")
+        else:
+            ax.text(0.5, 0.5, 'No similarity data available', 
+                    horizontalalignment='center', verticalalignment='center',
+                    transform=ax.transAxes, fontsize=14)
+            ax.set_title('Similarity Scores vs Thresholds by Severity')
+            logger.warning("Plot 2: No similarity data available")
+        
+        try:
+            plt.tight_layout()
+            plot_path = plots_dir / "similarity_by_severity.png"
+            plt.savefig(plot_path, dpi=150)
+            plt.close()
+            if plot_path.exists():
+                logger.info(f"✓ Successfully generated: similarity_by_severity.png ({plot_path.stat().st_size} bytes)")
+            else:
+                logger.error(f"✗ Plot file was not created: {plot_path}")
+        except Exception as e:
+            logger.error(f"✗ Failed to generate similarity_by_severity.png: {e}", exc_info=True)
+            try:
+                plt.close()
+            except:
+                pass
+    
+        # Plot 3: Recall by transform type
+        logger.info("Generating plot 3: Recall@K by Transform Type...")
+        fig, ax = plt.subplots(figsize=(14, 6))
+        
+        if per_transform:
+            transform_types = list(per_transform.keys())
+            recall_1 = [per_transform[t].get("recall", {}).get("recall_at_1", 0.0) for t in transform_types]
+            recall_5 = [per_transform[t].get("recall", {}).get("recall_at_5", 0.0) for t in transform_types]
+            recall_10 = [per_transform[t].get("recall", {}).get("recall_at_10", 0.0) for t in transform_types]
+            
+            if transform_types:
+                x = range(len(transform_types))
+                width = 0.25
+                ax.bar([i - width for i in x], recall_1, width, label='Recall@1')
+                ax.bar(x, recall_5, width, label='Recall@5')
+                ax.bar([i + width for i in x], recall_10, width, label='Recall@10')
+                ax.set_xlabel('Transform Type')
+                ax.set_ylabel('Recall')
+                ax.set_title('Recall@K by Transform Type')
+                ax.set_xticks(x)
+                ax.set_xticklabels(transform_types, rotation=45, ha='right')
+                ax.legend()
+                ax.set_ylim(0, 1.1)
+                logger.info(f"Plot 3: Found data for {len(transform_types)} transform types")
+            else:
+                ax.text(0.5, 0.5, 'No transform data available', 
+                        horizontalalignment='center', verticalalignment='center',
+                        transform=ax.transAxes, fontsize=14)
+                ax.set_title('Recall@K by Transform Type')
+                logger.warning("Plot 3: No transform types found")
         else:
             ax.text(0.5, 0.5, 'No transform data available', 
                     horizontalalignment='center', verticalalignment='center',
                     transform=ax.transAxes, fontsize=14)
             ax.set_title('Recall@K by Transform Type')
-    else:
-        ax.text(0.5, 0.5, 'No transform data available', 
-                horizontalalignment='center', verticalalignment='center',
-                transform=ax.transAxes, fontsize=14)
-        ax.set_title('Recall@K by Transform Type')
-    
-    try:
-        plt.tight_layout()
-        plt.savefig(plots_dir / "recall_by_transform.png", dpi=150)
-        plt.close()
-        logger.info(f"Generated plot: recall_by_transform.png")
-    except Exception as e:
-        logger.error(f"Failed to generate recall_by_transform.png: {e}", exc_info=True)
-        plt.close()
-    
-    # Plot 4: Latency by transform type
-    fig, ax = plt.subplots()
-    
-    if per_transform:
-        transform_types = []
-        latencies = []
+            logger.warning("Plot 3: No transform data available")
         
-        for transform_type, data in per_transform.items():
-            transform_types.append(transform_type)
-            latencies.append(data["latency"]["mean_latency_ms"])
+        try:
+            plt.tight_layout()
+            plot_path = plots_dir / "recall_by_transform.png"
+            plt.savefig(plot_path, dpi=150)
+            plt.close()
+            if plot_path.exists():
+                logger.info(f"✓ Successfully generated: recall_by_transform.png ({plot_path.stat().st_size} bytes)")
+            else:
+                logger.error(f"✗ Plot file was not created: {plot_path}")
+        except Exception as e:
+            logger.error(f"✗ Failed to generate recall_by_transform.png: {e}", exc_info=True)
+            try:
+                plt.close()
+            except:
+                pass
+    
+        # Plot 4: Latency by transform type
+        logger.info("Generating plot 4: Latency by Transform Type...")
+        fig, ax = plt.subplots()
         
-        if transform_types:
-            ax.bar(transform_types, latencies)
-            ax.set_xlabel('Transform Type')
-            ax.set_ylabel('Mean Latency (ms)')
-            ax.set_title('Processing Latency by Transform Type')
-            plt.xticks(rotation=45, ha='right')
+        if per_transform:
+            transform_types = []
+            latencies = []
+            
+            for transform_type, data in per_transform.items():
+                transform_types.append(transform_type)
+                latency_data = data.get("latency", {})
+                latencies.append(latency_data.get("mean_latency_ms", 0.0))
+            
+            if transform_types:
+                ax.bar(transform_types, latencies)
+                ax.set_xlabel('Transform Type')
+                ax.set_ylabel('Mean Latency (ms)')
+                ax.set_title('Processing Latency by Transform Type')
+                plt.xticks(rotation=45, ha='right')
+                logger.info(f"Plot 4: Found latency data for {len(transform_types)} transform types")
+            else:
+                ax.text(0.5, 0.5, 'No latency data available', 
+                        horizontalalignment='center', verticalalignment='center',
+                        transform=ax.transAxes, fontsize=14)
+                ax.set_title('Processing Latency by Transform Type')
+                logger.warning("Plot 4: No transform types found")
         else:
             ax.text(0.5, 0.5, 'No latency data available', 
                     horizontalalignment='center', verticalalignment='center',
                     transform=ax.transAxes, fontsize=14)
             ax.set_title('Processing Latency by Transform Type')
-    else:
-        ax.text(0.5, 0.5, 'No latency data available', 
-                horizontalalignment='center', verticalalignment='center',
-                transform=ax.transAxes, fontsize=14)
-        ax.set_title('Processing Latency by Transform Type')
-    
-    try:
-        plt.tight_layout()
-        plt.savefig(plots_dir / "latency_by_transform.png", dpi=150)
-        plt.close()
-        logger.info(f"Generated plot: latency_by_transform.png")
+            logger.warning("Plot 4: No transform data available")
+        
+        try:
+            plt.tight_layout()
+            plot_path = plots_dir / "latency_by_transform.png"
+            plt.savefig(plot_path, dpi=150)
+            plt.close()
+            if plot_path.exists():
+                logger.info(f"✓ Successfully generated: latency_by_transform.png ({plot_path.stat().st_size} bytes)")
+            else:
+                logger.error(f"✗ Plot file was not created: {plot_path}")
+        except Exception as e:
+            logger.error(f"✗ Failed to generate latency_by_transform.png: {e}", exc_info=True)
+            try:
+                plt.close()
+            except:
+                pass
+        
+        # Verify plots were created
+        logger.info("=" * 60)
+        logger.info("=== Plot Generation Summary ===")
+        plot_files = list(plots_dir.glob("*.png"))
+        if plot_files:
+            logger.info(f"✓ Successfully generated {len(plot_files)} plot(s) in {plots_dir}")
+            for plot_file in sorted(plot_files):
+                size = plot_file.stat().st_size
+                logger.info(f"  ✓ {plot_file.name} ({size:,} bytes)")
+        else:
+            logger.error(f"✗ WARNING: No plot files were generated in {plots_dir}")
+            logger.error("Check logs above for errors during plot generation.")
+        logger.info("=" * 60)
+        
     except Exception as e:
-        logger.error(f"Failed to generate latency_by_transform.png: {e}", exc_info=True)
-        plt.close()
-    
-    # Verify plots were created
-    plot_files = list(plots_dir.glob("*.png"))
-    if plot_files:
-        logger.info(f"Successfully generated {len(plot_files)} plots in {plots_dir}")
-        for plot_file in plot_files:
-            logger.info(f"  - {plot_file.name}")
-    else:
-        logger.error(f"WARNING: No plot files were generated in {plots_dir}")
-        logger.error("Check logs above for errors during plot generation.")
+        logger.error(f"CRITICAL ERROR in plot generation: {e}", exc_info=True)
+        logger.error("Plot generation failed completely. Check error above.")
+        raise  # Re-raise so run_experiment.py can catch it
 
 
 def render_html_report(
@@ -756,19 +832,19 @@ def render_html_report(
     <body>
         <div class="report-container">
             <div class="report-header">
-                <h1>🎵 Audio Fingerprint Robustness Report</h1>
+                <h1> Audio Fingerprint Robustness Report</h1>
                 <div class="subtitle">Comprehensive Analysis & Performance Metrics</div>
                 <div class="meta-info">
                     <div class="meta-item">
-                        <span>📅</span>
+                       
                         <span>{datetime.now().strftime('%B %d, %Y at %H:%M:%S')}</span>
                     </div>
                     <div class="meta-item">
-                        <span>🔬</span>
+                        <span></span>
                         <span>{metrics['summary'].get('total_queries', 0)} Total Queries</span>
                     </div>
                     <div class="meta-item">
-                        <span>⚙️</span>
+                        <span></span>
                         <span>{len(metrics['summary'].get('transform_types', []))} Transform Types</span>
                     </div>
                 </div>
@@ -800,7 +876,7 @@ def render_html_report(
                     </div>
                 </div>
                 
-                <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;">📊 Pass/Fail Status</h2>
+                <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;"> Pass/Fail Status</h2>
                 
                 {recall_table_html}
                 {similarity_table_html}
@@ -811,7 +887,7 @@ def render_html_report(
                 {summary_table_html}
                 
                 <div class="plots-section">
-                    <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;">📈 Visualizations</h2>
+                    <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;"> Visualizations</h2>
                     <div class="plots-grid">
                         <div class="plot-card">
                             <div class="plot-title">Recall@K by Transform Severity</div>
@@ -833,7 +909,7 @@ def render_html_report(
                 </div>
                 
                 <div class="overall-metrics">
-                    <h3>📋 Overall Metrics</h3>
+                    <h3> Overall Metrics</h3>
                     <pre>{json.dumps(metrics['overall'], indent=2, default=str)}</pre>
                 </div>
             </div>
