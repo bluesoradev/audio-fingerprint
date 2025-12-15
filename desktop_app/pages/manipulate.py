@@ -1316,7 +1316,7 @@ class ManipulatePage(QWidget):
                             # Calculate elapsed time
                             elapsed = time.time() - playback_start_time
                             current_pos_ms = start_pos_ms + (elapsed * 1000)
-                            
+                    
                             # Update position
                             with lock:
                                 setattr(self, position_attr, min(current_pos_ms, len(audio)))

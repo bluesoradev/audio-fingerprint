@@ -432,7 +432,7 @@ class ResultsPage(QWidget):
             selected_report = report_dirs[0]
         
         metrics_file = selected_report / "metrics.json"
-        
+            
         if not metrics_file.exists():
             self._show_no_data()
             return
