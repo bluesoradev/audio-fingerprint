@@ -2613,13 +2613,15 @@ async def download_report_zip(run_id: str):
         zip_size = zip_path.stat().st_size
         logger.info(f"Created ZIP file: {zip_path} ({zip_size:,} bytes)")
         
-        # Return the file
+        # Return the file with proper headers for download
+        # FileResponse handles large files efficiently
         return FileResponse(
             zip_path,
             media_type="application/zip",
             filename=zip_filename,
             headers={
-                "Content-Disposition": f'attachment; filename="{zip_filename}"'
+                "Content-Disposition": f'attachment; filename="{zip_filename}"',
+                "Content-Length": str(zip_size)
             }
         )
     except Exception as e:

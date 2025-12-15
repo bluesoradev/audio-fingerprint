@@ -2688,32 +2688,25 @@ function viewReport(reportPath, runId) {
 async function downloadReportZip(runId) {
     try {
         showCompletionAlert(`Preparing download for ${runId}...`, 'info');
-        const response = await fetch(`${API_BASE}/runs/${runId}/download`);
         
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: response.statusText }));
-            throw new Error(errorData.error || `Failed to download report: ${response.statusText}`);
-        }
+        // Use direct window.location for large files to avoid memory issues
+        const downloadUrl = `${API_BASE}/runs/${runId}/download`;
         
-        // Get the blob from the response
-        const blob = await response.blob();
-        
-        // Create a download link
-        const url = window.URL.createObjectURL(blob);
+        // Create a temporary link and click it
         const a = document.createElement('a');
-        a.href = url;
+        a.href = downloadUrl;
         a.download = `${runId}_report.zip`;
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
         
-        // Clean up
+        // Clean up after a delay
         setTimeout(() => {
-            window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-        }, 100);
+            showCompletionAlert(`Download started: ${runId}_report.zip`);
+            addSystemLog(`Download started: ${runId}_report.zip`, 'success');
+        }, 500);
         
-        showCompletionAlert(`Report downloaded: ${runId}_report.zip`);
-        addSystemLog(`Report downloaded: ${runId}_report.zip`, 'success');
     } catch (error) {
         console.error('Failed to download report:', error);
         showError('Failed to download report: ' + error.message);
