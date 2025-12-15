@@ -33,9 +33,7 @@ function showSection(sectionId, eventElement) {
     }
 
     // Load section-specific data
-    if (sectionId === 'files') {
-        loadAudioFiles();
-    } else if (sectionId === 'runs') {
+    if (sectionId === 'runs') {
         loadRuns();
     } else if (sectionId === 'manipulate') {
         loadManipulateAudioFiles();
@@ -703,6 +701,10 @@ async function loadManipulateAudioFiles() {
     });
 }
 
+// Audio player state
+let originalAudioPlaying = false;
+let transformedAudioPlaying = false;
+
 function loadAudioInfo() {
     const select = document.getElementById('manipulateAudioFile');
     if (!select) return;
@@ -714,6 +716,7 @@ function loadAudioInfo() {
         if (audioInfo) audioInfo.style.display = 'none';
         selectedAudioFile = null;
         updateTestDisplays(null, null);
+        updateOriginalPlayer(null);
         return;
     }
     
@@ -722,16 +725,270 @@ function loadAudioInfo() {
     
     const selectedFileName = document.getElementById('selectedFileName');
     const selectedFilePath = document.getElementById('selectedFilePath');
-    const audioPreview = document.getElementById('audioPreview');
     const audioInfo = document.getElementById('audioInfo');
     
     if (selectedFileName) selectedFileName.textContent = fileName;
     if (selectedFilePath) selectedFilePath.textContent = filePath;
-    if (audioPreview) audioPreview.src = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
     if (audioInfo) audioInfo.style.display = 'block';
+    
+    // Update original audio player
+    updateOriginalPlayer(filePath);
     
     // Update original test display
     updateTestDisplays(filePath, null);
+}
+
+function updateOriginalPlayer(filePath) {
+    const player = document.getElementById('originalAudioPlayer');
+    const playBtn = document.getElementById('originalPlayBtn');
+    const infoDiv = document.getElementById('originalPlayerInfo');
+    
+    if (!filePath) {
+        if (player) {
+            player.src = '';
+            player.pause();
+            player.onpause = null;
+            player.onended = null;
+        }
+        if (playBtn) {
+            playBtn.textContent = '▶';
+            playBtn.disabled = true;
+        }
+        if (infoDiv) {
+            infoDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px; margin: 0;">No audio loaded</p>';
+        }
+        originalAudioPlaying = false;
+        return;
+    }
+    
+    if (player) {
+        player.src = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
+        player.load();
+        player.onpause = () => {
+            if (playBtn) playBtn.textContent = '▶';
+            originalAudioPlaying = false;
+        };
+        player.onended = () => {
+            if (playBtn) playBtn.textContent = '▶';
+            originalAudioPlaying = false;
+        };
+    }
+    if (playBtn) {
+        playBtn.disabled = false;
+        playBtn.textContent = '▶';
+    }
+    if (infoDiv) {
+        const fileName = filePath.split('/').pop();
+        infoDiv.innerHTML = `<p style="color: #4ade80; font-size: 12px; margin: 0;">Loaded: ${fileName}</p>`;
+    }
+    originalAudioPlaying = false;
+}
+
+function updateTransformedPlayer(filePath) {
+    const player = document.getElementById('transformedAudioPlayer');
+    const playBtn = document.getElementById('transformedPlayBtn');
+    const infoDiv = document.getElementById('transformedPlayerInfo');
+    
+    if (!filePath) {
+        if (player) {
+            player.src = '';
+            player.pause();
+            player.onpause = null;
+            player.onended = null;
+        }
+        if (playBtn) {
+            playBtn.textContent = '▶';
+            playBtn.disabled = true;
+        }
+        if (infoDiv) {
+            infoDiv.innerHTML = '<p style="color: #9ca3af; font-size: 12px; margin: 0;">No transformed audio available</p>';
+        }
+        transformedAudioPlaying = false;
+        return;
+    }
+    
+    if (player) {
+        player.src = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
+        player.load();
+        player.onpause = () => {
+            if (playBtn) playBtn.textContent = '▶';
+            transformedAudioPlaying = false;
+        };
+        player.onended = () => {
+            if (playBtn) playBtn.textContent = '▶';
+            transformedAudioPlaying = false;
+        };
+    }
+    if (playBtn) {
+        playBtn.disabled = false;
+        playBtn.textContent = '▶';
+    }
+    if (infoDiv) {
+        const fileName = filePath.split('/').pop();
+        infoDiv.innerHTML = `<p style="color: #4ade80; font-size: 12px; margin: 0;">Loaded: ${fileName}</p>`;
+    }
+    transformedAudioPlaying = false;
+}
+
+function toggleOriginalPlayback() {
+    const player = document.getElementById('originalAudioPlayer');
+    const playBtn = document.getElementById('originalPlayBtn');
+    
+    if (!player || !playBtn || !player.src) return;
+    
+    if (originalAudioPlaying) {
+        player.pause();
+        playBtn.textContent = '▶';
+        originalAudioPlaying = false;
+    } else {
+        // Pause transformed if playing
+        const transformedPlayer = document.getElementById('transformedAudioPlayer');
+        if (transformedAudioPlaying && transformedPlayer) {
+            transformedPlayer.pause();
+            const transformedBtn = document.getElementById('transformedPlayBtn');
+            if (transformedBtn) transformedBtn.textContent = '▶';
+            transformedAudioPlaying = false;
+        }
+        player.play().catch(err => {
+            console.error('Error playing audio:', err);
+            showError('Error playing audio: ' + err.message);
+        });
+        playBtn.textContent = '⏸';
+        originalAudioPlaying = true;
+    }
+}
+
+function toggleTransformedPlayback() {
+    const player = document.getElementById('transformedAudioPlayer');
+    const playBtn = document.getElementById('transformedPlayBtn');
+    
+    if (!player || !playBtn || !player.src) return;
+    
+    if (transformedAudioPlaying) {
+        player.pause();
+        playBtn.textContent = '▶';
+        transformedAudioPlaying = false;
+    } else {
+        // Pause original if playing
+        const originalPlayer = document.getElementById('originalAudioPlayer');
+        if (originalAudioPlaying && originalPlayer) {
+            originalPlayer.pause();
+            const originalBtn = document.getElementById('originalPlayBtn');
+            if (originalBtn) originalBtn.textContent = '▶';
+            originalAudioPlaying = false;
+        }
+        player.play().catch(err => {
+            console.error('Error playing audio:', err);
+            showError('Error playing audio: ' + err.message);
+        });
+        playBtn.textContent = '⏸';
+        transformedAudioPlaying = true;
+    }
+}
+
+function updateOriginalTime() {
+    const player = document.getElementById('originalAudioPlayer');
+    const label = document.getElementById('originalTimeLabel');
+    const playBtn = document.getElementById('originalPlayBtn');
+    
+    if (!player || !label) return;
+    
+    if (player.ended) {
+        if (playBtn) playBtn.textContent = '▶';
+        originalAudioPlaying = false;
+    }
+    
+    const current = formatTime(player.currentTime);
+    const duration = formatTime(player.duration || 0);
+    label.textContent = `${current} / ${duration}`;
+}
+
+function updateTransformedTime() {
+    const player = document.getElementById('transformedAudioPlayer');
+    const label = document.getElementById('transformedTimeLabel');
+    const playBtn = document.getElementById('transformedPlayBtn');
+    
+    if (!player || !label) return;
+    
+    if (player.ended) {
+        if (playBtn) playBtn.textContent = '▶';
+        transformedAudioPlaying = false;
+    }
+    
+    const current = formatTime(player.currentTime);
+    const duration = formatTime(player.duration || 0);
+    label.textContent = `${current} / ${duration}`;
+}
+
+function updateOriginalDuration() {
+    updateOriginalTime();
+}
+
+function updateTransformedDuration() {
+    updateTransformedTime();
+}
+
+function formatTime(seconds) {
+    if (!seconds || isNaN(seconds)) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+// Handle file upload in manipulate section
+function handleManipulateDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const uploadArea = document.getElementById('manipulateUploadArea');
+    if (uploadArea) uploadArea.classList.remove('dragover');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        handleManipulateFileUpload(files[0]);
+    }
+}
+
+function handleManipulateFileSelect(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
+        handleManipulateFileUpload(files[0]);
+    }
+}
+
+async function handleManipulateFileUpload(file) {
+    if (!file.type.startsWith('audio/')) {
+        showError('Please select an audio file');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('directory', 'data/originals');
+        
+        const response = await fetch(`${API_BASE}/upload/audio`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(`File uploaded: ${result.path}`);
+            addSystemLog(`Audio file uploaded: ${result.path}`, 'success');
+            
+            // Reload file list and select the uploaded file
+            await loadManipulateAudioFiles();
+            const select = document.getElementById('manipulateAudioFile');
+            if (select) {
+                select.value = result.path;
+                loadAudioInfo();
+            }
+        } else {
+            showError(result.message || 'Upload failed');
+        }
+    } catch (error) {
+        showError('Failed to upload file: ' + error.message);
+    }
 }
 
 async function applySpeedTransform() {
@@ -779,9 +1036,10 @@ async function applySpeedTransform() {
             addSystemLog(`Speed transform applied: ${result.output_path}`, 'success');
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            // Update transformed test display
+            // Update transformed test display and player
             if (result.output_path) {
                 updateTestDisplays(null, result.output_path);
+                updateTransformedPlayer(result.output_path);
             }
         } else {
             showError(result.message || 'Transform failed');
@@ -1395,27 +1653,51 @@ async function testFingerprintRobustness() {
             const directSim = result.direct_similarity ? (result.direct_similarity * 100).toFixed(1) : null;
             
             resultDiv.className = `test-results ${matchClass}`;
+            resultDiv.style.display = 'block';
             
-            let resultText = `${matchStatus}\n\n`;
-            resultText += `Similarity Score: ${result.similarity.toFixed(3)} (${similarityPercent}%)\n`;
-            if (result.rank) {
-                resultText += `Rank: ${result.rank} (position in search results)\n`;
-            } else {
-                resultText += `Rank: 1 (direct similarity match)\n`;
-            }
-            resultText += `Top Match: ${result.top_match || 'N/A'}\n\n`;
-            
+            let interpretation = '';
             if (result.similarity > 0.9) {
-                resultText += 'Interpretation: Strong match - fingerprint is very robust to this transformation.';
+                interpretation = 'Strong match - fingerprint is very robust to this transformation.';
             } else if (result.similarity > 0.7) {
-                resultText += 'Interpretation: Good match - fingerprint is robust to this transformation.';
+                interpretation = 'Good match - fingerprint is robust to this transformation.';
             } else if (result.matched) {
-                resultText += 'Interpretation: Moderate match - transformation affects fingerprint but still identifiable.';
+                interpretation = 'Moderate match - transformation affects fingerprint but still identifiable.';
             } else {
-                resultText += 'Interpretation: Fingerprint could not match transformed audio to original. This transformation may break fingerprint identification.';
+                interpretation = 'Fingerprint could not match transformed audio to original. This transformation may break fingerprint identification.';
             }
             
-            detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${resultText}</pre>`;
+            detailsDiv.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <h4 style="color: ${result.matched ? '#10b981' : '#f87171'}; margin: 0 0 10px 0;">${matchStatus}</h4>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 0 0 5px 0;">Similarity Score</p>
+                        <p style="font-size: 24px; color: ${result.matched ? '#10b981' : '#f87171'}; margin: 0; font-weight: bold;">
+                            ${similarityPercent}%
+                        </p>
+                        <p style="font-size: 12px; color: #9ca3af; margin: 5px 0 0 0;">${result.similarity.toFixed(3)}</p>
+                    </div>
+                    <div>
+                        <p style="color: #9ca3af; font-size: 12px; margin: 0 0 5px 0;">Rank</p>
+                        <p style="font-size: 20px; color: #ffffff; margin: 0; font-weight: bold;">
+                            ${result.rank || '1'}
+                        </p>
+                        <p style="font-size: 12px; color: #9ca3af; margin: 5px 0 0 0;">${result.rank ? 'Position in search results' : 'Direct match'}</p>
+                    </div>
+                </div>
+                ${result.top_match ? `
+                <div style="margin-bottom: 15px; padding: 10px; background: #1e1e1e; border-radius: 4px; border: 1px solid #3d3d3d;">
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0 0 5px 0;">Top Match</p>
+                    <p style="color: #ffffff; font-size: 14px; margin: 0; word-break: break-all;">${result.top_match}</p>
+                </div>
+                ` : ''}
+                <div style="padding: 15px; background: ${result.matched ? '#1e3a2e' : '#3a1e1e'}; border-radius: 4px; border: 1px solid ${result.matched ? '#10b981' : '#f87171'};">
+                    <p style="color: ${result.matched ? '#10b981' : '#f87171'}; font-size: 14px; margin: 0; font-weight: 500;">
+                        ${result.matched ? '✅' : '❌'} ${interpretation}
+                    </p>
+                </div>
+            `;
             
             addSystemLog(`Fingerprint test: ${matchStatus} (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
         } else {
