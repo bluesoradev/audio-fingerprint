@@ -1,6 +1,6 @@
 """Comprehensive FastAPI web UI for Audio Fingerprint Robustness Lab."""
 from fastapi import FastAPI, Request, UploadFile, File, BackgroundTasks, Form, Body
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 try:
