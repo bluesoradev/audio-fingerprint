@@ -886,27 +886,7 @@ def render_html_report(
                 
                 {summary_table_html}
                 
-                <div class="plots-section">
-                    <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;"> Visualizations</h2>
-                    <div class="plots-grid">
-                        <div class="plot-card">
-                            <div class="plot-title">Recall@K by Transform Severity</div>
-                            {f'<img src="/api/files/plots/recall_by_severity.png?run_id={run_id}" alt="Recall by Severity" />' if run_id else '<img src="plots/recall_by_severity.png" alt="Recall by Severity" />'}
-                        </div>
-                        <div class="plot-card">
-                            <div class="plot-title">Similarity Score by Severity</div>
-                            {f'<img src="/api/files/plots/similarity_by_severity.png?run_id={run_id}" alt="Similarity by Severity" />' if run_id else '<img src="plots/similarity_by_severity.png" alt="Similarity by Severity" />'}
-                        </div>
-                        <div class="plot-card">
-                            <div class="plot-title">Recall@K by Transform Type</div>
-                            {f'<img src="/api/files/plots/recall_by_transform.png?run_id={run_id}" alt="Recall by Transform Type" />' if run_id else '<img src="plots/recall_by_transform.png" alt="Recall by Transform Type" />'}
-                        </div>
-                        <div class="plot-card">
-                            <div class="plot-title">Latency by Transform Type</div>
-                            {f'<img src="/api/files/plots/latency_by_transform.png?run_id={run_id}" alt="Latency by Transform" />' if run_id else '<img src="plots/latency_by_transform.png" alt="Latency by Transform" />'}
-                        </div>
-                    </div>
-                </div>
+                
                 
                 <div class="overall-metrics">
                     <h3> Overall Metrics</h3>
