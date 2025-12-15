@@ -12,7 +12,6 @@ from fingerprint.embed import segment_audio, extract_embeddings, normalize_embed
 from fingerprint.query_index import build_index, load_index
 from fingerprint.run_queries import run_queries
 from evaluation.analyze import analyze_results
-from reports.render_report import generate_plots, render_html_report, package_report
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +27,17 @@ except ImportError as e:
     logger.warning(f"Could not import failure_capture module: {e}. Failure capture will be skipped.")
     HAS_FAILURE_CAPTURE = False
     capture_failures = None
+
+# Optional import for report generation (requires matplotlib/PIL)
+try:
+    from reports.render_report import generate_plots, render_html_report, package_report
+    HAS_REPORT_GENERATION = True
+except ImportError as e:
+    logger.warning(f"Could not import report generation module: {e}. Report generation will be skipped.")
+    HAS_REPORT_GENERATION = False
+    generate_plots = None
+    render_html_report = None
+    package_report = None
 
 
 def run_full_experiment(
@@ -280,25 +290,29 @@ def run_full_experiment(
             final_report_dir = run_dir / "final_report"
             final_report_dir.mkdir(parents=True, exist_ok=True)
             
-            # Generate plots
-            generate_plots(metrics_path, final_report_dir, config_path)
-            
-            # Generate HTML
-            html_path = final_report_dir / "report.html"
-            render_html_report(metrics_path, summary_path, html_path, config_path)
-            
-            # Copy proofs if they exist
-            proofs_dir = reports_dir / "proofs"
-            if proofs_dir.exists():
-                import shutil
-                final_proofs_dir = final_report_dir / "proofs"
+            if not HAS_REPORT_GENERATION:
+                logger.warning("Report generation is disabled (matplotlib/PIL not available). Skipping plot and HTML report generation.")
+                logger.info("Metrics and summary files are available in the run directory.")
+            else:
+                # Generate plots
+                generate_plots(metrics_path, final_report_dir, config_path)
+                
+                # Generate HTML
+                html_path = final_report_dir / "report.html"
+                render_html_report(metrics_path, summary_path, html_path, config_path)
+                
+                # Copy proofs if they exist
+                proofs_dir = reports_dir / "proofs"
                 if proofs_dir.exists():
-                    shutil.copytree(proofs_dir, final_proofs_dir, dirs_exist_ok=True)
-            
-            logger.info(f"Report generated: {final_report_dir / 'report.html'}")
-            
-            # Package report
-            package_report(final_report_dir, run_dir.parent / f"final_report_{run_timestamp}.zip")
+                    import shutil
+                    final_proofs_dir = final_report_dir / "proofs"
+                    if proofs_dir.exists():
+                        shutil.copytree(proofs_dir, final_proofs_dir, dirs_exist_ok=True)
+                
+                logger.info(f"Report generated: {final_report_dir / 'report.html'}")
+                
+                # Package report
+                package_report(final_report_dir, run_dir.parent / f"final_report_{run_timestamp}.zip")
     
     logger.info("=" * 60)
     logger.info("Experiment complete!")

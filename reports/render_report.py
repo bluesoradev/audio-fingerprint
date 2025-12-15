@@ -5,19 +5,32 @@ import logging
 from pathlib import Path
 from typing import Dict
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
 import yaml
 from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Optional imports for plotting (requires matplotlib/PIL)
+HAS_PLOTTING = False
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    HAS_PLOTTING = True
+except ImportError as e:
+    logger.warning(f"Could not import plotting libraries (matplotlib/seaborn): {e}. Plot generation will be disabled.")
+    plt = None
+    sns = None
+
 
 def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path = None):
     """Generate visualization plots."""
+    if not HAS_PLOTTING:
+        logger.warning("Plot generation is disabled (matplotlib/PIL not available). Skipping plot generation.")
+        return
+    
     with open(metrics_path, 'r') as f:
         metrics = json.load(f)
     
