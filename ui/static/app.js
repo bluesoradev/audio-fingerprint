@@ -1913,9 +1913,11 @@ async function testFingerprintRobustness() {
             
             addSystemLog(`Fingerprint test: ${matchStatus} (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
             
-            // Auto-reload deliverables if report was generated
-            if (result.report_id) {
-                addSystemLog(`✅ Report auto-generated: ${result.report_id} (${result.phase || 'unknown'})`, 'success');
+            // Auto-reload deliverables if reports were generated
+            if (result.report_id_phase1 || result.report_id_phase2) {
+                const phase1Msg = result.report_id_phase1 ? `Phase 1: ${result.report_id_phase1}` : '';
+                const phase2Msg = result.report_id_phase2 ? `Phase 2: ${result.report_id_phase2}` : '';
+                addSystemLog(`✅ Reports auto-generated: ${phase1Msg} ${phase2Msg}`, 'success');
                 // Reload deliverables after a short delay
                 setTimeout(() => {
                     if (document.getElementById('deliverables')) {
@@ -1992,180 +1994,6 @@ function updateTestDisplays(originalPath, transformedPath) {
         
         testBtn.disabled = !(hasOriginal && hasTransformed);
         console.log('[updateTestDisplays] Test button disabled:', testBtn.disabled);
-    }
-}
-
-// Generate Deliverables
-async function generateDeliverables() {
-    const manifestSelect = document.getElementById('deliverablesManifest');
-    const statusDiv = document.getElementById('deliverablesStatus');
-    const statusText = document.getElementById('deliverablesStatusText');
-    const generateBtn = document.getElementById('generateDeliverablesBtn');
-    
-    if (!manifestSelect || !statusDiv || !statusText || !generateBtn) {
-        showError('Deliverables UI elements not found');
-        return;
-    }
-    
-    const manifestPath = manifestSelect.value;
-    
-    if (!confirm(`This will generate comprehensive Phase 1 and Phase 2 deliverables.\n\nThis may take a while depending on the number of audio files.\n\nManifest: ${manifestPath}\n\nContinue?`)) {
-        return;
-    }
-    
-    generateBtn.disabled = true;
-    generateBtn.textContent = '⏳ Generating...';
-    statusDiv.style.display = 'block';
-    statusText.textContent = 'Starting generation...';
-    
-    try {
-        const formData = new FormData();
-        formData.append('manifest_path', manifestPath);
-        formData.append('phase', 'both');
-        
-        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.status === 'started') {
-            statusText.textContent = 'Generation started. Check logs for progress...';
-            startProcessMonitoring(result.command_id, 'Generating deliverables...', 'Generate Deliverables');
-            addSystemLog(`Started generating deliverables: ${manifestPath}`, 'info');
-            
-            // Poll for completion and reload deliverables
-            const checkInterval = setInterval(async () => {
-                try {
-                    const statusRes = await fetch(`${API_BASE}/process/${result.command_id}/status`);
-                    const status = await statusRes.json();
-                    
-                    if (status.status === 'completed') {
-                        clearInterval(checkInterval);
-                        statusText.textContent = '✅ Generation complete!';
-                        generateBtn.disabled = false;
-                        generateBtn.textContent = '📦 Generate Phase 1 & Phase 2 Deliverables';
-                        addSystemLog('Deliverables generation completed', 'success');
-                        // Reload deliverables list
-                        setTimeout(() => loadDeliverables(), 2000);
-                    } else if (status.status === 'error') {
-                        clearInterval(checkInterval);
-                        statusText.textContent = '❌ Generation failed';
-                        generateBtn.disabled = false;
-                        generateBtn.textContent = '📦 Generate Phase 1 & Phase 2 Deliverables';
-                        addSystemLog('Deliverables generation failed', 'error');
-                    }
-                } catch (error) {
-                    console.error('Error checking status:', error);
-                }
-            }, 3000);
-        } else {
-            throw new Error(result.message || 'Failed to start generation');
-        }
-    } catch (error) {
-        showError('Failed to start deliverables generation: ' + error.message);
-        generateBtn.disabled = false;
-        generateBtn.textContent = '📦 Generate Phase 1 & Phase 2 Deliverables';
-        statusText.textContent = '❌ Error: ' + error.message;
-    }
-}
-
-async function generatePhase1Only() {
-    const manifestSelect = document.getElementById('deliverablesManifest');
-    const generateBtn = document.getElementById('generatePhase1Btn');
-    
-    if (!manifestSelect || !generateBtn) {
-        showError('UI elements not found');
-        return;
-    }
-    
-    const manifestPath = manifestSelect.value;
-    
-    if (!confirm(`Generate Phase 1 deliverables only?\n\nManifest: ${manifestPath}`)) {
-        return;
-    }
-    
-    generateBtn.disabled = true;
-    generateBtn.textContent = '⏳ Generating Phase 1...';
-    
-    try {
-        const formData = new FormData();
-        formData.append('manifest_path', manifestPath);
-        formData.append('phase', 'phase1');
-        
-        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.status === 'started') {
-            startProcessMonitoring(result.command_id, 'Generating Phase 1 deliverables...', 'Generate Phase 1');
-            addSystemLog(`Started generating Phase 1 deliverables: ${manifestPath}`, 'info');
-            
-            setTimeout(() => {
-                generateBtn.disabled = false;
-                generateBtn.textContent = '📊 Generate Phase 1 Only';
-                loadDeliverables();
-            }, 5000);
-        } else {
-            throw new Error(result.message || 'Failed to start');
-        }
-    } catch (error) {
-        showError('Failed to start Phase 1 generation: ' + error.message);
-        generateBtn.disabled = false;
-        generateBtn.textContent = '📊 Generate Phase 1 Only';
-    }
-}
-
-async function generatePhase2Only() {
-    const manifestSelect = document.getElementById('deliverablesManifest');
-    const generateBtn = document.getElementById('generatePhase2Btn');
-    
-    if (!manifestSelect || !generateBtn) {
-        showError('UI elements not found');
-        return;
-    }
-    
-    const manifestPath = manifestSelect.value;
-    
-    if (!confirm(`Generate Phase 2 deliverables only?\n\nManifest: ${manifestPath}`)) {
-        return;
-    }
-    
-    generateBtn.disabled = true;
-    generateBtn.textContent = '⏳ Generating Phase 2...';
-    
-    try {
-        const formData = new FormData();
-        formData.append('manifest_path', manifestPath);
-        formData.append('phase', 'phase2');
-        
-        const response = await fetch(`${API_BASE}/process/generate-deliverables`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.status === 'started') {
-            startProcessMonitoring(result.command_id, 'Generating Phase 2 deliverables...', 'Generate Phase 2');
-            addSystemLog(`Started generating Phase 2 deliverables: ${manifestPath}`, 'info');
-            
-            setTimeout(() => {
-                generateBtn.disabled = false;
-                generateBtn.textContent = '📊 Generate Phase 2 Only';
-                loadDeliverables();
-            }, 5000);
-        } else {
-            throw new Error(result.message || 'Failed to start');
-        }
-    } catch (error) {
-        showError('Failed to start Phase 2 generation: ' + error.message);
-        generateBtn.disabled = false;
-        generateBtn.textContent = '📊 Generate Phase 2 Only';
     }
 }
 
@@ -2307,7 +2135,7 @@ async function loadDeliverables() {
             deliverablesListDiv.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #9ca3af;">
                     <p style="font-size: 16px; margin-bottom: 10px;">No deliverables found</p>
-                    <p style="font-size: 12px;">Run experiments using <code>generate_deliverables.py</code> to generate Phase 1 and Phase 2 reports.</p>
+                    <p style="font-size: 12px;">Run fingerprint robustness tests to automatically generate Phase 1 and Phase 2 reports.</p>
                 </div>
             `;
         }

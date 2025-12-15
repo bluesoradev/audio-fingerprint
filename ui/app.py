@@ -1336,21 +1336,11 @@ async def manipulate_chain(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
-def auto_generate_test_reports(original_file: Path, manipulated_file: Path, test_result: dict) -> dict:
-    """Automatically generate Phase 1 and Phase 2 reports from fingerprint test."""
+def auto_generate_test_reports(original_file: Path, manipulated_file: Path, test_result: dict, phase: str = "phase1") -> dict:
+    """Automatically generate Phase 1 or Phase 2 report from fingerprint test."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Determine phase based on transform type
-    manip_name = manipulated_file.stem.lower()
-    phase = "phase1"  # Default to phase1
-    
-    # Phase 2 indicators
-    phase2_keywords = ["overlay", "percussion", "melodic", "crop", "middle", "end_segment", 
-                       "bass_only", "remove_highs", "vinyl", "crackle", "reverb"]
-    if any(keyword in manip_name for keyword in phase2_keywords):
-        phase = "phase2"
-    
-    # Create report directory
+    # Create report directory with specified phase
     report_id = f"test_{timestamp}_{phase}"
     report_dir = REPORTS_DIR / report_id
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -1743,23 +1733,44 @@ async def test_fingerprint(
         final_matched = matched or direct_similarity > 0.7
         final_similarity = float(max(similarity, direct_similarity))
         
-        # Automatically generate Phase 1 and Phase 2 reports
-        report_data = None
+        # Automatically generate BOTH Phase 1 and Phase 2 reports
+        report_data_phase1 = None
+        report_data_phase2 = None
+        
+        test_result = {
+            "matched": final_matched,
+            "similarity": final_similarity,
+            "direct_similarity": float(direct_similarity),
+            "rank": rank,
+            "top_match": top_match,
+            "original_id": orig_id
+        }
+        
         try:
-            report_data = auto_generate_test_reports(
+            # Generate Phase 1 report
+            report_data_phase1 = auto_generate_test_reports(
                 original_file=original_file,
                 manipulated_file=manipulated_file,
-                test_result={
-                    "matched": final_matched,
-                    "similarity": final_similarity,
-                    "direct_similarity": float(direct_similarity),
-                    "rank": rank,
-                    "top_match": top_match,
-                    "original_id": orig_id
-                }
+                test_result=test_result,
+                phase="phase1"
             )
+            logger.info(f"Auto-generated Phase 1 report: {report_data_phase1.get('report_id')}")
         except Exception as e:
-            logger.warning(f"Failed to auto-generate reports: {e}")
+            logger.warning(f"Failed to auto-generate Phase 1 report: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        
+        try:
+            # Generate Phase 2 report
+            report_data_phase2 = auto_generate_test_reports(
+                original_file=original_file,
+                manipulated_file=manipulated_file,
+                test_result=test_result,
+                phase="phase2"
+            )
+            logger.info(f"Auto-generated Phase 2 report: {report_data_phase2.get('report_id')}")
+        except Exception as e:
+            logger.warning(f"Failed to auto-generate Phase 2 report: {e}")
             import traceback
             logger.error(traceback.format_exc())
         
@@ -1773,10 +1784,13 @@ async def test_fingerprint(
             "message": f"Fingerprint test: {'MATCHED ✓' if final_matched else 'NOT MATCHED ✗'} (similarity: {final_similarity:.3f})"
         }
         
-        if report_data:
-            response_data["report_id"] = report_data.get("report_id")
-            response_data["report_path"] = report_data.get("report_path")
-            response_data["phase"] = report_data.get("phase")
+        # Include both report IDs
+        if report_data_phase1:
+            response_data["report_id_phase1"] = report_data_phase1.get("report_id")
+            response_data["report_path_phase1"] = report_data_phase1.get("report_path")
+        if report_data_phase2:
+            response_data["report_id_phase2"] = report_data_phase2.get("report_id")
+            response_data["report_path_phase2"] = report_data_phase2.get("report_path")
         
         return JSONResponse(response_data)
         
