@@ -30,11 +30,24 @@ def re_encode(
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         
+        # Map codec names to ffmpeg codec names
+        codec_map = {
+            "mp3": "libmp3lame",
+            "aac": "aac",
+            "ogg": "libvorbis",  # OGG container uses Vorbis codec
+            "opus": "libopus",
+            "flac": "flac"
+        }
+        
+        ffmpeg_codec = codec_map.get(codec.lower(), codec.lower())
+        
+        logger.info(f"[Re-encode] Encoding {input_path} -> {out_path} using codec={codec} (ffmpeg: {ffmpeg_codec}) @ {bitrate}")
+        
         # Use ffmpeg for encoding
         cmd = [
             "ffmpeg",
             "-i", str(input_path),
-            "-acodec", codec,
+            "-acodec", ffmpeg_codec,
             "-b:a", bitrate,
             "-y",  # Overwrite output
             str(out_path)
@@ -44,6 +57,8 @@ def re_encode(
         for key, value in kwargs.items():
             cmd.extend([f"-{key}", str(value)])
         
+        logger.info(f"[Re-encode] Running command: {' '.join(cmd)}")
+        
         # Run ffmpeg
         result = subprocess.run(
             cmd,
@@ -52,11 +67,18 @@ def re_encode(
             check=True
         )
         
+        if not out_path.exists():
+            raise Exception(f"Output file was not created: {out_path}")
+        
+        file_size = out_path.stat().st_size
+        logger.info(f"[Re-encode] Success! Output: {out_path} ({file_size} bytes)")
+        
         logger.debug(f"Re-encoded {input_path} -> {out_path} ({codec} @ {bitrate})")
         return out_path
         
     except subprocess.CalledProcessError as e:
-        logger.error(f"ffmpeg encoding failed: {e.stderr}")
+        logger.error(f"[Re-encode] ffmpeg encoding failed: {e.stderr}")
+        logger.error(f"[Re-encode] Command: {' '.join(cmd) if 'cmd' in locals() else 'N/A'}")
         raise
     except FileNotFoundError:
         logger.error("ffmpeg not found. Please install ffmpeg.")

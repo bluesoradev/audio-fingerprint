@@ -821,25 +821,54 @@ async def manipulate_encode(
     """Apply re-encoding transform."""
     from transforms.encode import re_encode
     
+    logger.info(f"[Encode API] Received request: input_path={input_path}, codec={codec}, bitrate={bitrate}")
+    
     input_file = PROJECT_ROOT / input_path
+    if not input_file.exists():
+        logger.error(f"[Encode API] Input file not found: {input_path}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"Input file not found: {input_path}"
+        }, status_code=404)
+    
     output_path = PROJECT_ROOT / output_dir
     output_path.mkdir(parents=True, exist_ok=True)
     
     if output_name:
         out_file = output_path / output_name
     else:
-        out_file = output_path / f"{input_file.stem}_{codec}_{bitrate}.{codec}"
+        # Determine file extension based on codec
+        ext_map = {
+            "mp3": "mp3",
+            "aac": "m4a",  # AAC typically uses .m4a extension
+            "ogg": "ogg",
+            "opus": "opus",
+            "flac": "flac"
+        }
+        ext = ext_map.get(codec.lower(), codec.lower())
+        out_file = output_path / f"{input_file.stem}_{codec}_{bitrate}.{ext}"
+    
+    logger.info(f"[Encode API] Applying encode: {input_file} -> {out_file}")
     
     try:
         re_encode(input_file, codec, bitrate, out_file)
         
+        if not out_file.exists():
+            raise Exception(f"Output file was not created: {out_file}")
+        
+        output_path_str = str(out_file.relative_to(PROJECT_ROOT))
+        file_size = out_file.stat().st_size
+        logger.info(f"[Encode API] Success! Output: {output_path_str} ({file_size} bytes)")
+        
         return JSONResponse({
             "status": "success",
-            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "output_path": output_path_str,
             "message": f"Re-encoded: {codec} @ {bitrate}"
         })
     except Exception as e:
-        logger.error(f"Encode transform failed: {e}")
+        logger.error(f"[Encode API] Encode transform failed: {e}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
