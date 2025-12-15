@@ -385,25 +385,34 @@ async function loadManifests() {
         const transformSelect = document.getElementById('transformManifest');
         const experimentSelect = document.getElementById('experimentManifest');
         
-        manifestList.innerHTML = '';
+        if (manifestList) {
+            manifestList.innerHTML = '';
+        }
+        
         [ingestSelect, transformSelect, experimentSelect].forEach(select => {
-            select.innerHTML = '<option value="">-- Select Manifest --</option>';
+            if (select) {
+                select.innerHTML = '<option value="">-- Select Manifest --</option>';
+            }
         });
         
         if (result.manifests && result.manifests.length > 0) {
             result.manifests.forEach(manifest => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${manifest.name}</span>
-                    <span>${formatBytes(manifest.size)}</span>
-                `;
-                manifestList.appendChild(li);
+                if (manifestList) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${manifest.name}</span>
+                        <span>${formatBytes(manifest.size)}</span>
+                    `;
+                    manifestList.appendChild(li);
+                }
                 
                 [ingestSelect, transformSelect, experimentSelect].forEach(select => {
-                    const option = document.createElement('option');
-                    option.value = manifest.path;
-                    option.textContent = manifest.name;
-                    select.appendChild(option);
+                    if (select) {
+                        const option = document.createElement('option');
+                        option.value = manifest.path;
+                        option.textContent = manifest.name;
+                        select.appendChild(option);
+                    }
                 });
             });
         }
@@ -998,10 +1007,14 @@ async function applySpeedTransform() {
     }
     
     const speedSlider = document.getElementById('speedSlider');
+    if (!speedSlider) {
+        showError('Speed slider not found');
+        return;
+    }
     const speedRatio = parseFloat(speedSlider.value) / 100.0; // Convert from 50-200 to 0.5-2.0
-    const preservePitch = document.getElementById('preservePitch').checked;
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const preservePitch = document.getElementById('preservePitch')?.checked || false;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1055,9 +1068,14 @@ async function applyPitchTransform() {
         return;
     }
     
-    const semitones = parseInt(document.getElementById('pitchSlider').value);
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const pitchSlider = document.getElementById('pitchSlider');
+    if (!pitchSlider) {
+        showError('Pitch slider not found');
+        return;
+    }
+    const semitones = parseInt(pitchSlider.value);
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1103,9 +1121,14 @@ async function applyReverbTransform() {
         return;
     }
     
-    const delayMs = parseInt(document.getElementById('reverbSlider').value);
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const reverbSlider = document.getElementById('reverbSlider');
+    if (!reverbSlider) {
+        showError('Reverb slider not found');
+        return;
+    }
+    const delayMs = parseInt(reverbSlider.value);
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1142,10 +1165,15 @@ async function applyNoiseReductionTransform() {
         return;
     }
     
-    const reductionPercent = parseInt(document.getElementById('noiseSlider').value);
+    const noiseSlider = document.getElementById('noiseSlider');
+    if (!noiseSlider) {
+        showError('Noise slider not found');
+        return;
+    }
+    const reductionPercent = parseInt(noiseSlider.value);
     const reductionStrength = reductionPercent / 100.0;
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1182,9 +1210,14 @@ async function applyEQTransform() {
         return;
     }
     
-    const gainDb = parseInt(document.getElementById('eqSlider').value);
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const eqSlider = document.getElementById('eqSlider');
+    if (!eqSlider) {
+        showError('EQ slider not found');
+        return;
+    }
+    const gainDb = parseInt(eqSlider.value);
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1221,15 +1254,25 @@ async function applyCompressionTransform() {
         return;
     }
     
-    const codec = document.getElementById('codecSelect').value;
+    const codecSelect = document.getElementById('codecSelect');
+    if (!codecSelect) {
+        showError('Codec select not found');
+        return;
+    }
+    const codec = codecSelect.value;
     if (codec === 'None') {
         showError('Please select a codec');
         return;
     }
     
-    const bitrate = document.getElementById('bitrateSelect').value;
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const bitrateSelect = document.getElementById('bitrateSelect');
+    if (!bitrateSelect) {
+        showError('Bitrate select not found');
+        return;
+    }
+    const bitrate = bitrateSelect.value;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1267,10 +1310,17 @@ async function applyOverlayTransform() {
         return;
     }
     
-    const overlayFile = document.getElementById('overlayFile').files[0];
-    const gainDb = parseInt(document.getElementById('overlayGainSlider').value);
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const overlayFileInput = document.getElementById('overlayFile');
+    const overlayFile = overlayFileInput?.files?.[0] || null;
+    
+    const overlayGainSlider = document.getElementById('overlayGainSlider');
+    if (!overlayGainSlider) {
+        showError('Overlay gain slider not found');
+        return;
+    }
+    const gainDb = parseInt(overlayGainSlider.value);
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1329,8 +1379,8 @@ async function applyNoiseTransform() {
     // This is for adding noise, not reducing it
     const snrDb = 20; // Default SNR
     const noiseType = 'white';
-    const outputDir = document.getElementById('manipulateOutputDir').value;
-    const outputName = document.getElementById('manipulateOutputName').value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
     
     try {
         const formData = new FormData();
@@ -1367,7 +1417,7 @@ async function applyEncodeTransform() {
     
     const codec = document.getElementById('encodeCodec').value;
     const bitrate = document.getElementById('encodeBitrate').value;
-    const outputDir = document.getElementById('manipulateOutputDir').value;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
     
     try {
@@ -1405,7 +1455,7 @@ async function applyChopTransform() {
     
     const removeStart = parseFloat(document.getElementById('chopStart').value);
     const removeEnd = parseFloat(document.getElementById('chopEnd').value);
-    const outputDir = document.getElementById('manipulateOutputDir').value;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
     
     try {
@@ -1543,7 +1593,7 @@ async function applyChainTransform() {
         return;
     }
     
-    const outputDir = document.getElementById('manipulateOutputDir').value;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
     
     try {
