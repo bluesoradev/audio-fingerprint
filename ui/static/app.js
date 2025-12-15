@@ -3215,7 +3215,7 @@ async function runPhaseSuite(phase = 'both') {
 
         showCompletionAlert(btnText, 'info');
 
-        const resp = await fetch(`${API_BASE}/deliverables`, {
+        const resp = await fetch(`${API_BASE}/process/generate-deliverables`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
