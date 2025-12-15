@@ -343,7 +343,7 @@ async def run_experiment(
 
 @app.post("/api/process/generate-deliverables")
 async def generate_deliverables_api(
-    manifest_path: str = Form("data/files_manifest.csv"),
+    manifest_path: str = Form("data/manifests/files_manifest.csv"),
     phase: str = Form("both")  # "both", "phase1", "phase2"
 ):
     """Generate Phase 1 and/or Phase 2 deliverables."""
