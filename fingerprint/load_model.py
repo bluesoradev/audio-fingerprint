@@ -49,6 +49,7 @@ def load_fingerprint_model(config_path: Path) -> Dict[str, Any]:
     model_config = config.get("model", {})
     audio_config = config.get("audio", {})
     embedding_config = config.get("embedding", {})
+    segmentation_config = config.get("segmentation", {})
     
     # Verify model checksum if specified
     model_path = model_config.get("path")
@@ -85,12 +86,21 @@ def load_fingerprint_model(config_path: Path) -> Dict[str, Any]:
             sample_rate=audio_config.get("sample_rate", 44100)
         )
     
+    aggregation_config = config.get("aggregation", {})
+    query_augmentation_config = config.get("query_augmentation", {})
+    multi_scale_config = config.get("multi_scale", {})
+    
     return {
         "model": generator,
         "config": config,
         "sample_rate": audio_config.get("sample_rate", 44100),
         "segment_length": audio_config.get("segment_length", 0.5),
         "embedding_dim": embedding_config.get("dimension", 512),
+        "overlap_ratio": segmentation_config.get("overlap_ratio", 0.0),
+        "segmentation": segmentation_config,
+        "aggregation": aggregation_config,
+        "query_augmentation": query_augmentation_config,
+        "multi_scale": multi_scale_config,
     }
 
 

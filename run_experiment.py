@@ -241,10 +241,12 @@ def run_full_experiment(
             else:
                 # Generate new embeddings
                 logger.info(f"Generating embeddings for {file_id} -> {file_path}")
+                overlap_ratio = model_config.get("overlap_ratio", None)
                 segments = segment_audio(
                     file_path,
                     segment_length=model_config["segment_length"],
-                    sample_rate=model_config["sample_rate"]
+                    sample_rate=model_config["sample_rate"],
+                    overlap_ratio=overlap_ratio
                 )
                 
                 embeddings = extract_embeddings(
@@ -325,10 +327,12 @@ def run_full_experiment(
                         cached_embeddings, _ = cache.get(file_id, file_path, model_config)
                         if cached_embeddings is None:
                             # Generate if not cached
+                            overlap_ratio = model_config.get("overlap_ratio", None)
                             segments = segment_audio(
                                 file_path,
                                 segment_length=model_config["segment_length"],
-                                sample_rate=model_config["sample_rate"]
+                                sample_rate=model_config["sample_rate"],
+                                overlap_ratio=overlap_ratio
                             )
                             cached_embeddings = extract_embeddings(
                                 segments, model_config, output_dir=None, save_embeddings=False

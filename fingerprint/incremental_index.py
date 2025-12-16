@@ -87,10 +87,12 @@ def update_index_incremental(
         if cached_embeddings is None:
             # Generate and cache
             logger.info(f"Generating embeddings for new file: {file_id}")
+            overlap_ratio = model_config.get("overlap_ratio", None)
             segments = segment_audio(
                 file_path,
                 segment_length=model_config["segment_length"],
-                sample_rate=model_config["sample_rate"]
+                sample_rate=model_config["sample_rate"],
+                overlap_ratio=overlap_ratio
             )
             embeddings = extract_embeddings(
                 segments,

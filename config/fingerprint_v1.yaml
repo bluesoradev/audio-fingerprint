@@ -17,7 +17,7 @@ model:
 # Audio processing parameters
 audio:
   sample_rate: 44100
-  segment_length: 0.5  # seconds
+  segment_length: 1.0  # seconds (increased from 0.5 for better robustness)
   hop_length: null  # null = no overlap, segment_length = hop_length
   mono: true
   normalization: "peak"  # "peak", "rms", or null
@@ -30,8 +30,58 @@ embedding:
 
 # Segment processing
 segmentation:
-  method: "fixed_length"  # "fixed_length", "overlapping"
-  overlap_ratio: 0.0  # 0.0 = no overlap, 0.5 = 50% overlap
+  method: "overlapping"  # "fixed_length", "overlapping" (changed to overlapping for better coverage)
+  overlap_ratio: 0.5  # 0.5 = 50% overlap (improves matching robustness)
+
+# Aggregation parameters (for query result fusion)
+aggregation:
+  # Similarity threshold: exclude segments with top match similarity below this
+  min_similarity_threshold: 0.2  # Filter out low-quality matches (0.0-1.0)
+  
+  # Top-K fusion: use only best-matching segments
+  top_k_fusion_ratio: 0.6  # Use top 60% of segments (0.0-1.0, 1.0 = use all)
+  
+  # Temporal consistency: weight consecutive segments matching same file
+  use_temporal_consistency: true  # Enable temporal consistency weighting
+  
+  # Aggregation weights (must sum to ~1.0, will be normalized)
+  weights:
+    similarity: 0.35      # Weighted similarity score (primary signal)
+    rank_1: 0.30          # Rank-1 voting score (strongest signal)
+    rank_5: 0.15          # Rank-5 voting score (supporting signal)
+    match_ratio: 0.10      # Match ratio (coverage signal)
+    temporal: 0.10         # Temporal consistency (consecutive matches)
+  
+  # Confidence-based re-ranking
+  use_confidence_rerank: true  # Re-rank results by confidence score
+  min_confidence_threshold: 0.0  # Minimum confidence to include result (0.0-1.0, 0.0 = no filtering)
+  
+  # Second-stage re-ranking (more thorough analysis of top candidates)
+  second_stage_rerank:
+    enabled: true  # Enable second-stage re-ranking for top candidates
+    top_k: 5  # Number of top candidates to re-rank (typically 3-10)
+  
+  # Result validation and quality checks
+  validation:
+    enabled: true  # Enable result validation
+    min_quality_score: 0.0  # Minimum quality score to consider valid (0.0-1.0)
+  
+  # Adaptive threshold: dynamically adjust similarity threshold based on query quality
+  use_adaptive_threshold: true  # Enable adaptive threshold filtering
+  adaptive_threshold_base: 0.2  # Base threshold (will be adjusted based on query quality)
+  adaptive_threshold_sensitivity: 0.1  # How much to adjust threshold (0.0-1.0)
+
+# Multi-scale feature fusion (use multiple segment lengths for better recall)
+multi_scale:
+  enabled: false  # Set to true to enable multi-scale fusion (increases latency ~2-3x)
+  segment_lengths:
+    - 0.75  # Shorter segments for fine-grained matching
+    - 1.0   # Primary segment length
+    - 1.5   # Longer segments for stable matching
+  weights:
+    - 0.25  # Weight for shortest length
+    - 0.50  # Weight for primary length
+    - 0.25  # Weight for longest length
 
 # Metadata
 metadata:

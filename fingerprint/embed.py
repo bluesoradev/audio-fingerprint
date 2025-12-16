@@ -13,10 +13,18 @@ def segment_audio(
     audio_path: Path,
     segment_length: float = 0.5,
     hop_length: Optional[float] = None,
-    sample_rate: int = 44100
+    sample_rate: int = 44100,
+    overlap_ratio: Optional[float] = None
 ) -> List[Dict]:
     """
-    Segment audio into fixed-length chunks.
+    Segment audio into fixed-length chunks with optional overlap.
+    
+    Args:
+        audio_path: Path to audio file
+        segment_length: Length of each segment in seconds
+        hop_length: Hop length in seconds (if None, calculated from overlap_ratio or no overlap)
+        sample_rate: Sample rate for audio
+        overlap_ratio: Overlap ratio (0.0 = no overlap, 0.5 = 50% overlap)
     
     Returns:
         List of segment dictionaries with start, end, path, etc.
@@ -30,7 +38,11 @@ def segment_audio(
         
         # Determine hop length
         if hop_length is None:
-            hop_samples = segment_samples  # No overlap
+            if overlap_ratio is not None and overlap_ratio > 0:
+                # Calculate hop length from overlap ratio
+                hop_samples = int(segment_samples * (1 - overlap_ratio))
+            else:
+                hop_samples = segment_samples  # No overlap
         else:
             hop_samples = int(hop_length * sr)
         

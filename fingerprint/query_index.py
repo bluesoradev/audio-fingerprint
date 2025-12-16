@@ -131,7 +131,8 @@ def query_index(
     query_vectors: np.ndarray,
     topk: int = 10,
     ids: Optional[List[str]] = None,
-    normalize: bool = True
+    normalize: bool = True,
+    index_metadata: Optional[Dict] = None
 ) -> List[Dict]:
     """
     Query FAISS index.
@@ -142,6 +143,7 @@ def query_index(
         topk: Number of results to return
         ids: List of IDs for index vectors (from metadata)
         normalize: Whether to normalize query vectors
+        index_metadata: Index metadata dict (may contain ef_search parameter)
         
     Returns:
         List of result dictionaries
@@ -155,6 +157,18 @@ def query_index(
         norms = np.linalg.norm(query_vectors, axis=1, keepdims=True)
         norms = np.where(norms == 0, 1, norms)
         query_vectors = query_vectors / norms
+    
+    # Set ef_search for HNSW indexes (improves recall)
+    if isinstance(index, faiss.IndexHNSWFlat) or isinstance(index, faiss.IndexHNSW):
+        ef_search = 50  # Default
+        if index_metadata:
+            config = index_metadata.get("config", {})
+            params = config.get("parameters", {})
+            ef_search = params.get("ef_search", 50)
+        # Ensure ef_search is at least topk
+        ef_search = max(ef_search, topk)
+        index.hnsw.efSearch = ef_search
+        logger.debug(f"Set HNSW ef_search to {ef_search} for topk={topk}")
     
     # Query
     distances, indices = index.search(query_vectors.astype(np.float32), topk)

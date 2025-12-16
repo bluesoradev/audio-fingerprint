@@ -3,9 +3,9 @@
   "metric": "cosine",
   "parameters": {
     "M": 32,
-    "ef_construction": 200,
-    "ef_search": 50
+    "ef_construction": 300,
+    "ef_search": 150
   },
   "normalize": true,
-  "description": "HNSW index optimized for cosine similarity on normalized embeddings"
+  "description": "HNSW index optimized for cosine similarity on normalized embeddings (ef_construction increased to 300 for better index quality, ef_search=150 for recall)"
 }
