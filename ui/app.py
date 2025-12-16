@@ -675,12 +675,12 @@ async def list_audio_files(directory: str = "originals"):
     """List audio files in a directory."""
     try:
         logger.info(f"[Audio Files API] Listing files in directory: {directory}")
-        audio_dir = DATA_DIR / directory
+    audio_dir = DATA_DIR / directory
         logger.info(f"[Audio Files API] Full path: {audio_dir}")
         logger.info(f"[Audio Files API] Directory exists: {audio_dir.exists()}")
         
-        files = []
-        
+    files = []
+    
         if audio_dir.exists() and audio_dir.is_dir():
             # Include multiple audio formats
             audio_extensions = ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.ogg", "*.aac"]
@@ -688,12 +688,12 @@ async def list_audio_files(directory: str = "originals"):
                 try:
                     for file in audio_dir.glob(ext):
                         try:
-                            files.append({
-                                "name": file.name,
-                                "path": str(file.relative_to(PROJECT_ROOT)),
-                                "size": file.stat().st_size,
-                                "modified": file.stat().st_mtime
-                            })
+            files.append({
+                "name": file.name,
+                "path": str(file.relative_to(PROJECT_ROOT)),
+                "size": file.stat().st_size,
+                "modified": file.stat().st_mtime
+            })
                         except Exception as e:
                             logger.warning(f"[Audio Files API] Error reading file {file}: {e}")
                             continue
@@ -704,7 +704,7 @@ async def list_audio_files(directory: str = "originals"):
             logger.warning(f"[Audio Files API] Directory does not exist or is not a directory: {audio_dir}")
         
         logger.info(f"[Audio Files API] Found {len(files)} files")
-        return JSONResponse({"files": sorted(files, key=lambda x: x["modified"], reverse=True)})
+    return JSONResponse({"files": sorted(files, key=lambda x: x["modified"], reverse=True)})
     except Exception as e:
         logger.error(f"[Audio Files API] Error listing audio files: {e}", exc_info=True)
         return JSONResponse({"error": str(e), "files": []}, status_code=500)
@@ -722,8 +722,8 @@ async def serve_audio_file(path: str):
         logger.info(f"[Audio File API] File suffix: {file_path.suffix}")
         if file_path.suffix in [".wav", ".mp3", ".m4a", ".flac", ".ogg"]:
             logger.info(f"[Audio File API] Serving file: {file_path}")
-            return FileResponse(file_path, media_type="audio/wav")
-        else:
+        return FileResponse(file_path, media_type="audio/wav")
+    else:
             logger.warning(f"[Audio File API] Unsupported file type: {file_path.suffix}")
             return JSONResponse({"error": f"Unsupported file type: {file_path.suffix}"}, status_code=400)
     else:
@@ -2523,22 +2523,22 @@ async def list_runs():
 async def get_run_details(run_id: str):
     """Get detailed run information."""
     try:
-        report_dir = REPORTS_DIR / run_id
-        
-        if not report_dir.exists():
-            return JSONResponse({"error": "Run not found"}, status_code=404)
-        
-        details = {
-            "id": run_id,
-            "path": str(report_dir.relative_to(PROJECT_ROOT)),
-            "files": {}
-        }
-        
-        # Load metrics
-        metrics_file = report_dir / "metrics.json"
-        if metrics_file.exists():
+    report_dir = REPORTS_DIR / run_id
+    
+    if not report_dir.exists():
+        return JSONResponse({"error": "Run not found"}, status_code=404)
+    
+    details = {
+        "id": run_id,
+        "path": str(report_dir.relative_to(PROJECT_ROOT)),
+        "files": {}
+    }
+    
+    # Load metrics
+    metrics_file = report_dir / "metrics.json"
+    if metrics_file.exists():
             try:
-                with open(metrics_file, 'r') as f:
+        with open(metrics_file, 'r') as f:
                     metrics = json.load(f)
                     # Sanitize invalid float values (inf, -inf, nan) before returning
                     details["metrics"] = sanitize_json_floats(metrics)
@@ -2547,15 +2547,15 @@ async def get_run_details(run_id: str):
                 details["metrics"] = {"error": f"Failed to load metrics: {str(e)}"}
         else:
             details["metrics"] = None
-        
-        # Load summary
-        summary_file = report_dir / "suite_summary.csv"
-        if summary_file.exists():
+    
+    # Load summary
+    summary_file = report_dir / "suite_summary.csv"
+    if summary_file.exists():
             try:
                 # Check if file is empty
                 if summary_file.stat().st_size > 0:
-                    df = pd.read_csv(summary_file)
-                    details["summary"] = df.to_dict('records')
+        df = pd.read_csv(summary_file)
+        details["summary"] = df.to_dict('records')
                 else:
                     details["summary"] = []
                     logger.warning(f"Summary file {summary_file} is empty")
@@ -2564,8 +2564,8 @@ async def get_run_details(run_id: str):
                 details["summary"] = {"error": f"Failed to load summary: {str(e)}"}
         else:
             details["summary"] = None
-        
-        return JSONResponse(details)
+    
+    return JSONResponse(details)
     except Exception as e:
         logger.error(f"Error in get_run_details for {run_id}: {e}", exc_info=True)
         return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)

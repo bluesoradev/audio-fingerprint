@@ -437,8 +437,8 @@ class ResultsPage(QWidget):
             self._show_no_data()
             return
         
-        try:
-            with open(metrics_file, 'r') as f:
+                try:
+                    with open(metrics_file, 'r') as f:
                 self.current_metrics = json.load(f)
             
             self.current_report_dir = selected_report
