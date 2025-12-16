@@ -97,7 +97,7 @@ def extract_embeddings(
         model: EmbeddingGenerator model (or dict with 'model' key)
         output_dir: Directory to save embeddings (optional)
         save_embeddings: Whether to save to disk
-        batch_size: Batch size for GPU processing (default: 16, increase for faster GPU)
+        batch_size: Batch size for GPU processing (default: 32, optimized for GPU throughput)
         
     Returns:
         Array of embeddings (N_segments, D)
@@ -159,8 +159,8 @@ def extract_embeddings(
                 valid_seg_ids = [s["segment_id"] for _, s in valid_batch]
                 
                 try:
-                    # Use batch processing with configured batch_size (model will handle internal batching)
-                    batch_embeddings = actual_model.generate_embeddings_batch(valid_paths, batch_size=batch_size)
+                    # Use batch processing
+                    batch_embeddings = actual_model.generate_embeddings_batch(valid_paths, batch_size=len(valid_paths))
                     
                     # Process results
                     for emb, seg_id in zip(batch_embeddings, valid_seg_ids):

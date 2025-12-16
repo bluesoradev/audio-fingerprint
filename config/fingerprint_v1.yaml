@@ -18,7 +18,7 @@ model:
 # Audio processing parameters
 audio:
   sample_rate: 44100
-  segment_length: 4.0  # seconds (OPTIMIZED FOR LATENCY: 4.0s dramatically reduces segments for <550ms target)
+  segment_length: 4.0  # seconds (OPTIMIZED: 4.0s reduces segments significantly for <550ms latency target)
   hop_length: null  # null = no overlap, segment_length = hop_length
   mono: true
   normalization: "peak"  # "peak", "rms", or null
@@ -27,7 +27,7 @@ audio:
 embedding:
   dimension: 512  # Expected output dimension
   normalization: "l2"  # "l2", "none"
-  dtype: "float16"  # FP16 for 2x GPU speedup (minimal accuracy loss, critical for <550ms latency)
+  dtype: "float16"  # FP16 for 2x speedup with minimal accuracy loss (critical for <550ms latency)
 
 # Segment processing
 segmentation:
@@ -61,8 +61,8 @@ aggregation:
   
   # Second-stage re-ranking (more thorough analysis of top candidates)
   second_stage_rerank:
-    enabled: false  # DISABLED for maximum speed (confidence rerank provides sufficient benefit)
-    top_k: 3  # Only re-rank top 3 (not used when disabled)
+    enabled: true  # ENABLED: Only top 3 candidates (fast but effective)
+    top_k: 3  # Only re-rank top 3 (minimal latency cost, maximum benefit)
   
   # Result validation and quality checks
   validation:

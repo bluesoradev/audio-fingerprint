@@ -60,8 +60,8 @@ class EmbeddingGenerator:
         content_type: str = "music",
         input_repr: str = "mel256",
         device: Optional[str] = None,
-        model_name: Optional[str] = None,
-        dtype: str = "float32"
+        dtype: str = "float32",
+        model_name: Optional[str] = None
     ):
         """
         Initialize embedding generator.
@@ -74,7 +74,6 @@ class EmbeddingGenerator:
             input_repr: Input representation for OpenL3 ('mel256' or 'linear')
             device: torch device ("cuda", "cpu", or None for auto)
             model_name: Optional MERT model name override
-            dtype: Data type for model ("float32" or "float16" for 2x GPU speedup)
         """
         self.embedding_dim = embedding_dim
         self.sample_rate = sample_rate
@@ -82,7 +81,6 @@ class EmbeddingGenerator:
         self.input_repr = input_repr
         self.model_type = model_type
         self.model_name = model_name or MERT_MODEL_NAME
-        self.dtype = dtype  # "float32" or "float16" for GPU speedup
         
         if not HAS_TORCH:
             self.device = "cpu"
@@ -92,6 +90,9 @@ class EmbeddingGenerator:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         else:
             self.device = device
+        
+        # Store dtype preference (float16 for speed, float32 for accuracy)
+        self.dtype = dtype
         
         # Log device information for debugging
         import torch
@@ -169,11 +170,6 @@ class EmbeddingGenerator:
                     self.mert_model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
                     self.mert_processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
                     self.mert_model.to(self.device)
-                    # Convert to half precision for 2x speedup if dtype is float16
-                    if self.dtype == "float16" and self.device == "cuda":
-                        import torch
-                        self.mert_model = self.mert_model.half()
-                        logger.info("✅ Converted MERT model to FP16 for 2x GPU speedup")
                     self.mert_model.eval()
                     self.active_model = "mert"
                     
@@ -268,16 +264,31 @@ class EmbeddingGenerator:
                 return_tensors="pt"
             )
             
-            # Convert inputs to half precision if model is FP16
-            import torch
-            if self.dtype == "float16" and self.device == "cuda":
-                inputs = {k: v.to(self.device).half() for k, v in inputs.items()}
-            else:
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
-            # Generate embeddings
+            # Generate embeddings with CUDA error handling
+            import torch
             with torch.no_grad():
-                outputs = self.mert_model(**inputs)
+                try:
+                    # Clear CUDA cache to prevent memory issues
+                    if self.device == "cuda":
+                        torch.cuda.empty_cache()
+                    
+                    outputs = self.mert_model(**inputs)
+                    
+                    # Synchronize CUDA operations to catch errors early
+                    if self.device == "cuda":
+                        torch.cuda.synchronize()
+                except RuntimeError as e:
+                    if "CUDA" in str(e) or "device-side" in str(e).lower():
+                        logger.error(f"CUDA error during inference: {e}")
+                        # Clear cache and retry once
+                        if self.device == "cuda":
+                            torch.cuda.empty_cache()
+                            torch.cuda.synchronize()
+                        raise
+                    else:
+                        raise
                 # Extract embeddings (adjust based on MERT output structure)
                 if hasattr(outputs, 'last_hidden_state'):
                     embeddings = outputs.last_hidden_state
@@ -308,7 +319,11 @@ class EmbeddingGenerator:
             if norm > 0:
                 emb = emb / norm
             
-            return emb.astype(np.float32)
+            # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
+            if self.dtype == 'float16':
+                return emb.astype(np.float16)
+            else:
+                return emb.astype(np.float32)
         
         except Exception as e:
             logger.error(f"Error generating MERT embedding: {e}")
@@ -379,7 +394,11 @@ class EmbeddingGenerator:
         if norm > 0:
             emb = emb / norm
         
-        return emb.astype(np.float32)
+        # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
+        if self.dtype == 'float16':
+            return emb.astype(np.float16)
+        else:
+            return emb.astype(np.float32)
     
     def _generate_librosa_embedding(self, audio: np.ndarray, sr: int) -> np.ndarray:
         """Generate embedding using librosa features (fallback)."""
@@ -400,7 +419,11 @@ class EmbeddingGenerator:
         if norm > 0:
             emb = emb / norm
         
-        return emb.astype(np.float32)
+        # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
+        if self.dtype == 'float16':
+            return emb.astype(np.float16)
+        else:
+            return emb.astype(np.float32)
     
     def generate_embeddings_batch(
         self,
@@ -470,15 +493,30 @@ class EmbeddingGenerator:
                 return_tensors="pt"
             )
             
-            # Convert inputs to half precision if model is FP16
-            import torch
-            if self.dtype == "float16" and self.device == "cuda":
-                inputs = {k: v.to(self.device).half() for k, v in inputs.items()}
-            else:
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
+            import torch
             with torch.no_grad():
-                outputs = self.mert_model(**inputs)
+                try:
+                    # Clear CUDA cache to prevent memory issues
+                    if self.device == "cuda":
+                        torch.cuda.empty_cache()
+                    
+                    outputs = self.mert_model(**inputs)
+                    
+                    # Synchronize CUDA operations to catch errors early
+                    if self.device == "cuda":
+                        torch.cuda.synchronize()
+                except RuntimeError as e:
+                    if "CUDA" in str(e) or "device-side" in str(e).lower():
+                        logger.error(f"CUDA error during batch inference: {e}")
+                        # Clear cache and retry once
+                        if self.device == "cuda":
+                            torch.cuda.empty_cache()
+                            torch.cuda.synchronize()
+                        raise
+                    else:
+                        raise
                 if hasattr(outputs, 'last_hidden_state'):
                     embeddings = outputs.last_hidden_state
                 elif hasattr(outputs, 'pooler_output'):
@@ -505,7 +543,12 @@ class EmbeddingGenerator:
                 if norm > 0:
                     emb = emb / norm
                 
-                results.append(emb.astype(np.float32))
+                # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
+                dtype_config = getattr(self, 'dtype', 'float32')
+                if dtype_config == 'float16':
+                    results.append(emb.astype(np.float16))
+                else:
+                    results.append(emb.astype(np.float32))
             
             return results
         except Exception as e:
