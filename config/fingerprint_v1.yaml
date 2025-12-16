@@ -12,13 +12,13 @@ model:
   checksum: null
   
   # Device: "cuda", "cpu", or null for auto-detect
-  # CRITICAL: Set to "cuda" if GPU available for 5-10x speedup, or "cpu" if not
-  device: null  # Auto-detect (will use GPU if available)
+  # CRITICAL: GPU acceleration enabled for 5-10x speedup
+  device: "cuda"  # Force GPU usage (VPS has GPU)
 
 # Audio processing parameters
 audio:
   sample_rate: 44100
-  segment_length: 3.0  # seconds (AGGRESSIVE: increased to 3.0s for fewer segments = faster processing)
+  segment_length: 2.0  # seconds (OPTIMAL: 2.0s balances coverage and speed with GPU)
   hop_length: null  # null = no overlap, segment_length = hop_length
   mono: true
   normalization: "peak"  # "peak", "rms", or null
@@ -27,50 +27,50 @@ audio:
 embedding:
   dimension: 512  # Expected output dimension
   normalization: "l2"  # "l2", "none"
-  dtype: "float32"  # Use "float16" if GPU available for 2x speedup (requires GPU)
+  dtype: "float32"  # FP32 for maximum accuracy (can switch to "float16" for 2x speedup if needed)
 
 # Segment processing
 segmentation:
-  method: "fixed_length"  # CRITICAL: Changed to fixed_length (no overlap = maximum speed)
-  overlap_ratio: 0.0  # CRITICAL: NO overlap for maximum speed (0.0 = no overlap)
+  method: "overlapping"  # Overlapping for better coverage (improves recall)
+  overlap_ratio: 0.1  # 10% overlap (minimal overlap for better recall with minimal latency cost)
 
 # Aggregation parameters (for query result fusion)
-# AGGRESSIVE OPTIMIZATION: Disabled expensive features for maximum speed
+# OPTIMIZED FOR GPU: Balanced settings for 97%+ recall and high similarity with <550ms latency
 aggregation:
   # Similarity threshold: exclude segments with top match similarity below this
-  min_similarity_threshold: 0.1  # Lowered to include more good matches
+  min_similarity_threshold: 0.1  # Lower threshold to include more good matches (improves recall)
   
   # Top-K fusion: use only best-matching segments
-  top_k_fusion_ratio: 0.5  # CRITICAL: Reduced from 0.75 to 0.5 (use fewer segments = faster)
+  top_k_fusion_ratio: 0.7  # Use top 70% of segments (balanced: good recall with acceptable speed)
   
   # Temporal consistency: weight consecutive segments matching same file
-  use_temporal_consistency: false  # CRITICAL: Disabled to save computation time
+  use_temporal_consistency: true  # ENABLED: Critical for improving recall (especially for difficult transforms)
   
   # Aggregation weights (must sum to ~1.0, will be normalized)
-  # Optimized for speed while maintaining recall
+  # Optimized for high similarity scores while maintaining recall
   weights:
-    similarity: 0.50      # Increased to emphasize similarity score
-    rank_1: 0.35          # Increased (strongest signal for recall)
-    rank_5: 0.10          # Reduced (less computation)
-    match_ratio: 0.05     # Minimal
-    temporal: 0.0         # Disabled (no temporal computation)
+    similarity: 0.60      # Increased to emphasize similarity score (improves similarity metric)
+    rank_1: 0.25          # Strong signal for recall
+    rank_5: 0.10          # Supporting signal
+    match_ratio: 0.05     # Minimal weight
+    temporal: 0.0         # Temporal weight handled separately in temporal_score
   
   # Confidence-based re-ranking
-  use_confidence_rerank: false  # CRITICAL: Disabled to save computation time
+  use_confidence_rerank: true  # ENABLED: Improves similarity scores significantly
   min_confidence_threshold: 0.0  # Minimum confidence to include result (0.0-1.0, 0.0 = no filtering)
   
   # Second-stage re-ranking (more thorough analysis of top candidates)
   second_stage_rerank:
-    enabled: false  # Disabled to reduce latency
-    top_k: 5  # Number of top candidates to re-rank (typically 3-10)
+    enabled: true  # ENABLED: Only top 3 candidates (fast but effective)
+    top_k: 3  # Only re-rank top 3 (minimal latency cost, maximum benefit)
   
   # Result validation and quality checks
   validation:
-    enabled: false  # CRITICAL: Disabled to save computation time
+    enabled: false  # Disabled for speed (confidence rerank provides similar benefit)
     min_quality_score: 0.0  # Minimum quality score to consider valid (0.0-1.0)
   
   # Adaptive threshold: dynamically adjust similarity threshold based on query quality
-  use_adaptive_threshold: false  # CRITICAL: Disabled to save computation time
+  use_adaptive_threshold: false  # Disabled (fixed threshold works well with GPU)
   adaptive_threshold_base: 0.1  # Base threshold (not used when disabled)
   adaptive_threshold_sensitivity: 0.1  # Sensitivity (not used when disabled)
 

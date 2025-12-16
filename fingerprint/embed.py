@@ -86,16 +86,18 @@ def extract_embeddings(
     segments: List[Dict],
     model: any,
     output_dir: Optional[Path] = None,
-    save_embeddings: bool = True
+    save_embeddings: bool = True,
+    batch_size: int = 16
 ) -> np.ndarray:
     """
-    Extract embeddings for segments using model.
+    Extract embeddings for segments using model with batch processing for GPU acceleration.
     
     Args:
         segments: List of segment dictionaries
         model: EmbeddingGenerator model (or dict with 'model' key)
         output_dir: Directory to save embeddings (optional)
         save_embeddings: Whether to save to disk
+        batch_size: Batch size for GPU processing (default: 16, increase for faster GPU)
         
     Returns:
         Array of embeddings (N_segments, D)
@@ -107,7 +109,8 @@ def extract_embeddings(
     if isinstance(model, dict):
         actual_model = model.get("model", model)
     
-    # Check if model has generate_embedding method (takes Path)
+    # Check if model supports batch processing
+    has_batch_method = hasattr(actual_model, "generate_embeddings_batch")
     has_generate_embedding = hasattr(actual_model, "generate_embedding")
     
     # Import required modules
@@ -121,8 +124,100 @@ def extract_embeddings(
     elif isinstance(model, dict) and "embedding_dim" in model:
         embedding_dim = model["embedding_dim"]
     
-    logger.info(f"Extracting embeddings using model: {type(actual_model).__name__}, has_generate_embedding: {has_generate_embedding}")
+    logger.info(f"Extracting embeddings using model: {type(actual_model).__name__}, batch_support: {has_batch_method}, batch_size: {batch_size}")
     
+    # Try batch processing first (much faster on GPU)
+    if has_batch_method and len(segments) > 1:
+        try:
+            # Prepare temporary files for all segments
+            temp_paths = []
+            temp_files_to_cleanup = []
+            
+            for seg in segments:
+                try:
+                    tmp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+                    tmp_path = Path(tmp_file.name)
+                    sf.write(str(tmp_path), seg["audio"], seg["sample_rate"])
+                    tmp_file.close()
+                    temp_paths.append(tmp_path)
+                    temp_files_to_cleanup.append(tmp_path)
+                except Exception as e:
+                    logger.warning(f"Failed to create temp file for {seg['segment_id']}: {e}")
+                    temp_paths.append(None)
+            
+            # Process in batches
+            for i in range(0, len(temp_paths), batch_size):
+                batch_paths = temp_paths[i:i+batch_size]
+                batch_segments = segments[i:i+batch_size]
+                
+                # Filter out None paths
+                valid_batch = [(p, s) for p, s in zip(batch_paths, batch_segments) if p is not None]
+                if not valid_batch:
+                    continue
+                
+                valid_paths = [p for p, _ in valid_batch]
+                valid_seg_ids = [s["segment_id"] for _, s in valid_batch]
+                
+                try:
+                    # Use batch processing
+                    batch_embeddings = actual_model.generate_embeddings_batch(valid_paths, batch_size=len(valid_paths))
+                    
+                    # Process results
+                    for emb, seg_id in zip(batch_embeddings, valid_seg_ids):
+                        if emb is not None:
+                            emb = np.asarray(emb)
+                            if len(emb.shape) > 1:
+                                emb = emb.flatten()
+                            
+                            if emb.size > 0:
+                                embeddings.append(emb)
+                                
+                                # Save if requested
+                                if save_embeddings and output_dir:
+                                    output_dir.mkdir(parents=True, exist_ok=True)
+                                    emb_path = output_dir / f"{seg_id}.npy"
+                                    np.save(emb_path, emb)
+                            else:
+                                logger.warning(f"Empty embedding for {seg_id}")
+                        else:
+                            logger.warning(f"None embedding for {seg_id}")
+                            
+                except Exception as e:
+                    logger.warning(f"Batch processing failed for batch {i//batch_size}: {e}, falling back to sequential")
+                    # Fall back to sequential for this batch
+                    for tmp_path, seg in valid_batch:
+                        try:
+                            if has_generate_embedding:
+                                emb = actual_model.generate_embedding(tmp_path)
+                                if emb is not None:
+                                    emb = np.asarray(emb)
+                                    if len(emb.shape) > 1:
+                                        emb = emb.flatten()
+                                    if emb.size > 0:
+                                        embeddings.append(emb)
+                        except Exception as e2:
+                            logger.error(f"Failed to extract embedding for {seg['segment_id']}: {e2}")
+            
+            # Cleanup temp files
+            for tmp_path in temp_files_to_cleanup:
+                if tmp_path and tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except Exception as cleanup_error:
+                        logger.warning(f"Failed to cleanup temp file {tmp_path}: {cleanup_error}")
+            
+            if embeddings:
+                embeddings_array = np.vstack(embeddings)
+                logger.info(f"Successfully extracted {len(embeddings)}/{len(segments)} embeddings using batch processing, shape: {embeddings_array.shape}")
+                return embeddings_array
+            else:
+                logger.warning("Batch processing produced no embeddings, falling back to sequential")
+                
+        except Exception as e:
+            logger.warning(f"Batch processing failed: {e}, falling back to sequential processing")
+    
+    # Fallback to sequential processing
+    logger.debug("Using sequential embedding extraction")
     for seg in tqdm(segments, desc="Extracting embeddings", leave=False):
         tmp_path = None
         try:
