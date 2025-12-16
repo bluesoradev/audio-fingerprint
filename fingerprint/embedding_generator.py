@@ -90,6 +90,16 @@ class EmbeddingGenerator:
         else:
             self.device = device
         
+        # Log device information for debugging
+        import torch
+        logger.info(f"Device configuration: requested='{device}', actual='{self.device}'")
+        logger.info(f"CUDA available: {torch.cuda.is_available()}")
+        if torch.cuda.is_available():
+            logger.info(f"CUDA device count: {torch.cuda.device_count()}")
+            logger.info(f"CUDA device name: {torch.cuda.get_device_name(0) if torch.cuda.device_count() > 0 else 'N/A'}")
+        else:
+            logger.warning("CUDA not available - using CPU (will be slow). Install PyTorch with CUDA support for GPU acceleration.")
+        
         # Initialize models
         self.mert_model = None
         self.mert_processor = None

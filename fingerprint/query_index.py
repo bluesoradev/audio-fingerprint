@@ -174,6 +174,41 @@ def query_index(
     distances, indices = index.search(query_vectors.astype(np.float32), topk)
     
     # Format results
+    # Determine metric type from metadata for correct similarity calculation
+    # CRITICAL: For cosine similarity with normalized vectors, FAISS uses METRIC_INNER_PRODUCT
+    # In this case, the "distance" returned IS the cosine similarity (higher = more similar)
+    metric_type = None
+    if index_metadata:
+        metric_type = index_metadata.get("metric")
+        # Handle both integer enum (from JSON) and string representations
+        if isinstance(metric_type, str):
+            if metric_type.lower() in ["inner_product", "ip", "cosine"]:
+                metric_type = faiss.METRIC_INNER_PRODUCT
+            elif metric_type.lower() == "l2":
+                metric_type = faiss.METRIC_L2
+        elif isinstance(metric_type, int):
+            # JSON loads enum as integer, compare directly
+            pass  # Already an integer enum
+    
+    # For HNSW with inner product (cosine similarity), distance IS similarity
+    # For L2 distance, convert to similarity
+    is_inner_product = False
+    if isinstance(index, faiss.IndexFlatIP):
+        is_inner_product = True
+    elif isinstance(index, (faiss.IndexHNSWFlat, faiss.IndexHNSW)):
+        # Check metric from metadata
+        # METRIC_INNER_PRODUCT = 0, METRIC_L2 = 1
+        if metric_type == faiss.METRIC_INNER_PRODUCT or metric_type == 0:
+            is_inner_product = True
+        elif metric_type == faiss.METRIC_L2 or metric_type == 1:
+            is_inner_product = False
+        else:
+            # Default: assume inner product for HNSW (most common case with normalized vectors)
+            # Cosine similarity with normalized vectors uses inner product metric
+            # This is safe because our config uses cosine similarity with normalization
+            is_inner_product = True
+            logger.debug(f"Metric type not found in metadata (got {metric_type}), assuming inner product (cosine similarity) for HNSW index")
+    
     results = []
     for i, (dist_row, idx_row) in enumerate(zip(distances, indices)):
         query_results = []
@@ -181,11 +216,20 @@ def query_index(
             if idx < 0:  # Invalid index
                 continue
             
+            # Calculate similarity correctly based on metric type
+            if is_inner_product:
+                # Inner product (cosine similarity for normalized vectors): distance IS similarity
+                # Higher distance = higher similarity (range typically 0-1 for normalized vectors)
+                similarity = float(dist)
+            else:
+                # L2 distance: convert to similarity (lower distance = higher similarity)
+                similarity = float(1.0 / (1.0 + dist))
+            
             result = {
                 "rank": len(query_results) + 1,
                 "index": int(idx),
                 "distance": float(dist),
-                "similarity": float(dist) if isinstance(index, faiss.IndexFlatIP) else float(1.0 / (1.0 + dist)),  # Convert L2 to similarity
+                "similarity": similarity,
             }
             
             if ids and idx < len(ids):

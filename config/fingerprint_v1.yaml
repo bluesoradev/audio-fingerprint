@@ -18,7 +18,7 @@ model:
 # Audio processing parameters
 audio:
   sample_rate: 44100
-  segment_length: 2.0  # seconds (OPTIMAL: 2.0s balances coverage and speed with GPU)
+  segment_length: 2.5  # seconds (OPTIMIZED: 2.5s reduces segments for faster processing while maintaining coverage)
   hop_length: null  # null = no overlap, segment_length = hop_length
   mono: true
   normalization: "peak"  # "peak", "rms", or null
@@ -31,8 +31,8 @@ embedding:
 
 # Segment processing
 segmentation:
-  method: "overlapping"  # Overlapping for better coverage (improves recall)
-  overlap_ratio: 0.1  # 10% overlap (minimal overlap for better recall with minimal latency cost)
+  method: "fixed_length"  # Fixed length (no overlap) for maximum speed
+  overlap_ratio: 0.0  # No overlap for faster processing (minimal impact on recall with 2.5s segments)
 
 # Aggregation parameters (for query result fusion)
 # OPTIMIZED FOR GPU: Balanced settings for 97%+ recall and high similarity with <550ms latency
