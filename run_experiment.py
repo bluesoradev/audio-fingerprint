@@ -206,7 +206,7 @@ def run_full_experiment(
         cached_count = 0
         generated_count = 0
         
-        for _, row in files_to_index_rows:
+        for row in files_to_index_rows:
             # Handle both "file_path" and "path" column names for compatibility
             file_path_str = row.get("file_path") or row.get("path")
             if not file_path_str:
