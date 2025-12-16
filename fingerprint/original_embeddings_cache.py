@@ -75,6 +75,19 @@ class OriginalEmbeddingsCache:
         """Generate cache key."""
         return f"{file_id}_{file_hash[:12]}_{model_hash[:8]}"
     
+    def _convert_numpy_to_list(self, obj):
+        """Recursively convert numpy arrays to lists for JSON serialization."""
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: self._convert_numpy_to_list(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_numpy_to_list(item) for item in obj]
+        elif isinstance(obj, (np.integer, np.floating)):
+            return obj.item()
+        else:
+            return obj
+    
     def get(self, file_id: str, file_path: Path, model_config: dict) -> Tuple[Optional[np.ndarray], Optional[List[Dict]]]:
         """
         Get cached embeddings and segments.
@@ -156,10 +169,11 @@ class OriginalEmbeddingsCache:
                 emb_path = cache_dir / f"seg_{i:04d}.npy"
                 np.save(emb_path, emb)
             
-            # Save segments metadata
+            # Save segments metadata (convert numpy arrays to lists)
             segments_path = cache_dir / "segments.json"
+            segments_serializable = self._convert_numpy_to_list(segments)
             with open(segments_path, 'w') as f:
-                json.dump(segments, f, indent=2)
+                json.dump(segments_serializable, f, indent=2)
             
             # Update manifest
             self.manifest[cache_key] = {

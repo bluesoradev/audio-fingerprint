@@ -6,6 +6,22 @@ let logPollInterval = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Show/hide transform params groups based on transform selection
+    const embeddedApplyTransform = document.getElementById('embeddedApplyTransform');
+    const embeddedTransformParamsGroup = document.getElementById('embeddedTransformParamsGroup');
+    if (embeddedApplyTransform && embeddedTransformParamsGroup) {
+        embeddedApplyTransform.addEventListener('change', function() {
+            embeddedTransformParamsGroup.style.display = this.value !== 'None' ? 'block' : 'none';
+        });
+    }
+    
+    const songAApplyTransform = document.getElementById('songAApplyTransform');
+    const songATransformParamsGroup = document.getElementById('songATransformParamsGroup');
+    if (songAApplyTransform && songATransformParamsGroup) {
+        songAApplyTransform.addEventListener('change', function() {
+            songATransformParamsGroup.style.display = this.value !== 'None' ? 'block' : 'none';
+        });
+    }
     // Initialize test button state
     const originalDisplay = document.getElementById('originalTestDisplay');
     const transformedDisplay = document.getElementById('transformedTestDisplay');
@@ -741,12 +757,47 @@ async function loadManipulateAudioFiles() {
     
     select.innerHTML = '<option value="">-- Select Audio File --</option>';
     
+    // Also populate embedded sample and song A in Song B selectors
+    const embeddedBackgroundSelect = document.getElementById('embeddedBackgroundFile');
+    const songBBaseSelect = document.getElementById('songBBaseFile');
+    
+    if (embeddedBackgroundSelect) {
+        embeddedBackgroundSelect.innerHTML = '<option value="">-- Select Background File --</option>';
+    }
+    if (songBBaseSelect) {
+        songBBaseSelect.innerHTML = '<option value="">-- Generate Synthetic Background --</option>';
+    }
+    
     allFiles.forEach(file => {
         const option = document.createElement('option');
         option.value = file.path;
         option.textContent = `${file.name} (${formatBytes(file.size)})`;
         select.appendChild(option);
+        
+        // Also add to embedded sample and song B selectors
+        if (embeddedBackgroundSelect) {
+            const opt1 = option.cloneNode(true);
+            embeddedBackgroundSelect.appendChild(opt1);
+        }
+        if (songBBaseSelect) {
+            const opt2 = option.cloneNode(true);
+            songBBaseSelect.appendChild(opt2);
+        }
     });
+    
+    // Update displays when selected file changes
+    if (select) {
+        select.addEventListener('change', function() {
+            const filePath = this.value;
+            if (filePath) {
+                const fileName = filePath.split('/').pop();
+                const embeddedDisplay = document.getElementById('embeddedSampleFileDisplay');
+                const songADisplay = document.getElementById('songAFileDisplay');
+                if (embeddedDisplay) embeddedDisplay.textContent = fileName;
+                if (songADisplay) songADisplay.textContent = fileName;
+            }
+        });
+    }
 }
 
 // Audio player state
@@ -2076,6 +2127,12 @@ async function applyTransform(type) {
         case 'crop':
             await applyCropTransform();
             break;
+        case 'embeddedSample':
+            await applyEmbeddedSampleTransform();
+            break;
+        case 'songAInSongB':
+            await applySongAInSongBTransform();
+            break;
         default:
             showError(`Unknown transform type: ${type}`);
     }
@@ -2451,6 +2508,115 @@ async function applyCropTransform() {
         }
     } catch (error) {
         showError('Failed to apply crop: ' + error.message);
+    }
+}
+
+// Embedded Sample Transform
+async function applyEmbeddedSampleTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select a sample audio file first');
+        return;
+    }
+    
+    const backgroundFile = document.getElementById('embeddedBackgroundFile')?.value;
+    if (!backgroundFile) {
+        showError('Please select a background audio file');
+        return;
+    }
+    
+    const position = document.getElementById('embeddedPosition')?.value || 'start';
+    const sampleDuration = parseFloat(document.getElementById('embeddedSampleDuration')?.value || '1.5');
+    const volumeDb = parseFloat(document.getElementById('embeddedVolumeDb')?.value || '0.0');
+    const applyTransform = document.getElementById('embeddedApplyTransform')?.value || 'None';
+    const transformParams = document.getElementById('embeddedTransformParams')?.value || null;
+    
+    try {
+        const formData = new FormData();
+        formData.append('sample_path', selectedAudioFile);
+        formData.append('background_path', backgroundFile);
+        formData.append('position', position);
+        formData.append('sample_duration', sampleDuration.toString());
+        formData.append('volume_db', volumeDb.toString());
+        formData.append('apply_transform', applyTransform);
+        if (transformParams) {
+            formData.append('transform_params', transformParams);
+        }
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/embedded-sample`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Embedded sample applied: ${result.output_path}`, 'success');
+            loadManipulateAudioFiles();
+            loadTestFileSelects();
+            if (result.output_path) {
+                updateTransformedPlayer(result.output_path);
+                updateTestDisplays(selectedAudioFile, result.output_path);
+            }
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply embedded sample: ' + error.message);
+    }
+}
+
+// Song A in Song B Transform
+async function applySongAInSongBTransform() {
+    if (!selectedAudioFile) {
+        showError('Please select Song A audio file first');
+        return;
+    }
+    
+    const songBBaseFile = document.getElementById('songBBaseFile')?.value || null;
+    const sampleStartTime = parseFloat(document.getElementById('songASampleStartTime')?.value || '0.0');
+    const sampleDuration = parseFloat(document.getElementById('songASampleDuration')?.value || '1.5');
+    const songBDuration = parseFloat(document.getElementById('songBDuration')?.value || '30.0');
+    const applyTransform = document.getElementById('songAApplyTransform')?.value || 'None';
+    const transformParams = document.getElementById('songATransformParams')?.value || null;
+    const mixVolumeDb = parseFloat(document.getElementById('songAMixVolumeDb')?.value || '0.0');
+    
+    try {
+        const formData = new FormData();
+        formData.append('song_a_path', selectedAudioFile);
+        if (songBBaseFile) {
+            formData.append('song_b_base_path', songBBaseFile);
+        }
+        formData.append('sample_start_time', sampleStartTime.toString());
+        formData.append('sample_duration', sampleDuration.toString());
+        formData.append('song_b_duration', songBDuration.toString());
+        formData.append('apply_transform', applyTransform);
+        if (transformParams) {
+            formData.append('transform_params', transformParams);
+        }
+        formData.append('mix_volume_db', mixVolumeDb.toString());
+        formData.append('output_dir', 'data/manipulated');
+        
+        const response = await fetch(`${API_BASE}/manipulate/song-a-in-song-b`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            showCompletionAlert(result.message);
+            addSystemLog(`Song A in Song B applied: ${result.output_path}`, 'success');
+            loadManipulateAudioFiles();
+            loadTestFileSelects();
+            if (result.output_path) {
+                updateTransformedPlayer(result.output_path);
+                updateTestDisplays(selectedAudioFile, result.output_path);
+            }
+        } else {
+            showError(result.message || 'Transform failed');
+        }
+    } catch (error) {
+        showError('Failed to apply Song A in Song B: ' + error.message);
     }
 }
 

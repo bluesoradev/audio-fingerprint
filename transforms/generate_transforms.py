@@ -31,6 +31,8 @@ from .dynamics import (
 from .chain import combine_chain
 from .crop import crop_10_seconds, crop_5_seconds, crop_middle_segment, crop_end_segment
 from .reverb import apply_reverb
+from .embedded_sample import embedded_sample
+from .song_a_in_song_b import song_a_in_song_b
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -275,6 +277,46 @@ def generate_transforms(
                         elif transform_type == "crop_end_segment":
                             duration = param_set.pop("duration", 10.0)
                             crop_end_segment(orig_path, duration=duration, out_path=out_path)
+                        elif transform_type == "embedded_sample":
+                            # Requires sample_path and background_path
+                            sample_path_str = param_set.pop("sample_path", None)
+                            background_path_str = param_set.pop("background_path", None)
+                            if not sample_path_str or not background_path_str:
+                                logger.warning(f"embedded_sample requires sample_path and background_path, skipping {orig_id}")
+                                continue
+                            sample_path = Path(sample_path_str) if not Path(sample_path_str).is_absolute() else Path(sample_path_str)
+                            background_path = Path(background_path_str) if not Path(background_path_str).is_absolute() else Path(background_path_str)
+                            # Resolve relative paths
+                            if not sample_path.is_absolute():
+                                sample_path = output_dir.parent / sample_path
+                            if not background_path.is_absolute():
+                                background_path = output_dir.parent / background_path
+                            if not sample_path.exists() or not background_path.exists():
+                                logger.warning(f"Sample or background file not found for embedded_sample, skipping {orig_id}")
+                                continue
+                            embedded_sample(
+                                sample_path=sample_path,
+                                background_path=background_path,
+                                out_path=out_path,
+                                **param_set
+                            )
+                        elif transform_type == "song_a_in_song_b":
+                            # Song A is orig_path, Song B base is optional
+                            song_b_base_path_str = param_set.pop("song_b_base_path", None)
+                            song_b_base_path = None
+                            if song_b_base_path_str:
+                                song_b_base_path = Path(song_b_base_path_str) if not Path(song_b_base_path_str).is_absolute() else Path(song_b_base_path_str)
+                                if not song_b_base_path.is_absolute():
+                                    song_b_base_path = output_dir.parent / song_b_base_path
+                                if not song_b_base_path.exists():
+                                    logger.warning(f"Song B base file not found, will generate synthetic background for {orig_id}")
+                                    song_b_base_path = None
+                            song_a_in_song_b(
+                                song_a_path=orig_path,
+                                song_b_base_path=song_b_base_path,
+                                out_path=out_path,
+                                **param_set
+                            )
                         else:
                             logger.warning(f"Unknown transform type: {transform_type}")
                             continue

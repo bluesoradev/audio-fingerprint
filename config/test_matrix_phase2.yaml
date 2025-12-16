@@ -114,6 +114,122 @@ transforms:
         severity: "moderate"
         description: "End segment (10 seconds)"
 
+  # 11. Embedded Sample Detection - New requirements
+  embedded_sample:
+    enabled: true
+    parameters:
+      - position: "start"
+        sample_duration: 1.0
+        volume_db: 0.0
+        severity: "mild"
+        description: "1s sample at start, matched volume"
+      - position: "start"
+        sample_duration: 1.5
+        volume_db: -6.0
+        severity: "moderate"
+        description: "1.5s sample at start, quieter"
+      - position: "middle"
+        sample_duration: 2.0
+        volume_db: 0.0
+        severity: "moderate"
+        description: "2s sample in middle, matched volume"
+      - position: "end"
+        sample_duration: 1.5
+        volume_db: 3.0
+        severity: "moderate"
+        description: "1.5s sample at end, louder"
+      - position: "start"
+        sample_duration: 1.5
+        volume_db: 0.0
+        apply_transform: "pitch"
+        transform_params: {semitones: 2}
+        severity: "moderate"
+        description: "1.5s sample at start with pitch shift +2"
+      - position: "middle"
+        sample_duration: 1.5
+        volume_db: -3.0
+        apply_transform: "speed"
+        transform_params: {speed: 1.05}
+        severity: "moderate"
+        description: "1.5s sample in middle with speed +5%"
+      - position: "end"
+        sample_duration: 2.0
+        volume_db: 0.0
+        apply_transform: "eq"
+        transform_params: {gain_db: 6.0}
+        severity: "moderate"
+        description: "2s sample at end with EQ boost"
+      - position: "start"
+        sample_duration: 1.0
+        volume_db: -6.0
+        apply_transform: "compression"
+        transform_params: {threshold_db: -10.0, ratio: 4.0}
+        severity: "severe"
+        description: "1s sample at start with compression, quieter"
+
+  # 12. Song A inside Song B - New requirements
+  song_a_in_song_b:
+    enabled: true
+    parameters:
+      - sample_start_time: 0.0
+        sample_duration: 1.0
+        song_b_duration: 30.0
+        mix_volume_db: 0.0
+        severity: "mild"
+        description: "1s sample from start, matched volume"
+      - sample_start_time: 5.0
+        sample_duration: 1.5
+        song_b_duration: 30.0
+        mix_volume_db: -3.0
+        severity: "moderate"
+        description: "1.5s sample from 5s, quieter"
+      - sample_start_time: 10.0
+        sample_duration: 2.0
+        song_b_duration: 45.0
+        mix_volume_db: 0.0
+        transform_params: {position: "start"}
+        severity: "moderate"
+        description: "2s sample from 10s, placed at start of Song B"
+      - sample_start_time: 15.0
+        sample_duration: 1.5
+        song_b_duration: 30.0
+        mix_volume_db: 3.0
+        transform_params: {position: "middle"}
+        severity: "moderate"
+        description: "1.5s sample from 15s, placed in middle, louder"
+      - sample_start_time: 0.0
+        sample_duration: 1.5
+        song_b_duration: 30.0
+        mix_volume_db: 0.0
+        apply_transform: "pitch"
+        transform_params: {semitones: -2, position: "start"}
+        severity: "moderate"
+        description: "1.5s sample with pitch shift -2"
+      - sample_start_time: 5.0
+        sample_duration: 2.0
+        song_b_duration: 45.0
+        mix_volume_db: -6.0
+        apply_transform: "speed"
+        transform_params: {speed: 0.95, position: "middle"}
+        severity: "moderate"
+        description: "2s sample with speed -5%, quieter"
+      - sample_start_time: 10.0
+        sample_duration: 1.5
+        song_b_duration: 30.0
+        mix_volume_db: 0.0
+        apply_transform: "eq"
+        transform_params: {gain_db: -6.0, position: "end"}
+        severity: "moderate"
+        description: "1.5s sample with EQ cut -6dB"
+      - sample_start_time: 0.0
+        sample_duration: 1.0
+        song_b_duration: 30.0
+        mix_volume_db: -9.0
+        apply_transform: "compression"
+        transform_params: {threshold_db: -12.0, ratio: 6.0, position: "start"}
+        severity: "severe"
+        description: "1s sample with compression, very quiet"
+
 thresholds:
   recall_at_k:
     mild:

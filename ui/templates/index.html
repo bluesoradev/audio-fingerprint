@@ -1166,6 +1166,113 @@
                             </div>
                             </div>
                         </div>
+
+                        <!-- Embedded Sample Detection -->
+                        <div class="transform-subsection">
+                            <h4>Embedded Sample Detection</h4>
+                            <div class="transform-grid">
+                            <div class="transform-card">
+                                <h4>Embed Sample in Track</h4>
+                                <div class="form-group">
+                                    <label>Sample Audio File (Song A segment)</label>
+                                    <p style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Current selection: <span id="embeddedSampleFileDisplay" style="color: #4ade80;">None</span></p>
+                                </div>
+                                <div class="form-group">
+                                    <label>Background Audio File (Full track)</label>
+                                    <select id="embeddedBackgroundFile" class="form-control">
+                                        <option value="">-- Select Background File --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Position</label>
+                                    <select id="embeddedPosition" class="form-control">
+                                        <option value="start">Start</option>
+                                        <option value="middle">Middle</option>
+                                        <option value="end">End</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Sample Duration (seconds)</label>
+                                    <input type="number" id="embeddedSampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Volume (dB)</label>
+                                    <input type="range" class="slider" id="embeddedVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="document.getElementById('embeddedVolumeDbDisplay').textContent = this.value + ' dB'">
+                                    <span class="slider-value" id="embeddedVolumeDbDisplay">0 dB</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Apply Transform to Sample (optional)</label>
+                                    <select id="embeddedApplyTransform" class="form-control">
+                                        <option value="None">None</option>
+                                        <option value="pitch">Pitch Shift</option>
+                                        <option value="speed">Speed Change</option>
+                                        <option value="eq">EQ Adjustment</option>
+                                        <option value="compression">Compression</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="embeddedTransformParamsGroup" style="display: none;">
+                                    <label>Transform Parameters (JSON)</label>
+                                    <input type="text" id="embeddedTransformParams" class="form-control" placeholder='{"semitones": 2}' style="font-family: monospace; font-size: 11px;">
+                                    <small style="color: #9ca3af;">Example: {"semitones": 2} for pitch, {"speed": 1.05} for speed, {"gain_db": 6.0} for EQ</small>
+                                </div>
+                                <button class="btn" onclick="applyTransform('embeddedSample')">Apply Embedded Sample</button>
+                            </div>
+                            </div>
+                        </div>
+
+                        <!-- Song A in Song B -->
+                        <div class="transform-subsection">
+                            <h4>Song A inside Song B</h4>
+                            <div class="transform-grid">
+                            <div class="transform-card">
+                                <h4>Create Song B from Song A</h4>
+                                <div class="form-group">
+                                    <label>Song A (Original in Database)</label>
+                                    <p style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Current selection: <span id="songAFileDisplay" style="color: #4ade80;">None</span></p>
+                                </div>
+                                <div class="form-group">
+                                    <label>Song B Base Track (optional)</label>
+                                    <select id="songBBaseFile" class="form-control">
+                                        <option value="">-- Generate Synthetic Background --</option>
+                                    </select>
+                                    <small style="color: #9ca3af;">Leave empty to generate synthetic background</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Sample Start Time (seconds)</label>
+                                    <input type="number" id="songASampleStartTime" class="form-control" value="0.0" min="0" step="0.5">
+                                </div>
+                                <div class="form-group">
+                                    <label>Sample Duration (seconds)</label>
+                                    <input type="number" id="songASampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Song B Duration (seconds)</label>
+                                    <input type="number" id="songBDuration" class="form-control" value="30.0" min="10" max="120" step="5">
+                                </div>
+                                <div class="form-group">
+                                    <label>Mix Volume (dB)</label>
+                                    <input type="range" class="slider" id="songAMixVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="document.getElementById('songAMixVolumeDbDisplay').textContent = this.value + ' dB'">
+                                    <span class="slider-value" id="songAMixVolumeDbDisplay">0 dB</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Apply Transform to Sample (optional)</label>
+                                    <select id="songAApplyTransform" class="form-control">
+                                        <option value="None">None</option>
+                                        <option value="pitch">Pitch Shift</option>
+                                        <option value="speed">Speed Change</option>
+                                        <option value="eq">EQ Adjustment</option>
+                                        <option value="compression">Compression</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="songATransformParamsGroup" style="display: none;">
+                                    <label>Transform Parameters (JSON)</label>
+                                    <input type="text" id="songATransformParams" class="form-control" placeholder='{"semitones": -2, "position": "start"}' style="font-family: monospace; font-size: 11px;">
+                                    <small style="color: #9ca3af;">Example: {"semitones": -2, "position": "start"} - position can be "start", "middle", or "end"</small>
+                                </div>
+                                <button class="btn" onclick="applyTransform('songAInSongB')">Create Song B</button>
+                            </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Section 3: Test Fingerprint Robustness -->

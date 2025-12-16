@@ -20,6 +20,8 @@ from .dynamics import (
 )
 from .chain import combine_chain
 from .crop import crop_segment, crop_10_seconds, crop_5_seconds, crop_middle_segment, crop_end_segment
+from .embedded_sample import embedded_sample
+from .song_a_in_song_b import song_a_in_song_b
 
 __all__ = [
     "pitch_shift",
@@ -45,4 +47,6 @@ __all__ = [
     "crop_5_seconds",
     "crop_middle_segment",
     "crop_end_segment",
+    "embedded_sample",
+    "song_a_in_song_b",
 ]

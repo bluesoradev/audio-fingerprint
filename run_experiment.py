@@ -139,8 +139,10 @@ def run_full_experiment(
         import pandas as pd
         import numpy as np
         import json
+        import tempfile
         from fingerprint.load_model import load_fingerprint_model
         from fingerprint.original_embeddings_cache import OriginalEmbeddingsCache
+        from fingerprint.incremental_index import update_index_incremental
         
         # Initialize cache
         cache = OriginalEmbeddingsCache()
@@ -159,12 +161,52 @@ def run_full_experiment(
         new_files_df = cache.get_new_files(files_manifest_path, model_config)
         logger.info(f"Files to process: {len(new_files_df)} new files, {len(files_df) - len(new_files_df)} cached files")
         
+        # Check if index already exists
+        index_path = indexes_dir / "faiss_index.bin"
+        index_config_path = Path("config/index_config.json")
+        
+        existing_index = None
+        existing_metadata = None
+        existing_file_ids = set()
+        
+        if index_path.exists():
+            try:
+                logger.info(f"Found existing index: {index_path}")
+                existing_index, existing_metadata = load_index(index_path)
+                existing_ids = existing_metadata.get("ids", [])
+                # Extract file IDs from segment IDs (format: "file_id_seg_0000")
+                existing_file_ids = {id_str.split("_seg_")[0] for id_str in existing_ids if "_seg_" in id_str}
+                logger.info(f"Existing index contains {existing_index.ntotal} vectors from {len(existing_file_ids)} files")
+            except Exception as e:
+                logger.warning(f"Failed to load existing index: {e}, will rebuild")
+                existing_index = None
+        
+        # Determine which files need to be processed
+        current_file_ids = set(files_df["id"].tolist())
+        files_to_index_rows = []
+        files_already_indexed = []
+        
+        if existing_index is not None:
+            # Check which files are already indexed
+            for _, row in files_df.iterrows():
+                file_id = row["id"]
+                if file_id in existing_file_ids:
+                    files_already_indexed.append(file_id)
+                else:
+                    files_to_index_rows.append(row)
+        else:
+            # No existing index - need to index all files
+            files_to_index_rows = [row for _, row in files_df.iterrows()]
+        
+        logger.info(f"Files already in index: {len(files_already_indexed)}, Files to add: {len(files_to_index_rows)}")
+        
+        # Process files that need embedding generation
         all_embeddings = []
         all_ids = []
         cached_count = 0
         generated_count = 0
         
-        for _, row in files_df.iterrows():
+        for _, row in files_to_index_rows:
             # Handle both "file_path" and "path" column names for compatibility
             file_path_str = row.get("file_path") or row.get("path")
             if not file_path_str:
@@ -227,19 +269,96 @@ def run_full_experiment(
         
         logger.info(f"Embedding generation complete: {cached_count} from cache, {generated_count} newly generated")
         
-        # Build index
-        if not all_embeddings:
-            raise ValueError("No embeddings generated. Check file paths and manifest.")
+        # Build or update index
+        if existing_index is not None and len(files_to_index_rows) == 0:
+            # All files already indexed, reuse existing index
+            logger.info("✓ All files already indexed. Reusing existing index.")
+        elif existing_index is not None and len(files_to_index_rows) > 0:
+            # Some new files to add - use incremental update
+            logger.info(f"Adding {len(files_to_index_rows)} new files to existing index using incremental update...")
+            if not all_embeddings:
+                logger.warning("No new embeddings to add, but files were marked as new. Reusing existing index.")
+            else:
+                try:
+                    # Create temporary manifest for new files only
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp_file:
+                        new_files_df = pd.DataFrame(files_to_index_rows)
+                        new_files_df.to_csv(tmp_file.name, index=False)
+                        tmp_manifest_path = Path(tmp_file.name)
+                    
+                    # Use incremental update
+                    updated_index, updated_metadata = update_index_incremental(
+                        new_files_manifest_path=tmp_manifest_path,
+                        existing_index_path=index_path,
+                        fingerprint_config_path=fingerprint_config_path,
+                        output_index_path=index_path,
+                        index_config_path=index_config_path
+                    )
+                    
+                    # Clean up temp file
+                    tmp_manifest_path.unlink()
+                    
+                    logger.info(f"✓ Incrementally updated index: {updated_index.ntotal} total vectors")
+                except Exception as e:
+                    logger.warning(f"Incremental update failed: {e}, falling back to full rebuild")
+                    # Need to rebuild with ALL files, not just new ones
+                    # Process all files for full rebuild
+                    logger.info("Processing all files for full rebuild...")
+                    all_embeddings_rebuild = []
+                    all_ids_rebuild = []
+                    
+                    for _, row in files_df.iterrows():
+                        file_path_str = row.get("file_path") or row.get("path")
+                        if not file_path_str:
+                            continue
+                        file_path = Path(file_path_str)
+                        file_id = row["id"]
+                        
+                        if not file_path.is_absolute() and not file_path.exists():
+                            potential_path = Path.cwd() / file_path
+                            if potential_path.exists():
+                                file_path = potential_path
+                        
+                        if not file_path.exists():
+                            continue
+                        
+                        cached_embeddings, _ = cache.get(file_id, file_path, model_config)
+                        if cached_embeddings is None:
+                            # Generate if not cached
+                            segments = segment_audio(
+                                file_path,
+                                segment_length=model_config["segment_length"],
+                                sample_rate=model_config["sample_rate"]
+                            )
+                            cached_embeddings = extract_embeddings(
+                                segments, model_config, output_dir=None, save_embeddings=False
+                            )
+                            cached_embeddings = normalize_embeddings(cached_embeddings, method="l2")
+                            cache.set(file_id, file_path, model_config, cached_embeddings, segments)
+                        
+                        for i, emb in enumerate(cached_embeddings):
+                            seg_id = f"{file_id}_seg_{i:04d}"
+                            all_embeddings_rebuild.append(emb)
+                            all_ids_rebuild.append(seg_id)
+                    
+                    all_embeddings = all_embeddings_rebuild
+                    all_ids = all_ids_rebuild
+                    existing_index = None  # Force rebuild
         
-        embeddings_array = np.vstack(all_embeddings)
-        
-        # Load index config
-        index_config_path = Path("config/index_config.json")
-        with open(index_config_path, 'r') as f:
-            index_config = json.load(f)
-        
-        index_path = indexes_dir / "faiss_index.bin"
-        build_index(embeddings_array, all_ids, index_path, index_config)
+        if existing_index is None:
+            # No existing index or incremental update failed - build from scratch
+            if not all_embeddings:
+                raise ValueError("No embeddings generated. Check file paths and manifest.")
+            
+            logger.info("Building new index from scratch...")
+            embeddings_array = np.vstack(all_embeddings)
+            
+            # Load index config
+            with open(index_config_path, 'r') as f:
+                index_config = json.load(f)
+            
+            build_index(embeddings_array, all_ids, index_path, index_config)
+            logger.info(f"✓ Built new index with {len(all_ids)} vectors")
     else:
         index_path = indexes_dir / "faiss_index.bin"
         if not index_path.exists():

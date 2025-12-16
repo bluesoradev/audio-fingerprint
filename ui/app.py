@@ -1762,6 +1762,152 @@ async def manipulate_crop_end(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+@app.post("/api/manipulate/embedded-sample")
+async def manipulate_embedded_sample(
+    sample_path: str = Form(...),
+    background_path: str = Form(...),
+    position: str = Form("start"),  # "start", "middle", "end"
+    sample_duration: float = Form(1.5),
+    volume_db: float = Form(0.0),
+    apply_transform: str = Form(None),  # "pitch", "speed", "eq", "compression", None
+    transform_params: str = Form(None),  # JSON string
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Embed a 1-2 second sample into a full track."""
+    try:
+        from transforms.embedded_sample import embedded_sample
+        
+        sample_file = PROJECT_ROOT / sample_path
+        background_file = PROJECT_ROOT / background_path
+        
+        if not sample_file.exists():
+            return JSONResponse({
+                "status": "error",
+                "message": f"Sample file not found: {sample_path}"
+            }, status_code=404)
+        
+        if not background_file.exists():
+            return JSONResponse({
+                "status": "error",
+                "message": f"Background file not found: {background_path}"
+            }, status_code=404)
+        
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            transform_str = f"_{apply_transform}" if apply_transform else ""
+            volume_str = f"_vol{volume_db:.1f}db" if volume_db != 0.0 else ""
+            out_file = output_path / f"{background_file.stem}_embedded_{position}_{sample_duration:.1f}s{transform_str}{volume_str}.wav"
+        
+        # Parse transform params if provided
+        transform_params_dict = None
+        if transform_params:
+            try:
+                transform_params_dict = json.loads(transform_params)
+            except:
+                transform_params_dict = None
+        
+        embedded_sample(
+            sample_path=sample_file,
+            background_path=background_file,
+            position=position,
+            sample_duration=sample_duration,
+            volume_db=volume_db,
+            apply_transform=apply_transform if apply_transform != "None" else None,
+            transform_params=transform_params_dict,
+            out_path=out_file
+        )
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Embedded sample ({sample_duration:.1f}s) at {position}"
+        })
+    except Exception as e:
+        logger.error(f"Embedded sample transform failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.post("/api/manipulate/song-a-in-song-b")
+async def manipulate_song_a_in_song_b(
+    song_a_path: str = Form(...),
+    song_b_base_path: str = Form(None),
+    sample_start_time: float = Form(0.0),
+    sample_duration: float = Form(1.5),
+    song_b_duration: float = Form(30.0),
+    apply_transform: str = Form(None),
+    transform_params: str = Form(None),  # JSON string
+    mix_volume_db: float = Form(0.0),
+    output_dir: str = Form("data/manipulated"),
+    output_name: str = Form(None)
+):
+    """Create Song B by sampling from Song A (reverse lookup scenario)."""
+    try:
+        from transforms.song_a_in_song_b import song_a_in_song_b
+        
+        song_a_file = PROJECT_ROOT / song_a_path
+        
+        if not song_a_file.exists():
+            return JSONResponse({
+                "status": "error",
+                "message": f"Song A file not found: {song_a_path}"
+            }, status_code=404)
+        
+        song_b_base_file = None
+        if song_b_base_path:
+            song_b_base_file = PROJECT_ROOT / song_b_base_path
+            if not song_b_base_file.exists():
+                logger.warning(f"Song B base file not found, will generate synthetic background")
+                song_b_base_file = None
+        
+        output_path = PROJECT_ROOT / output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if output_name:
+            out_file = output_path / output_name
+        else:
+            transform_str = f"_{apply_transform}" if apply_transform else ""
+            volume_str = f"_vol{mix_volume_db:.1f}db" if mix_volume_db != 0.0 else ""
+            out_file = output_path / f"{song_a_file.stem}_sampled_in_song_b_{sample_duration:.1f}s{transform_str}{volume_str}.wav"
+        
+        # Parse transform params if provided
+        transform_params_dict = None
+        if transform_params:
+            try:
+                transform_params_dict = json.loads(transform_params)
+            except:
+                transform_params_dict = None
+        
+        song_a_in_song_b(
+            song_a_path=song_a_file,
+            song_b_base_path=song_b_base_file,
+            sample_start_time=sample_start_time,
+            sample_duration=sample_duration,
+            song_b_duration=song_b_duration,
+            apply_transform=apply_transform if apply_transform != "None" else None,
+            transform_params=transform_params_dict,
+            mix_volume_db=mix_volume_db,
+            out_path=out_file
+        )
+        
+        return JSONResponse({
+            "status": "success",
+            "output_path": str(out_file.relative_to(PROJECT_ROOT)),
+            "message": f"Created Song B with {sample_duration:.1f}s sample from Song A"
+        })
+    except Exception as e:
+        logger.error(f"Song A in Song B transform failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 @app.post("/api/manipulate/chain")
 async def manipulate_chain(
     input_path: str = Form(...),
