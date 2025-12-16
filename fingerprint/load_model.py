@@ -68,7 +68,8 @@ def load_fingerprint_model(config_path: Path) -> Dict[str, Any]:
                 sample_rate=audio_config.get("sample_rate", 44100),
                 model_type=model_config.get("type", "auto"),  # Try "auto" to fallback gracefully
                 device=model_config.get("device"),
-                model_name=model_config.get("model_name")  # Optional MERT model name
+                model_name=model_config.get("model_name"),  # Optional MERT model name
+                dtype=embedding_config.get("dtype", "float32")  # FP16 for 2x speedup
             )
             logger.info(f"✅ Loaded {generator.active_model_name} model")
         except Exception as e:

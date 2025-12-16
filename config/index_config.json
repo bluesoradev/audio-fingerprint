@@ -4,8 +4,8 @@
   "parameters": {
     "M": 32,
     "ef_construction": 300,
-    "ef_search": 50
+    "ef_search": 30
   },
   "normalize": true,
-  "description": "HNSW index optimized for balanced performance (ef_search=50 for optimal recall/speed balance with GPU acceleration)"
+  "description": "HNSW index optimized for maximum speed (ef_search=30 for <550ms latency target while maintaining recall)"
 }

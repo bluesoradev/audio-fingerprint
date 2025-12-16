@@ -87,7 +87,7 @@ def extract_embeddings(
     model: any,
     output_dir: Optional[Path] = None,
     save_embeddings: bool = True,
-    batch_size: int = 16
+    batch_size: int = 32
 ) -> np.ndarray:
     """
     Extract embeddings for segments using model with batch processing for GPU acceleration.
@@ -159,8 +159,8 @@ def extract_embeddings(
                 valid_seg_ids = [s["segment_id"] for _, s in valid_batch]
                 
                 try:
-                    # Use batch processing
-                    batch_embeddings = actual_model.generate_embeddings_batch(valid_paths, batch_size=len(valid_paths))
+                    # Use batch processing with configured batch_size (model will handle internal batching)
+                    batch_embeddings = actual_model.generate_embeddings_batch(valid_paths, batch_size=batch_size)
                     
                     # Process results
                     for emb, seg_id in zip(batch_embeddings, valid_seg_ids):

@@ -60,7 +60,8 @@ class EmbeddingGenerator:
         content_type: str = "music",
         input_repr: str = "mel256",
         device: Optional[str] = None,
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
+        dtype: str = "float32"
     ):
         """
         Initialize embedding generator.
@@ -73,6 +74,7 @@ class EmbeddingGenerator:
             input_repr: Input representation for OpenL3 ('mel256' or 'linear')
             device: torch device ("cuda", "cpu", or None for auto)
             model_name: Optional MERT model name override
+            dtype: Data type for model ("float32" or "float16" for 2x GPU speedup)
         """
         self.embedding_dim = embedding_dim
         self.sample_rate = sample_rate
@@ -80,6 +82,7 @@ class EmbeddingGenerator:
         self.input_repr = input_repr
         self.model_type = model_type
         self.model_name = model_name or MERT_MODEL_NAME
+        self.dtype = dtype  # "float32" or "float16" for GPU speedup
         
         if not HAS_TORCH:
             self.device = "cpu"
@@ -166,6 +169,11 @@ class EmbeddingGenerator:
                     self.mert_model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
                     self.mert_processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
                     self.mert_model.to(self.device)
+                    # Convert to half precision for 2x speedup if dtype is float16
+                    if self.dtype == "float16" and self.device == "cuda":
+                        import torch
+                        self.mert_model = self.mert_model.half()
+                        logger.info("✅ Converted MERT model to FP16 for 2x GPU speedup")
                     self.mert_model.eval()
                     self.active_model = "mert"
                     
@@ -260,7 +268,12 @@ class EmbeddingGenerator:
                 return_tensors="pt"
             )
             
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            # Convert inputs to half precision if model is FP16
+            import torch
+            if self.dtype == "float16" and self.device == "cuda":
+                inputs = {k: v.to(self.device).half() for k, v in inputs.items()}
+            else:
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             # Generate embeddings
             with torch.no_grad():
@@ -392,7 +405,7 @@ class EmbeddingGenerator:
     def generate_embeddings_batch(
         self,
         audio_paths: List[Path],
-        batch_size: int = 16
+        batch_size: int = 32
     ) -> List[np.ndarray]:
         """
         Generate embeddings for multiple audio files.
@@ -457,9 +470,13 @@ class EmbeddingGenerator:
                 return_tensors="pt"
             )
             
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            
+            # Convert inputs to half precision if model is FP16
             import torch
+            if self.dtype == "float16" and self.device == "cuda":
+                inputs = {k: v.to(self.device).half() for k, v in inputs.items()}
+            else:
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
             with torch.no_grad():
                 outputs = self.mert_model(**inputs)
                 if hasattr(outputs, 'last_hidden_state'):
