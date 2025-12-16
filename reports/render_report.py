@@ -327,9 +327,11 @@ def render_html_report(
     
     # Extract run_id from the output path for API endpoint URLs
     # Path format: reports/run_YYYYMMDD_HHMMSS/final_report/report.html
-    run_id = None
+    run_id = ""
     if output_path.parent.parent.name.startswith("run_"):
         run_id = output_path.parent.parent.name
+    elif output_path.parent.name.startswith("run_"):
+        run_id = output_path.parent.name
     
     # Load test matrix for thresholds
     thresholds_info = ""
@@ -883,6 +885,32 @@ def render_html_report(
                 {latency_table_html}
                 
                 {per_transform_html}
+                
+                <div class="plots-section">
+                    <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;">📊 Visualizations</h2>
+                    <div class="plots-grid">
+                        <div class="plot-card">
+                            <div class="plot-title">Recall@K by Transform Severity</div>
+                            <img src="/api/files/plots/recall_by_severity.png?run_id={run_id}" alt="Recall@K by Transform Severity" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
+                        </div>
+                        <div class="plot-card">
+                            <div class="plot-title">Similarity Scores vs Thresholds by Severity</div>
+                            <img src="/api/files/plots/similarity_by_severity.png?run_id={run_id}" alt="Similarity Scores vs Thresholds by Severity" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
+                        </div>
+                        <div class="plot-card">
+                            <div class="plot-title">Recall@K by Transform Type</div>
+                            <img src="/api/files/plots/recall_by_transform.png?run_id={run_id}" alt="Recall@K by Transform Type" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
+                        </div>
+                        <div class="plot-card">
+                            <div class="plot-title">Processing Latency by Transform Type</div>
+                            <img src="/api/files/plots/latency_by_transform.png?run_id={run_id}" alt="Processing Latency by Transform Type" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
+                        </div>
+                    </div>
+                </div>
                 
                 {summary_table_html}
                 
