@@ -137,7 +137,15 @@ def run_full_experiment(
         logger.info("=" * 60)
         
         import pandas as pd
+        import numpy as np
+        import json
         from fingerprint.load_model import load_fingerprint_model
+        from fingerprint.original_embeddings_cache import OriginalEmbeddingsCache
+        
+        # Initialize cache
+        cache = OriginalEmbeddingsCache()
+        cache_stats = cache.get_cache_stats()
+        logger.info(f"Cache stats: {cache_stats['num_cached_files']} files cached ({cache_stats['total_cache_size_mb']:.2f} MB)")
         
         # Load fingerprint config
         fingerprint_config_path = Path("config/fingerprint_v1.yaml")
@@ -146,8 +154,15 @@ def run_full_experiment(
         # Process all original files
         files_df = pd.read_csv(files_manifest_path)
         logger.info(f"Loaded manifest with {len(files_df)} files. Columns: {list(files_df.columns)}")
+        
+        # Identify new files that need embedding generation
+        new_files_df = cache.get_new_files(files_manifest_path, model_config)
+        logger.info(f"Files to process: {len(new_files_df)} new files, {len(files_df) - len(new_files_df)} cached files")
+        
         all_embeddings = []
         all_ids = []
+        cached_count = 0
+        generated_count = 0
         
         for _, row in files_df.iterrows():
             # Handle both "file_path" and "path" column names for compatibility
@@ -172,38 +187,54 @@ def run_full_experiment(
                 logger.error(f"File not found: {file_path} (from manifest: {file_path_str})")
                 continue
             
-            logger.info(f"Processing {file_id} -> {file_path}")
+            # Check cache first
+            cached_embeddings, cached_segments = cache.get(file_id, file_path, model_config)
             
-            # Segment and extract embeddings
-            segments = segment_audio(
-                file_path,
-                segment_length=model_config["segment_length"],
-                sample_rate=model_config["sample_rate"]
-            )
-            
-            embeddings = extract_embeddings(
-                segments,
-                model_config,
-                output_dir=embeddings_dir / file_id,
-                save_embeddings=True
-            )
-            
-            # Normalize
-            embeddings = normalize_embeddings(embeddings, method="l2")
+            if cached_embeddings is not None:
+                # Use cached embeddings
+                logger.info(f"Using cached embeddings for {file_id} ({len(cached_embeddings)} segments)")
+                segments = cached_segments if cached_segments else []
+                embeddings = cached_embeddings
+                cached_count += 1
+            else:
+                # Generate new embeddings
+                logger.info(f"Generating embeddings for {file_id} -> {file_path}")
+                segments = segment_audio(
+                    file_path,
+                    segment_length=model_config["segment_length"],
+                    sample_rate=model_config["sample_rate"]
+                )
+                
+                embeddings = extract_embeddings(
+                    segments,
+                    model_config,
+                    output_dir=embeddings_dir / file_id,
+                    save_embeddings=True
+                )
+                
+                # Normalize
+                embeddings = normalize_embeddings(embeddings, method="l2")
+                
+                # Cache for future use
+                cache.set(file_id, file_path, model_config, embeddings, segments)
+                generated_count += 1
             
             # Store with IDs
-            for i, seg in enumerate(segments):
+            for i, emb in enumerate(embeddings):
                 seg_id = f"{file_id}_seg_{i:04d}"
-                all_embeddings.append(embeddings[i])
+                all_embeddings.append(emb)
                 all_ids.append(seg_id)
         
+        logger.info(f"Embedding generation complete: {cached_count} from cache, {generated_count} newly generated")
+        
         # Build index
-        import numpy as np
+        if not all_embeddings:
+            raise ValueError("No embeddings generated. Check file paths and manifest.")
+        
         embeddings_array = np.vstack(all_embeddings)
         
         # Load index config
         index_config_path = Path("config/index_config.json")
-        import json
         with open(index_config_path, 'r') as f:
             index_config = json.load(f)
         
