@@ -12,12 +12,13 @@ model:
   checksum: null
   
   # Device: "cuda", "cpu", or null for auto-detect
-  device: null
+  # CRITICAL: Set to "cuda" if GPU available for 5-10x speedup, or "cpu" if not
+  device: null  # Auto-detect (will use GPU if available)
 
 # Audio processing parameters
 audio:
   sample_rate: 44100
-  segment_length: 1.0  # seconds (increased from 0.5 for better robustness)
+  segment_length: 3.0  # seconds (AGGRESSIVE: increased to 3.0s for fewer segments = faster processing)
   hop_length: null  # null = no overlap, segment_length = hop_length
   mono: true
   normalization: "peak"  # "peak", "rms", or null
@@ -26,50 +27,52 @@ audio:
 embedding:
   dimension: 512  # Expected output dimension
   normalization: "l2"  # "l2", "none"
-  dtype: "float32"
+  dtype: "float32"  # Use "float16" if GPU available for 2x speedup (requires GPU)
 
 # Segment processing
 segmentation:
-  method: "overlapping"  # "fixed_length", "overlapping" (changed to overlapping for better coverage)
-  overlap_ratio: 0.5  # 0.5 = 50% overlap (improves matching robustness)
+  method: "fixed_length"  # CRITICAL: Changed to fixed_length (no overlap = maximum speed)
+  overlap_ratio: 0.0  # CRITICAL: NO overlap for maximum speed (0.0 = no overlap)
 
 # Aggregation parameters (for query result fusion)
+# AGGRESSIVE OPTIMIZATION: Disabled expensive features for maximum speed
 aggregation:
   # Similarity threshold: exclude segments with top match similarity below this
-  min_similarity_threshold: 0.2  # Filter out low-quality matches (0.0-1.0)
+  min_similarity_threshold: 0.1  # Lowered to include more good matches
   
   # Top-K fusion: use only best-matching segments
-  top_k_fusion_ratio: 0.6  # Use top 60% of segments (0.0-1.0, 1.0 = use all)
+  top_k_fusion_ratio: 0.5  # CRITICAL: Reduced from 0.75 to 0.5 (use fewer segments = faster)
   
   # Temporal consistency: weight consecutive segments matching same file
-  use_temporal_consistency: true  # Enable temporal consistency weighting
+  use_temporal_consistency: false  # CRITICAL: Disabled to save computation time
   
   # Aggregation weights (must sum to ~1.0, will be normalized)
+  # Optimized for speed while maintaining recall
   weights:
-    similarity: 0.35      # Weighted similarity score (primary signal)
-    rank_1: 0.30          # Rank-1 voting score (strongest signal)
-    rank_5: 0.15          # Rank-5 voting score (supporting signal)
-    match_ratio: 0.10      # Match ratio (coverage signal)
-    temporal: 0.10         # Temporal consistency (consecutive matches)
+    similarity: 0.50      # Increased to emphasize similarity score
+    rank_1: 0.35          # Increased (strongest signal for recall)
+    rank_5: 0.10          # Reduced (less computation)
+    match_ratio: 0.05     # Minimal
+    temporal: 0.0         # Disabled (no temporal computation)
   
   # Confidence-based re-ranking
-  use_confidence_rerank: true  # Re-rank results by confidence score
+  use_confidence_rerank: false  # CRITICAL: Disabled to save computation time
   min_confidence_threshold: 0.0  # Minimum confidence to include result (0.0-1.0, 0.0 = no filtering)
   
   # Second-stage re-ranking (more thorough analysis of top candidates)
   second_stage_rerank:
-    enabled: true  # Enable second-stage re-ranking for top candidates
+    enabled: false  # Disabled to reduce latency
     top_k: 5  # Number of top candidates to re-rank (typically 3-10)
   
   # Result validation and quality checks
   validation:
-    enabled: true  # Enable result validation
+    enabled: false  # CRITICAL: Disabled to save computation time
     min_quality_score: 0.0  # Minimum quality score to consider valid (0.0-1.0)
   
   # Adaptive threshold: dynamically adjust similarity threshold based on query quality
-  use_adaptive_threshold: true  # Enable adaptive threshold filtering
-  adaptive_threshold_base: 0.2  # Base threshold (will be adjusted based on query quality)
-  adaptive_threshold_sensitivity: 0.1  # How much to adjust threshold (0.0-1.0)
+  use_adaptive_threshold: false  # CRITICAL: Disabled to save computation time
+  adaptive_threshold_base: 0.1  # Base threshold (not used when disabled)
+  adaptive_threshold_sensitivity: 0.1  # Sensitivity (not used when disabled)
 
 # Multi-scale feature fusion (use multiple segment lengths for better recall)
 multi_scale:

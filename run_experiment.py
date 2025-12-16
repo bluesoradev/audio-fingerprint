@@ -384,7 +384,7 @@ def run_full_experiment(
             index_path,
             fingerprint_config_path,
             query_results_dir,
-            topk=10
+            topk=5  # CRITICAL: Reduced from 10 to 5 for 50% reduction in query results (faster queries)
         )
         query_summary_path = query_results_dir / "query_summary.csv"
     else:
