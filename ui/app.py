@@ -734,49 +734,116 @@ async def serve_audio_file(path: str):
 @app.get("/api/files/plots/{filename}")
 async def serve_plot_image(filename: str, run_id: Optional[str] = None):
     """Serve plot image files from reports directory."""
-    logger.info(f"[Plot API] Requested filename: {filename}, run_id: {run_id}")
+    logger.info(f"[Plot API] ===== Plot Request ======")
+    logger.info(f"[Plot API] Requested filename: {filename}")
+    logger.info(f"[Plot API] Run ID: {run_id}")
+    logger.info(f"[Plot API] REPORTS_DIR: {REPORTS_DIR}")
+    logger.info(f"[Plot API] REPORTS_DIR exists: {REPORTS_DIR.exists()}")
     
     file_path = None
     
     # If run_id is provided, use it directly
     if run_id:
+        run_dir = REPORTS_DIR / run_id
+        logger.info(f"[Plot API] Checking run_id path: {run_dir}")
+        logger.info(f"[Plot API] Run directory exists: {run_dir.exists()}")
+        
+        if run_dir.exists():
+            # Check if plots directory exists
+            plots_dir_1 = run_dir / "final_report" / "plots"
+            plots_dir_2 = run_dir / "plots"
+            logger.info(f"[Plot API] Checking plots directory 1: {plots_dir_1} (exists: {plots_dir_1.exists()})")
+            logger.info(f"[Plot API] Checking plots directory 2: {plots_dir_2} (exists: {plots_dir_2.exists()})")
+            
+            if plots_dir_1.exists():
+                plot_files = list(plots_dir_1.glob("*.png"))
+                logger.info(f"[Plot API] Found {len(plot_files)} PNG files in {plots_dir_1}")
+                for pf in plot_files:
+                    logger.info(f"[Plot API]   - {pf.name}")
+            
+            if plots_dir_2.exists():
+                plot_files = list(plots_dir_2.glob("*.png"))
+                logger.info(f"[Plot API] Found {len(plot_files)} PNG files in {plots_dir_2}")
+                for pf in plot_files:
+                    logger.info(f"[Plot API]   - {pf.name}")
+        
         # Try multiple possible paths
         possible_paths = [
             REPORTS_DIR / run_id / "final_report" / "plots" / filename,
             REPORTS_DIR / run_id / "plots" / filename,
             REPORTS_DIR / run_id / filename,
         ]
-        for potential_path in possible_paths:
-            if potential_path.exists():
+        logger.info(f"[Plot API] Checking {len(possible_paths)} possible paths for run_id={run_id}:")
+        for i, potential_path in enumerate(possible_paths, 1):
+            exists = potential_path.exists()
+            logger.info(f"[Plot API]   [{i}] {potential_path}")
+            logger.info(f"[Plot API]       exists: {exists}")
+            if exists:
                 file_path = potential_path
-                logger.info(f"[Plot API] Found file using run_id: {file_path}")
+                logger.info(f"[Plot API] ✓ Found file using run_id: {file_path}")
                 break
+            else:
+                # Check if parent directory exists
+                parent = potential_path.parent
+                logger.info(f"[Plot API]       parent exists: {parent.exists()}")
+                if parent.exists():
+                    parent_files = list(parent.glob("*"))
+                    logger.info(f"[Plot API]       parent contains {len(parent_files)} items:")
+                    for pf in parent_files[:10]:  # Limit to first 10
+                        logger.info(f"[Plot API]         - {pf.name} ({'dir' if pf.is_dir() else 'file'})")
+        
+        if not file_path:
+            logger.warning(f"[Plot API] ✗ File not found in any of the checked paths for run_id={run_id}")
     
     # Otherwise, search for the file in the most recent report directory
     if not file_path:
+        logger.info(f"[Plot API] Searching in most recent report directories...")
         # Find the most recent run directory
         run_dirs = sorted([d for d in REPORTS_DIR.glob("run_*") if d.is_dir()], reverse=True)
-        for report_dir in run_dirs:
+        logger.info(f"[Plot API] Found {len(run_dirs)} run directories")
+        
+        for idx, report_dir in enumerate(run_dirs[:5], 1):  # Check top 5 most recent
+            logger.info(f"[Plot API] Checking run directory [{idx}]: {report_dir.name}")
             possible_paths = [
                 report_dir / "final_report" / "plots" / filename,
                 report_dir / "plots" / filename,
                 report_dir / filename,
             ]
-            for potential_path in possible_paths:
+            for i, potential_path in enumerate(possible_paths, 1):
+                exists = potential_path.exists()
+                logger.debug(f"[Plot API]   [{i}] {potential_path} (exists: {exists})")
                 if potential_path.exists():
                     file_path = potential_path
-                    logger.info(f"[Plot API] Found file in: {file_path}")
+                    logger.info(f"[Plot API] ✓ Found file in: {file_path}")
                     break
             if file_path:
                 break
     
     if file_path and file_path.exists() and file_path.suffix.lower() in [".png", ".jpg", ".jpeg", ".svg"]:
-        logger.info(f"[Plot API] Serving plot image: {file_path}")
+        file_size = file_path.stat().st_size
+        logger.info(f"[Plot API] ✓ Serving plot image: {file_path} ({file_size:,} bytes)")
         media_type = "image/png" if file_path.suffix.lower() == ".png" else "image/jpeg"
         return FileResponse(file_path, media_type=media_type)
     else:
-        logger.warning(f"[Plot API] Plot image not found: {filename} (run_id: {run_id})")
+        logger.warning(f"[Plot API] ✗ Plot image not found: {filename} (run_id: {run_id})")
         logger.info(f"[Plot API] Searched in: {REPORTS_DIR}")
+        if run_id:
+            run_dir = REPORTS_DIR / run_id
+            if run_dir.exists():
+                logger.info(f"[Plot API] Run directory structure:")
+                for item in sorted(run_dir.iterdir()):
+                    item_type = "DIR" if item.is_dir() else "FILE"
+                    logger.info(f"[Plot API]   {item_type}: {item.name}")
+                    if item.is_dir() and item.name == "final_report":
+                        for subitem in sorted(item.iterdir()):
+                            subitem_type = "DIR" if subitem.is_dir() else "FILE"
+                            logger.info(f"[Plot API]     {subitem_type}: {subitem.name}")
+                            if subitem.is_dir() and subitem.name == "plots":
+                                plot_files = list(subitem.glob("*.png"))
+                                logger.info(f"[Plot API]       Found {len(plot_files)} PNG files in plots directory")
+                                for pf in plot_files:
+                                    logger.info(f"[Plot API]         - {pf.name}")
+        logger.info(f"[Plot API] ===== End Plot Request ======")
         # Return a transparent 1x1 PNG instead of 404 to prevent broken image icons
         # This allows the onerror handler in the frontend to show the placeholder message
         try:
