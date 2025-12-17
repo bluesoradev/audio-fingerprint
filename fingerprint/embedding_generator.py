@@ -277,7 +277,6 @@ class EmbeddingGenerator:
             inputs = {k: v.to(self.device).float() for k, v in inputs.items()}  # Ensure FP32 inputs
             
             # Generate embeddings with CUDA error handling and AMP (Automatic Mixed Precision)
-            import torch
             with torch.no_grad():
                 try:
                     # Clear CUDA cache to prevent memory issues
