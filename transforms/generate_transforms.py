@@ -53,7 +53,18 @@ def generate_transform_id(orig_id: str, transform_type: str, params: Dict, seed:
     param_str = "_".join(f"{k}_{v}" for k, v in sorted(sanitized_params.items()))
     if seed is not None:
         param_str += f"_seed_{seed}"
-    return f"{orig_id}__{transform_type}__{param_str}"
+    transform_id = f"{orig_id}__{transform_type}__{param_str}"
+    
+    # Truncate if too long (200 chars leaves room for path prefix and .wav extension)
+    MAX_FILENAME_LENGTH = 200
+    if len(transform_id) > MAX_FILENAME_LENGTH:
+        # Create hash of full transform_id for determinism
+        hash_suffix = hashlib.md5(transform_id.encode("utf-8")).hexdigest()[:8]
+        # Keep first part + hash
+        prefix_length = MAX_FILENAME_LENGTH - len(hash_suffix) - 1  # -1 for underscore
+        transform_id = transform_id[:prefix_length] + "_" + hash_suffix
+    
+    return transform_id
 
 
 def generate_transforms(
@@ -173,6 +184,18 @@ def generate_transforms(
                     )
                     out_path = transformed_dir / f"{transform_id}.wav"
                     
+                    # Defensive check: ensure path is not too long
+                    MAX_PATH_LENGTH = 250
+                    if len(str(out_path)) > MAX_PATH_LENGTH:
+                        filename = out_path.name
+                        if len(filename) > 200:
+                            import hashlib
+                            hash_suffix = hashlib.md5(filename.encode("utf-8")).hexdigest()[:8]
+                            prefix_length = 200 - len(hash_suffix) - 1
+                            truncated_filename = filename[:prefix_length] + "_" + hash_suffix
+                            out_path = out_path.parent / truncated_filename
+                            transform_id = truncated_filename.replace(".wav", "")
+                    
                     # Check if transformed file already exists
                     if out_path.exists():
                         logger.info(f"✓ Skipping {transform_id} - file already exists: {out_path}")
@@ -248,6 +271,18 @@ def generate_transforms(
                             param_set_for_id["overlay_path"] = original_overlay_path
                     transform_id = generate_transform_id(orig_id, transform_type, param_set_for_id)
                     out_path = transformed_dir / f"{transform_id}.wav"
+                    
+                    # Defensive check: ensure path is not too long
+                    MAX_PATH_LENGTH = 250
+                    if len(str(out_path)) > MAX_PATH_LENGTH:
+                        filename = out_path.name
+                        if len(filename) > 200:
+                            import hashlib
+                            hash_suffix = hashlib.md5(filename.encode("utf-8")).hexdigest()[:8]
+                            prefix_length = 200 - len(hash_suffix) - 1
+                            truncated_filename = filename[:prefix_length] + "_" + hash_suffix
+                            out_path = out_path.parent / truncated_filename
+                            transform_id = truncated_filename.replace(".wav", "")
                     
                     # Check if transformed file already exists
                     if out_path.exists():
