@@ -3173,13 +3173,36 @@ async function deleteReport(runId) {
 // Deliverables transformation state
 let deliverablesSelectedAudioFile = null;
 
-// Load audio files into deliverables select
+// Load audio files into deliverables select and all transform selectors
 async function loadDeliverablesAudioFiles() {
     try {
         const select = document.getElementById('deliverablesAudioSelect');
         if (!select) return;
         
+        // Get all the selectors that need to be populated
+        const deliverablesEmbeddedSampleSelect = document.getElementById('deliverablesEmbeddedSampleFile');
+        const deliverablesEmbeddedBackgroundSelect = document.getElementById('deliverablesEmbeddedBackgroundFile');
+        const deliverablesSongASelect = document.getElementById('deliverablesSongAFile');
+        const deliverablesSongBBaseSelect = document.getElementById('deliverablesSongBBaseFile');
+        
+        // Initialize all selectors with default options
         select.innerHTML = '<option value="">-- Select Audio File --</option>';
+        
+        if (deliverablesEmbeddedSampleSelect) {
+            deliverablesEmbeddedSampleSelect.innerHTML = '<option value="">-- Select Sample File --</option>';
+        }
+        if (deliverablesEmbeddedBackgroundSelect) {
+            deliverablesEmbeddedBackgroundSelect.innerHTML = '<option value="">-- Use Chain Output --</option>';
+        }
+        if (deliverablesSongASelect) {
+            deliverablesSongASelect.innerHTML = '<option value="">-- Use Original Input --</option>';
+        }
+        if (deliverablesSongBBaseSelect) {
+            deliverablesSongBBaseSelect.innerHTML = '<option value="">-- Generate Synthetic Background --</option>';
+        }
+        
+        // Collect all files from both directories
+        const allFiles = [];
         
         // Load from test_audio directory
         try {
@@ -3187,10 +3210,11 @@ async function loadDeliverablesAudioFiles() {
             const result = await response.json();
             if (result.files && result.files.length > 0) {
                 result.files.forEach(file => {
-                    const option = document.createElement('option');
-                    option.value = file.path || `data/test_audio/${file.name}`;
-                    option.textContent = file.name || file;
-                    select.appendChild(option);
+                    allFiles.push({
+                        path: file.path || `data/test_audio/${file.name}`,
+                        name: file.name || file,
+                        size: file.size || 0
+                    });
                 });
             }
         } catch (error) {
@@ -3203,15 +3227,45 @@ async function loadDeliverablesAudioFiles() {
             const result2 = await response2.json();
             if (result2.files && result2.files.length > 0) {
                 result2.files.forEach(file => {
-                    const option = document.createElement('option');
-                    option.value = file.path || `data/originals/${file.name}`;
-                    option.textContent = file.name || file;
-                    select.appendChild(option);
+                    allFiles.push({
+                        path: file.path || `data/originals/${file.name}`,
+                        name: file.name || file,
+                        size: file.size || 0
+                    });
                 });
             }
         } catch (error) {
             // Ignore errors loading originals
         }
+        
+        // Populate all selectors with the collected files
+        allFiles.forEach(file => {
+            // Main deliverables audio select
+            const option = document.createElement('option');
+            option.value = file.path;
+            option.textContent = `${file.name} (${formatBytes(file.size)})`;
+            select.appendChild(option);
+            
+            // Embedded Sample selectors
+            if (deliverablesEmbeddedSampleSelect) {
+                const sampleOption = option.cloneNode(true);
+                deliverablesEmbeddedSampleSelect.appendChild(sampleOption);
+            }
+            if (deliverablesEmbeddedBackgroundSelect) {
+                const bgOption = option.cloneNode(true);
+                deliverablesEmbeddedBackgroundSelect.appendChild(bgOption);
+            }
+            
+            // Song A in Song B selectors
+            if (deliverablesSongASelect) {
+                const songAOption = option.cloneNode(true);
+                deliverablesSongASelect.appendChild(songAOption);
+            }
+            if (deliverablesSongBBaseSelect) {
+                const songBOption = option.cloneNode(true);
+                deliverablesSongBBaseSelect.appendChild(songBOption);
+            }
+        });
     } catch (error) {
         console.error('Failed to load audio files:', error);
     }
