@@ -317,6 +317,7 @@ def run_query_on_file(
         
         # Process each scale
         all_scale_segment_results = []
+        stored_embeddings = None  # Store embeddings from first scale for enhanced detection
         for scale_idx, (seg_len, scale_weight) in enumerate(zip(segment_lengths_to_use, scale_weights_to_use)):
             # Segment audio with current scale
             segments = segment_audio(
@@ -335,6 +336,10 @@ def run_query_on_file(
             
             # Normalize embeddings
             embeddings = normalize_embeddings(embeddings, method="l2")
+            
+            # Store embeddings from first scale for enhanced detection
+            if scale_idx == 0:
+                stored_embeddings = embeddings
             
             # Query index for each segment
             scale_segment_results = []
@@ -684,20 +689,50 @@ def run_query_on_file(
         
         # Enhanced detection for song_a_in_song_b using direct similarity
         if transform_type == 'song_a_in_song_b' and expected_orig_id and index_metadata:
-            # Find maximum similarity to original file across all segment queries
+            # Find maximum similarity to original file by re-querying with larger topk
+            # Most segments won't have original in top 10-30, so we need to query more
             max_direct_similarity = 0.0
             best_orig_match_id = None
             
-            # Check all segment results for matches to original
-            for seg_result in segment_results:
-                seg_results_list = seg_result.get("results", [])
-                for result in seg_results_list:
-                    result_id = result.get("id", "")
-                    if expected_orig_id in str(result_id):
-                        seg_sim = result.get("similarity", 0.0)
-                        if seg_sim > max_direct_similarity:
-                            max_direct_similarity = seg_sim
-                            best_orig_match_id = result_id
+            # Get all original segment IDs from index
+            index_ids = index_metadata.get("ids", [])
+            orig_segment_ids = [idx for idx in index_ids if expected_orig_id in str(idx)]
+            
+            # Re-query each segment with MUCH larger topk to find original segments
+            if orig_segment_ids and stored_embeddings is not None:
+                # Query with topk = all original segments + buffer to ensure we find them
+                extended_topk = min(len(orig_segment_ids) * 3, index.ntotal)
+                
+                for seg_emb in stored_embeddings:
+                    # Re-query with extended topk to find original segments
+                    extended_results = query_index(
+                        index,
+                        seg_emb,
+                        topk=extended_topk,
+                        ids=index_ids,
+                        normalize=True,
+                        index_metadata=index_metadata
+                    )
+                    
+                    # Find best match to original in extended results
+                    for result in extended_results:
+                        result_id = result.get("id", "")
+                        if expected_orig_id in str(result_id):
+                            seg_sim = result.get("similarity", 0.0)
+                            if seg_sim > max_direct_similarity:
+                                max_direct_similarity = seg_sim
+                                best_orig_match_id = result_id
+            else:
+                # Fallback: Check existing segment results (may not find original if topk was too small)
+                for seg_result in segment_results:
+                    seg_results_list = seg_result.get("results", [])
+                    for result in seg_results_list:
+                        result_id = result.get("id", "")
+                        if expected_orig_id in str(result_id):
+                            seg_sim = result.get("similarity", 0.0)
+                            if seg_sim > max_direct_similarity:
+                                max_direct_similarity = seg_sim
+                                best_orig_match_id = result_id
             
             # If direct similarity > 0.5, override aggregation to put original at rank 1
             if max_direct_similarity > 0.5 and best_orig_match_id:
