@@ -2361,7 +2361,7 @@ async def manipulate_deliverables_batch(
             "status": "error",
             "message": str(e)
         }, status_code=500)
-def run_fingerprint_test(original_file: Path, manipulated_file: Path) -> dict:
+def run_fingerprint_test(original_file: Path, manipulated_file: Path, scenario_type: str = None) -> dict:
     """
     Run fingerprint test comparing original_file vs manipulated_file.
     Returns test_result dict with matched, similarity, rank, etc.
