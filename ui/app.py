@@ -2405,7 +2405,7 @@ def run_fingerprint_test(original_file: Path, manipulated_file: Path, scenario_t
     index, _ = load_index(tmp_index_path)
     
     # Enhanced detection for song_a_in_song_b using multiple strategies
-    if scenario_type == 'song_a_in_song_b' and len(embeddings_manip) > 1:
+    if scenario_type == 'song_a_in_song_b':
         # Strategy 1: Per-segment querying with voting and rank aggregation
         best_rank = None
         best_similarity = 0.0
