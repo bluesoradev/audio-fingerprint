@@ -757,15 +757,33 @@ async function loadManipulateAudioFiles() {
     
     select.innerHTML = '<option value="">-- Select Audio File --</option>';
     
-    // Also populate embedded sample and song A in Song B selectors
+    // Also populate embedded sample and song A in Song B selectors (Manipulate Audio section)
     const embeddedBackgroundSelect = document.getElementById('embeddedBackgroundFile');
     const songBBaseSelect = document.getElementById('songBBaseFile');
+    
+    // Also populate Deliverables section selectors
+    const deliverablesEmbeddedSampleSelect = document.getElementById('deliverablesEmbeddedSampleFile');
+    const deliverablesEmbeddedBackgroundSelect = document.getElementById('deliverablesEmbeddedBackgroundFile');
+    const deliverablesSongASelect = document.getElementById('deliverablesSongAFile');
+    const deliverablesSongBBaseSelect = document.getElementById('deliverablesSongBBaseFile');
     
     if (embeddedBackgroundSelect) {
         embeddedBackgroundSelect.innerHTML = '<option value="">-- Select Background File --</option>';
     }
     if (songBBaseSelect) {
         songBBaseSelect.innerHTML = '<option value="">-- Generate Synthetic Background --</option>';
+    }
+    if (deliverablesEmbeddedSampleSelect) {
+        deliverablesEmbeddedSampleSelect.innerHTML = '<option value="">-- Select Sample File --</option>';
+    }
+    if (deliverablesEmbeddedBackgroundSelect) {
+        deliverablesEmbeddedBackgroundSelect.innerHTML = '<option value="">-- Use Chain Output --</option>';
+    }
+    if (deliverablesSongASelect) {
+        deliverablesSongASelect.innerHTML = '<option value="">-- Use Original Input --</option>';
+    }
+    if (deliverablesSongBBaseSelect) {
+        deliverablesSongBBaseSelect.innerHTML = '<option value="">-- Generate Synthetic Background --</option>';
     }
     
     allFiles.forEach(file => {
@@ -774,7 +792,7 @@ async function loadManipulateAudioFiles() {
         option.textContent = `${file.name} (${formatBytes(file.size)})`;
         select.appendChild(option);
         
-        // Also add to embedded sample and song B selectors
+        // Also add to embedded sample and song B selectors (Manipulate Audio section)
         if (embeddedBackgroundSelect) {
             const opt1 = option.cloneNode(true);
             embeddedBackgroundSelect.appendChild(opt1);
@@ -782,6 +800,24 @@ async function loadManipulateAudioFiles() {
         if (songBBaseSelect) {
             const opt2 = option.cloneNode(true);
             songBBaseSelect.appendChild(opt2);
+        }
+        
+        // Also add to Deliverables section selectors
+        if (deliverablesEmbeddedSampleSelect) {
+            const sampleOption = option.cloneNode(true);
+            deliverablesEmbeddedSampleSelect.appendChild(sampleOption);
+        }
+        if (deliverablesEmbeddedBackgroundSelect) {
+            const bgDeliverablesOption = option.cloneNode(true);
+            deliverablesEmbeddedBackgroundSelect.appendChild(bgDeliverablesOption);
+        }
+        if (deliverablesSongASelect) {
+            const songAOption = option.cloneNode(true);
+            deliverablesSongASelect.appendChild(songAOption);
+        }
+        if (deliverablesSongBBaseSelect) {
+            const songBBaseDeliverablesOption = option.cloneNode(true);
+            deliverablesSongBBaseSelect.appendChild(songBBaseDeliverablesOption);
         }
     });
     
@@ -3318,6 +3354,8 @@ function updateDeliverablesSliderDisplay(type, value) {
     const displayMap = {
         'highpass': { id: 'deliverablesHighpassDisplay', suffix: 'Hz', decimals: 1 },
         'lowpass': { id: 'deliverablesLowpassDisplay', suffix: 'Hz', decimals: 1 },
+        'embeddedVolumeDb': { id: 'deliverablesEmbeddedVolumeDbDisplay', suffix: 'dB', decimals: 1 },
+        'songAMixVolumeDb': { id: 'deliverablesSongAMixVolumeDbDisplay', suffix: 'dB', decimals: 1 },
         'boostHighs': { id: 'deliverablesBoostHighsDisplay', suffix: 'dB', decimals: 1 },
         'boostLows': { id: 'deliverablesBoostLowsDisplay', suffix: 'dB', decimals: 1 },
         'limiting': { id: 'deliverablesLimitingDisplay', suffix: 'dB', decimals: 1 },
@@ -3356,6 +3394,22 @@ function updateDeliverablesCropDuration() {
     updateDeliverablesTransformState();
 }
 
+function toggleDeliverablesEmbeddedTransformParams() {
+    const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform');
+    const paramsGroup = document.getElementById('deliverablesEmbeddedTransformParamsGroup');
+    if (applyTransform && paramsGroup) {
+        paramsGroup.style.display = (applyTransform.value !== 'None') ? 'block' : 'none';
+    }
+}
+
+function toggleDeliverablesSongATransformParams() {
+    const applyTransform = document.getElementById('deliverablesSongAApplyTransform');
+    const paramsGroup = document.getElementById('deliverablesSongATransformParamsGroup');
+    if (applyTransform && paramsGroup) {
+        paramsGroup.style.display = (applyTransform.value !== 'None') ? 'block' : 'none';
+    }
+}
+
 function updateDeliverablesTransformState() {
     // Count enabled transformations
     const enabledTransforms = [];
@@ -3377,6 +3431,8 @@ function updateDeliverablesTransformState() {
     if (document.getElementById('deliverablesMultibandEnabled')?.checked) enabledTransforms.push('Multiband');
     if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) enabledTransforms.push('Add Noise');
     if (document.getElementById('deliverablesCropEnabled')?.checked) enabledTransforms.push('Crop');
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) enabledTransforms.push('Embedded Sample');
+    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) enabledTransforms.push('Song A in Song B');
     
     const count = enabledTransforms.length;
     // Transform count and apply button removed - no longer needed
@@ -3512,6 +3568,48 @@ async function applyAllDeliverablesTransforms() {
             crop_type: cropType,
             duration: (cropType === 'middle' || cropType === 'end') ? 
                 parseFloat(document.getElementById('deliverablesCropDuration')?.value || 10) : null
+        });
+    }
+    
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) {
+        const samplePath = document.getElementById('deliverablesEmbeddedSampleFile')?.value;
+        if (!samplePath || !samplePath.trim()) {
+            showError('Embedded Sample requires a sample file to be selected');
+            return;
+        }
+        
+        const backgroundPath = document.getElementById('deliverablesEmbeddedBackgroundFile')?.value || '';
+        const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform')?.value || 'None';
+        const transformParams = document.getElementById('deliverablesEmbeddedTransformParams')?.value || '';
+        
+        enabledTransforms.push({
+            type: 'embedded_sample',
+            sample_path: samplePath,
+            background_path: backgroundPath.trim() || null, // null = use chain output
+            position: document.getElementById('deliverablesEmbeddedPosition')?.value || 'start',
+            sample_duration: parseFloat(document.getElementById('deliverablesEmbeddedSampleDuration')?.value || 1.5),
+            volume_db: parseFloat(document.getElementById('deliverablesEmbeddedVolumeDb')?.value || 0),
+            apply_transform: applyTransform !== 'None' ? applyTransform : null,
+            transform_params: transformParams.trim() ? transformParams : null
+        });
+    }
+    
+    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) {
+        const songAPath = document.getElementById('deliverablesSongAFile')?.value || '';
+        const songBBasePath = document.getElementById('deliverablesSongBBaseFile')?.value || '';
+        const applyTransform = document.getElementById('deliverablesSongAApplyTransform')?.value || 'None';
+        const transformParams = document.getElementById('deliverablesSongATransformParams')?.value || '';
+        
+        enabledTransforms.push({
+            type: 'song_a_in_song_b',
+            song_a_path: songAPath.trim() || null, // null = use original input
+            song_b_base_path: songBBasePath.trim() || null, // null = generate synthetic
+            sample_start_time: parseFloat(document.getElementById('deliverablesSongASampleStartTime')?.value || 0.0),
+            sample_duration: parseFloat(document.getElementById('deliverablesSongASampleDuration')?.value || 1.5),
+            song_b_duration: parseFloat(document.getElementById('deliverablesSongBDuration')?.value || 30.0),
+            mix_volume_db: parseFloat(document.getElementById('deliverablesSongAMixVolumeDb')?.value || 0),
+            apply_transform: applyTransform !== 'None' ? applyTransform : null,
+            transform_params: transformParams.trim() ? transformParams : null
         });
     }
     

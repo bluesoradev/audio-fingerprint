@@ -1941,6 +1941,54 @@ async def manipulate_chain(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+def resolve_transform_input(
+    transform_type: str,
+    transform_config: dict,
+    current_file: Path,
+    input_file: Path
+) -> Path:
+    """
+    Intelligently resolve which input file to use for a transform.
+    
+    For chain-aware transforms (embedded_sample, song_a_in_song_b):
+    - If explicit file path specified → use that
+    - If not specified → use current_file (chain output) or input_file (original)
+    - This allows both standalone and chain usage
+    
+    Args:
+        transform_type: Type of transform
+        transform_config: Transform configuration dict
+        current_file: Current file in the transform chain
+        input_file: Original input file
+        
+    Returns:
+        Resolved Path to use as input
+    """
+    if transform_type == 'embedded_sample':
+        # Priority: explicit background_path > current_file (chain output)
+        background_path = transform_config.get('background_path')
+        if background_path and background_path.strip():
+            resolved_path = PROJECT_ROOT / background_path
+            if resolved_path.exists():
+                return resolved_path
+            logger.warning(f"Background path not found: {background_path}, using chain output")
+        return current_file  # Use chain output as background
+    
+    elif transform_type == 'song_a_in_song_b':
+        # Priority: explicit song_a_path > input_file (original) > current_file
+        song_a_path = transform_config.get('song_a_path')
+        if song_a_path and song_a_path.strip():
+            resolved_path = PROJECT_ROOT / song_a_path
+            if resolved_path.exists():
+                return resolved_path
+            logger.warning(f"Song A path not found: {song_a_path}, using original input")
+        # Default: use original input file (Song A is the database track)
+        return input_file
+    
+    # Default: use chain output
+    return current_file
+
+
 @app.post("/api/manipulate/deliverables-batch")
 async def manipulate_deliverables_batch(
     input_path: str = Form(...),
@@ -2123,6 +2171,89 @@ async def manipulate_deliverables_batch(
                     crop_middle_segment(current_file, output_file, duration=transform_config.get('duration', 10))
                 elif crop_type == 'end':
                     crop_end_segment(current_file, output_file, duration=transform_config.get('duration', 10))
+            elif transform_type == 'embedded_sample':
+                from transforms.embedded_sample import embedded_sample
+                
+                # Resolve input file (background)
+                background_file = resolve_transform_input(
+                    'embedded_sample', transform_config, current_file, input_file
+                )
+                
+                # Resolve sample file
+                sample_path_str = transform_config.get('sample_path')
+                if not sample_path_str or not sample_path_str.strip():
+                    raise ValueError("embedded_sample requires sample_path parameter")
+                
+                sample_file = PROJECT_ROOT / sample_path_str
+                if not sample_file.exists():
+                    raise FileNotFoundError(f"Sample file not found: {sample_path_str}")
+                
+                # Parse nested parameters
+                apply_transform = transform_config.get('apply_transform')
+                transform_params = transform_config.get('transform_params')
+                
+                # Handle transform_params: can be dict, JSON string, or None
+                if isinstance(transform_params, str):
+                    try:
+                        transform_params = json.loads(transform_params) if transform_params.strip() else None
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON in transform_params: {transform_params}, using None")
+                        transform_params = None
+                elif transform_params is None or transform_params == "":
+                    transform_params = None
+                
+                embedded_sample(
+                    sample_path=sample_file,
+                    background_path=background_file,  # Can be chain output or explicit file
+                    position=transform_config.get('position', 'start'),
+                    sample_duration=float(transform_config.get('sample_duration', 1.5)),
+                    volume_db=float(transform_config.get('volume_db', 0.0)),
+                    apply_transform=apply_transform if apply_transform and apply_transform != "None" else None,
+                    transform_params=transform_params,
+                    out_path=output_file
+                )
+            elif transform_type == 'song_a_in_song_b':
+                from transforms.song_a_in_song_b import song_a_in_song_b
+                
+                # Resolve Song A (original database track)
+                song_a_file = resolve_transform_input(
+                    'song_a_in_song_b', transform_config, current_file, input_file
+                )
+                
+                # Resolve Song B base (optional)
+                song_b_base_path_str = transform_config.get('song_b_base_path')
+                song_b_base_file = None
+                if song_b_base_path_str and song_b_base_path_str.strip():
+                    song_b_base_file = PROJECT_ROOT / song_b_base_path_str
+                    if not song_b_base_file.exists():
+                        logger.warning(f"Song B base file not found: {song_b_base_path_str}, will generate synthetic")
+                        song_b_base_file = None
+                
+                # Parse nested parameters
+                apply_transform = transform_config.get('apply_transform')
+                transform_params = transform_config.get('transform_params')
+                
+                # Handle transform_params: can be dict, JSON string, or None
+                if isinstance(transform_params, str):
+                    try:
+                        transform_params = json.loads(transform_params) if transform_params.strip() else None
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON in transform_params: {transform_params}, using None")
+                        transform_params = None
+                elif transform_params is None or transform_params == "":
+                    transform_params = None
+                
+                song_a_in_song_b(
+                    song_a_path=song_a_file,  # Original database track
+                    song_b_base_path=song_b_base_file,  # Optional background
+                    sample_start_time=float(transform_config.get('sample_start_time', 0.0)),
+                    sample_duration=float(transform_config.get('sample_duration', 1.5)),
+                    song_b_duration=float(transform_config.get('song_b_duration', 30.0)),
+                    apply_transform=apply_transform if apply_transform and apply_transform != "None" else None,
+                    transform_params=transform_params,
+                    mix_volume_db=float(transform_config.get('mix_volume_db', 0.0)),
+                    out_path=output_file
+                )
             
             # Update current_file for next iteration
             current_file = output_file

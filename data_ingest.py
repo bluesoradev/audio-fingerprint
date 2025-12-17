@@ -176,6 +176,7 @@ def ingest_manifest(
         # Determine if URL or local path
         source_path = Path(url_or_path)
         is_url = str(url_or_path).startswith(("http://", "https://"))
+        temp_file = None  # Initialize for cleanup logic
         
         # Download if URL, otherwise use local path
         if is_url:
@@ -200,6 +201,44 @@ def ingest_manifest(
         # Normalize and save
         if normalize:
             output_file = originals_dir / f"{file_id}.wav"
+            
+            # Check if normalized file already exists
+            if output_file.exists():
+                logger.info(f"✓ Skipping normalization for {file_id} - file already exists: {output_file}")
+                try:
+                    # Load existing file info instead of re-normalizing
+                    info = sf.info(str(output_file))
+                    audio_info = {
+                        "duration": info.duration,
+                        "sample_rate": info.samplerate,
+                        "channels": info.channels,
+                        "samples": info.frames
+                    }
+                    checksum = compute_file_hash(output_file)
+                    
+                    results.append({
+                        "id": file_id,
+                        "title": title,
+                        "source_url": url_or_path if is_url else None,
+                        "source_path": str(source_path) if not is_url else None,
+                        "file_path": str(output_file),
+                        "duration": audio_info["duration"],
+                        "sample_rate": audio_info["sample_rate"],
+                        "channels": audio_info["channels"],
+                        "checksum": checksum,
+                        "genre": row.get("genre", ""),
+                    })
+                    
+                    # Clean up temp file if downloaded
+                    if is_url and temp_file and temp_file.exists():
+                        temp_file.unlink()
+                    
+                    continue  # Skip normalization, file already exists
+                except Exception as e:
+                    logger.warning(f"Failed to read existing file {output_file}: {e}, will re-normalize")
+                    # Fall through to normalize
+            
+            # Normalize only if file doesn't exist or reading failed
             try:
                 audio_info = normalize_audio(
                     source_path,
@@ -225,7 +264,7 @@ def ingest_manifest(
                 })
                 
                 # Clean up temp file if downloaded
-                if is_url and temp_file.exists():
+                if is_url and temp_file and temp_file.exists():
                     temp_file.unlink()
                     
             except Exception as e:

@@ -1705,6 +1705,126 @@
                                     <input type="number" id="deliverablesCropDuration" value="10" min="1" max="60" class="form-control">
                                 </div>
                             </div>
+
+                            <!-- Embedded Sample Detection -->
+                            <div class="transform-card">
+                                <h4>Embedded Sample Detection</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesEmbeddedSampleEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Sample File (Song A segment) *</label>
+                                    <select id="deliverablesEmbeddedSampleFile" class="form-control" onchange="updateDeliverablesTransformState()">
+                                        <option value="">-- Select Sample File --</option>
+                                    </select>
+                                    <small style="color: #9ca3af;">Required: 1-2 second sample to embed</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Background File (Full track)</label>
+                                    <select id="deliverablesEmbeddedBackgroundFile" class="form-control" onchange="updateDeliverablesTransformState()">
+                                        <option value="">-- Use Chain Output --</option>
+                                    </select>
+                                    <small style="color: #9ca3af;">Leave empty to use output from previous transform</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Position</label>
+                                    <select id="deliverablesEmbeddedPosition" class="form-control">
+                                        <option value="start">Start</option>
+                                        <option value="middle">Middle</option>
+                                        <option value="end">End</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Sample Duration (seconds)</label>
+                                    <input type="number" id="deliverablesEmbeddedSampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Volume (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesEmbeddedVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="updateDeliverablesSliderDisplay('embeddedVolumeDb', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesEmbeddedVolumeDbDisplay">0.0dB</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Apply Transform to Sample (optional)</label>
+                                    <select id="deliverablesEmbeddedApplyTransform" class="form-control" onchange="toggleDeliverablesEmbeddedTransformParams()">
+                                        <option value="None">None</option>
+                                        <option value="pitch">Pitch Shift</option>
+                                        <option value="speed">Speed Change</option>
+                                        <option value="eq">EQ Adjustment</option>
+                                        <option value="compression">Compression</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="deliverablesEmbeddedTransformParamsGroup" style="display: none;">
+                                    <label>Transform Parameters (JSON)</label>
+                                    <input type="text" id="deliverablesEmbeddedTransformParams" class="form-control" placeholder='{"semitones": 2}' style="font-family: monospace; font-size: 11px;">
+                                    <small style="color: #9ca3af;">Example: {"semitones": 2} for pitch, {"speed": 1.05} for speed, {"gain_db": 6.0} for EQ</small>
+                                </div>
+                            </div>
+
+                            <!-- Song A in Song B -->
+                            <div class="transform-card">
+                                <h4>Song A inside Song B</h4>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="deliverablesSongAInSongBEnabled" onchange="updateDeliverablesTransformState()"> Enable
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Song A (Original in Database)</label>
+                                    <select id="deliverablesSongAFile" class="form-control" onchange="updateDeliverablesTransformState()">
+                                        <option value="">-- Use Original Input --</option>
+                                    </select>
+                                    <small style="color: #9ca3af;">Leave empty to use original input file</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Song B Base Track (optional)</label>
+                                    <select id="deliverablesSongBBaseFile" class="form-control" onchange="updateDeliverablesTransformState()">
+                                        <option value="">-- Generate Synthetic Background --</option>
+                                    </select>
+                                    <small style="color: #9ca3af;">Leave empty to generate synthetic background</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Sample Start Time (seconds)</label>
+                                    <input type="number" id="deliverablesSongASampleStartTime" class="form-control" value="0.0" min="0" step="0.5">
+                                </div>
+                                <div class="form-group">
+                                    <label>Sample Duration (seconds)</label>
+                                    <input type="number" id="deliverablesSongASampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Song B Duration (seconds)</label>
+                                    <input type="number" id="deliverablesSongBDuration" class="form-control" value="30.0" min="10" max="120" step="5">
+                                </div>
+                                <div class="form-group">
+                                    <label>Mix Volume (dB)</label>
+                                    <div class="slider-container">
+                                        <div class="slider-wrapper">
+                                            <input type="range" class="slider" id="deliverablesSongAMixVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="updateDeliverablesSliderDisplay('songAMixVolumeDb', this.value)">
+                                        </div>
+                                        <span class="slider-value" id="deliverablesSongAMixVolumeDbDisplay">0.0dB</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Apply Transform to Sample (optional)</label>
+                                    <select id="deliverablesSongAApplyTransform" class="form-control" onchange="toggleDeliverablesSongATransformParams()">
+                                        <option value="None">None</option>
+                                        <option value="pitch">Pitch Shift</option>
+                                        <option value="speed">Speed Change</option>
+                                        <option value="eq">EQ Adjustment</option>
+                                        <option value="compression">Compression</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="deliverablesSongATransformParamsGroup" style="display: none;">
+                                    <label>Transform Parameters (JSON)</label>
+                                    <input type="text" id="deliverablesSongATransformParams" class="form-control" placeholder='{"semitones": -2, "position": "start"}' style="font-family: monospace; font-size: 11px;">
+                                    <small style="color: #9ca3af;">Example: {"semitones": -2, "position": "start"} - position can be "start", "middle", or "end"</small>
+                                </div>
+                            </div>
                         </div>
                 </div>
 

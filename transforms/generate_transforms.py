@@ -173,6 +173,22 @@ def generate_transforms(
                     )
                     out_path = transformed_dir / f"{transform_id}.wav"
                     
+                    # Check if transformed file already exists
+                    if out_path.exists():
+                        logger.info(f"✓ Skipping {transform_id} - file already exists: {out_path}")
+                        transform_records.append({
+                            "orig_id": orig_id,
+                            "transformed_id": transform_id,
+                            "transform_type": transform_type,
+                            "transform_name": chain_name,
+                            "severity": severity,
+                            "params": json.dumps({"transforms": transforms}),
+                            "output_path": str(out_path),
+                            "seed": global_seed,
+                        })
+                        continue  # Skip generation, file already exists
+                    
+                    # Generate only if file doesn't exist
                     try:
                         combine_chain(orig_path, transforms, out_path)
                         
@@ -233,6 +249,22 @@ def generate_transforms(
                     transform_id = generate_transform_id(orig_id, transform_type, param_set_for_id)
                     out_path = transformed_dir / f"{transform_id}.wav"
                     
+                    # Check if transformed file already exists
+                    if out_path.exists():
+                        logger.info(f"✓ Skipping {transform_id} - file already exists: {out_path}")
+                        transform_records.append({
+                            "orig_id": orig_id,
+                            "transformed_id": transform_id,
+                            "transform_type": transform_type,
+                            "transform_name": description or transform_type,
+                            "severity": severity,
+                            "params": json.dumps(param_set_for_id),
+                            "output_path": str(out_path),
+                            "seed": global_seed,
+                        })
+                        continue  # Skip generation, file already exists
+                    
+                    # Generate only if file doesn't exist
                     try:
                         # Apply transform based on type
                         if transform_type == "pitch_shift":
