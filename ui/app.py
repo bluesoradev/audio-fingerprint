@@ -680,7 +680,7 @@ async def list_audio_files(directory: str = "originals"):
         logger.info(f"[Audio Files API] Directory exists: {audio_dir.exists()}")
         
         files = []
-        
+    
         if audio_dir.exists() and audio_dir.is_dir():
             # Include multiple audio formats
             audio_extensions = ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.ogg", "*.aac"]
@@ -702,13 +702,13 @@ async def list_audio_files(directory: str = "originals"):
                     continue
         else:
             logger.warning(f"[Audio Files API] Directory does not exist or is not a directory: {audio_dir}")
+                        
         
         logger.info(f"[Audio Files API] Found {len(files)} files")
         return JSONResponse({"files": sorted(files, key=lambda x: x["modified"], reverse=True)})
     except Exception as e:
         logger.error(f"[Audio Files API] Error listing audio files: {e}", exc_info=True)
         return JSONResponse({"error": str(e), "files": []}, status_code=500)
-
 
 @app.get("/api/files/audio-file")
 async def serve_audio_file(path: str):
@@ -2029,6 +2029,9 @@ async def manipulate_deliverables_batch(
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         temp_files = []
         
+        # Track detection scenarios for accurate reporting
+        detection_scenarios = []
+        
         for i, transform_config in enumerate(transforms_list):
             transform_type = transform_config.get('type')
             
@@ -2255,7 +2258,35 @@ async def manipulate_deliverables_batch(
                     out_path=output_file
                 )
             
-            # Update current_file for next iteration
+            # Track detection scenarios for reporting
+            if transform_type == 'embedded_sample':
+                sample_path_str = transform_config.get('sample_path')
+                if sample_path_str:
+                    sample_file = PROJECT_ROOT / sample_path_str
+                    if sample_file.exists():
+                        detection_scenarios.append({
+                            'scenario_type': 'embedded_sample',
+                            'original_file': sample_file,
+                            'manipulated_file': output_file,  # Will update to final output later
+                            'transform_index': i,
+                            'description': f"Embedded Sample Detection: {sample_file.name} in background track",
+                            'transform_chain': transforms_list[:i+1]  # All transforms up to this point
+                        })
+            
+            elif transform_type == 'song_a_in_song_b':
+                song_a_file = resolve_transform_input(
+                    'song_a_in_song_b', transform_config, current_file, input_file
+                )
+                detection_scenarios.append({
+                    'scenario_type': 'song_a_in_song_b',
+                    'original_file': song_a_file,
+                    'manipulated_file': output_file,  # Will update to final output later
+                    'transform_index': i,
+                    'description': f"Song A in Song B: Detect {song_a_file.name} in Song B",
+                    'transform_chain': transforms_list[:i+1]  # All transforms up to this point
+                })
+            
+            
             current_file = output_file
         
         # Clean up temp files
@@ -2272,7 +2303,9 @@ async def manipulate_deliverables_batch(
                 overlay_file_path.unlink()
             except:
                 pass
-        
+        # Update all detection scenarios to use final output file
+        for scenario in detection_scenarios:
+            scenario['manipulated_file'] = output_file  # Use final output for all scenarios
         final_output_path = str(output_file.relative_to(PROJECT_ROOT))
         
         # Generate Phase 1 and Phase 2 reports if requested
@@ -2280,88 +2313,12 @@ async def manipulate_deliverables_batch(
         report_data_phase2 = None
         
         if generate_reports.lower() == 'true':
-            # Run fingerprint test
-            from fingerprint.load_model import load_fingerprint_model
-            from fingerprint.embed import segment_audio, extract_embeddings, normalize_embeddings
-            from fingerprint.query_index import build_index, load_index, query_index
-            
-            fingerprint_config = PROJECT_ROOT / "config" / "fingerprint_v1.yaml"
-            model_config_dict = load_fingerprint_model(fingerprint_config)
-            
-            if isinstance(model_config_dict, dict):
-                segment_length = model_config_dict.get("segment_length", 0.5)
-                sample_rate = model_config_dict.get("sample_rate", 44100)
-                model = model_config_dict
-            else:
-                segment_length = 0.5
-                sample_rate = 44100
-                model = model_config_dict
-            
-            # Extract embeddings
-            segments_orig = segment_audio(input_file, segment_length=segment_length, sample_rate=sample_rate)
-            embeddings_orig = extract_embeddings(segments_orig, model, save_embeddings=False)
-            embeddings_orig = normalize_embeddings(embeddings_orig, method="l2")
-            
-            segments_manip = segment_audio(output_file, segment_length=segment_length, sample_rate=sample_rate)
-            embeddings_manip = extract_embeddings(segments_manip, model, save_embeddings=False)
-            embeddings_manip = normalize_embeddings(embeddings_manip, method="l2")
-            
-            # Build index and query
-            orig_id = input_file.stem
-            orig_ids = [f"{orig_id}_seg_{i}" for i in range(len(embeddings_orig))]
-            
-            with tempfile.NamedTemporaryFile(suffix='.bin', delete=False) as tmp_index:
-                tmp_index_path = Path(tmp_index.name)
-            
-            index_config = {"index_type": "flat", "metric": "cosine", "normalize": True}
-            build_index(embeddings_orig, orig_ids, tmp_index_path, index_config, save_metadata=False)
-            
-            index, _ = load_index(tmp_index_path)
-            query_emb = np.mean(embeddings_manip, axis=0) if len(embeddings_manip) > 1 else embeddings_manip[0]
-            results = query_index(index, query_emb, topk=10, ids=orig_ids, normalize=True)
-            
+            # Generate Phase 1 and Phase 2 reports with multi-scenario support
             try:
-                tmp_index_path.unlink()
-            except:
-                pass
-            
-            # Check match
-            matched = False
-            rank = None
-            similarity = 0.0
-            top_match = None
-            
-            if results and len(results) > 0:
-                top_match = results[0].get("id", "")
-                similarity = results[0].get("similarity", 0.0)
-                for i, result in enumerate(results):
-                    result_id = result.get("id", "")
-                    if orig_id in result_id:
-                        matched = True
-                        rank = i + 1
-                        similarity = result.get("similarity", similarity)
-                        break
-            
-            orig_mean = np.mean(embeddings_orig, axis=0) if len(embeddings_orig) > 1 else embeddings_orig[0]
-            direct_similarity = float(np.dot(query_emb, orig_mean))
-            final_similarity = max(similarity, direct_similarity)
-            final_matched = matched or direct_similarity > 0.7
-            
-            test_result = {
-                "matched": final_matched,
-                "similarity": final_similarity,
-                "direct_similarity": float(direct_similarity),
-                "rank": rank,
-                "top_match": top_match,
-                "original_id": orig_id
-            }
-            
-            # Generate Phase 1 report
-            try:
-                report_data_phase1 = auto_generate_test_reports(
-                    original_file=input_file,
-                    manipulated_file=output_file,
-                    test_result=test_result,
+                report_data_phase1 = auto_generate_multi_scenario_reports(
+                    detection_scenarios=detection_scenarios,
+                    default_input_file=input_file,
+                    final_output_file=output_file,
                     phase="phase1"
                 )
                 logger.info(f"Generated Phase 1 report: {report_data_phase1.get('report_id')}")
@@ -2369,13 +2326,13 @@ async def manipulate_deliverables_batch(
                 logger.warning(f"Failed to generate Phase 1 report: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
+                report_data_phase1 = None
             
-            # Generate Phase 2 report
             try:
-                report_data_phase2 = auto_generate_test_reports(
-                    original_file=input_file,
-                    manipulated_file=output_file,
-                    test_result=test_result,
+                report_data_phase2 = auto_generate_multi_scenario_reports(
+                    detection_scenarios=detection_scenarios,
+                    default_input_file=input_file,
+                    final_output_file=output_file,
                     phase="phase2"
                 )
                 logger.info(f"Generated Phase 2 report: {report_data_phase2.get('report_id')}")
@@ -2383,6 +2340,8 @@ async def manipulate_deliverables_batch(
                 logger.warning(f"Failed to generate Phase 2 report: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
+                report_data_phase2 = None
+
         
         return JSONResponse({
             "status": "success",
@@ -2402,6 +2361,87 @@ async def manipulate_deliverables_batch(
             "status": "error",
             "message": str(e)
         }, status_code=500)
+def run_fingerprint_test(original_file: Path, manipulated_file: Path) -> dict:
+    """
+    Run fingerprint test comparing original_file vs manipulated_file.
+    Returns test_result dict with matched, similarity, rank, etc.
+    """
+    from fingerprint.load_model import load_fingerprint_model
+    from fingerprint.embed import segment_audio, extract_embeddings, normalize_embeddings
+    from fingerprint.query_index import build_index, load_index, query_index
+    import tempfile
+    
+    fingerprint_config = PROJECT_ROOT / "config" / "fingerprint_v1.yaml"
+    model_config_dict = load_fingerprint_model(fingerprint_config)
+    
+    if isinstance(model_config_dict, dict):
+        segment_length = model_config_dict.get("segment_length", 0.5)
+        sample_rate = model_config_dict.get("sample_rate", 44100)
+        model = model_config_dict
+    else:
+        segment_length = 0.5
+        sample_rate = 44100
+        model = model_config_dict
+    
+    # Extract embeddings
+    segments_orig = segment_audio(original_file, segment_length=segment_length, sample_rate=sample_rate)
+    embeddings_orig = extract_embeddings(segments_orig, model, save_embeddings=False)
+    embeddings_orig = normalize_embeddings(embeddings_orig, method="l2")
+    
+    segments_manip = segment_audio(manipulated_file, segment_length=segment_length, sample_rate=sample_rate)
+    embeddings_manip = extract_embeddings(segments_manip, model, save_embeddings=False)
+    embeddings_manip = normalize_embeddings(embeddings_manip, method="l2")
+    
+    # Build index and query
+    orig_id = original_file.stem
+    orig_ids = [f"{orig_id}_seg_{i}" for i in range(len(embeddings_orig))]
+    
+    with tempfile.NamedTemporaryFile(suffix='.bin', delete=False) as tmp_index:
+        tmp_index_path = Path(tmp_index.name)
+    
+    index_config = {"index_type": "flat", "metric": "cosine", "normalize": True}
+    build_index(embeddings_orig, orig_ids, tmp_index_path, index_config, save_metadata=False)
+    
+    index, _ = load_index(tmp_index_path)
+    query_emb = np.mean(embeddings_manip, axis=0) if len(embeddings_manip) > 1 else embeddings_manip[0]
+    results = query_index(index, query_emb, topk=10, ids=orig_ids, normalize=True)
+    
+    try:
+        tmp_index_path.unlink()
+    except:
+        pass
+    
+    # Check match
+    matched = False
+    rank = None
+    similarity = 0.0
+    top_match = None
+    
+    if results and len(results) > 0:
+        top_match = results[0].get("id", "")
+        similarity = results[0].get("similarity", 0.0)
+        for i, result in enumerate(results):
+            result_id = result.get("id", "")
+            if orig_id in result_id:
+                matched = True
+                rank = i + 1
+                similarity = result.get("similarity", similarity)
+                break
+    
+    orig_mean = np.mean(embeddings_orig, axis=0) if len(embeddings_orig) > 1 else embeddings_orig[0]
+    direct_similarity = float(np.dot(query_emb, orig_mean))
+    final_similarity = max(similarity, direct_similarity)
+    final_matched = matched or direct_similarity > 0.7
+    
+    return {
+        "matched": final_matched,
+        "similarity": final_similarity,
+        "direct_similarity": float(direct_similarity),
+        "rank": rank,
+        "top_match": top_match,
+        "original_id": orig_id
+    }
+
 
 
 def auto_generate_test_reports(original_file: Path, manipulated_file: Path, test_result: dict, phase: str = "phase1") -> dict:
@@ -2505,6 +2545,419 @@ def auto_generate_test_reports(original_file: Path, manipulated_file: Path, test
         "mean_similarity": test_result["similarity"],
         "mean_latency_ms": 0.0
     }]
+
+def auto_generate_multi_scenario_reports(
+    detection_scenarios: List[dict],
+    default_input_file: Path,
+    final_output_file: Path,
+    phase: str = "phase1"
+) -> dict:
+    """
+    Generate a single report with separate sections for each detection scenario.
+    
+    Args:
+        detection_scenarios: List of dicts with keys:
+            - scenario_type: 'embedded_sample' or 'song_a_in_song_b'
+            - original_file: Path to original file for this scenario
+            - manipulated_file: Path to manipulated file (usually final output)
+            - description: Human-readable description
+            - transform_chain: List of transforms applied
+        default_input_file: Default input file (used if no scenarios)
+        final_output_file: Final output file from chain
+        phase: "phase1" or "phase2"
+    
+    Returns:
+        dict with report_id, report_path, phase
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_id = f"test_{timestamp}_{phase}"
+    report_dir = REPORTS_DIR / report_id
+    report_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Run fingerprint tests for each scenario
+    scenario_results = []
+    
+    if detection_scenarios:
+        # Test each detection scenario
+        for scenario in detection_scenarios:
+            test_result = run_fingerprint_test(
+                scenario['original_file'],
+                scenario['manipulated_file']
+            )
+            scenario_results.append({
+                **scenario,
+                'test_result': test_result
+            })
+    else:
+        # No detection scenarios - use default test
+        test_result = run_fingerprint_test(default_input_file, final_output_file)
+        scenario_results.append({
+            'scenario_type': 'standard',
+            'original_file': default_input_file,
+            'manipulated_file': final_output_file,
+            'description': 'Standard transform test',
+            'transform_chain': [],
+            'test_result': test_result
+        })
+    
+    # Build aggregated metrics
+    total_scenarios = len(scenario_results)
+    total_passed = sum(1 for s in scenario_results if s['test_result']['matched'])
+    total_failed = total_scenarios - total_passed
+    
+    # Calculate aggregate metrics
+    all_recall_at_1 = [1.0 if s['test_result']['matched'] else 0.0 for s in scenario_results]
+    all_similarities = [s['test_result']['similarity'] for s in scenario_results]
+    all_ranks = [s['test_result']['rank'] for s in scenario_results if s['test_result']['rank']]
+    
+    metrics = {
+        "summary": {
+            "total_queries": total_scenarios,
+            "total_transforms": total_scenarios,
+            "transform_types": [s['scenario_type'] for s in scenario_results],
+            "severities": ["moderate"] * total_scenarios,
+            "phase": phase,
+            "scenario_count": total_scenarios
+        },
+        "overall": {
+            "recall": {
+                "recall_at_1": sum(all_recall_at_1) / total_scenarios if total_scenarios > 0 else 0.0,
+                "recall_at_5": sum(all_recall_at_1) / total_scenarios if total_scenarios > 0 else 0.0,
+                "recall_at_10": sum(all_recall_at_1) / total_scenarios if total_scenarios > 0 else 0.0
+            },
+            "rank": {
+                "mean_rank": sum(all_ranks) / len(all_ranks) if all_ranks else 1.0,
+                "median_rank": sorted(all_ranks)[len(all_ranks)//2] if all_ranks else 1.0
+            },
+            "similarity": {
+                "mean_similarity_correct": sum(all_similarities) / total_scenarios if total_scenarios > 0 else 0.0,
+                "median_similarity_correct": sorted(all_similarities)[total_scenarios//2] if total_scenarios > 0 else 0.0
+            },
+            "latency": {
+                "mean_latency_ms": 0.0,
+                "p95_latency_ms": 0.0
+            }
+        },
+        "scenarios": [
+            {
+                "scenario_type": s['scenario_type'],
+                "description": s['description'],
+                "original_file": str(s['original_file'].relative_to(PROJECT_ROOT)),
+                "manipulated_file": str(s['manipulated_file'].relative_to(PROJECT_ROOT)),
+                "matched": s['test_result']['matched'],
+                "similarity": s['test_result']['similarity'],
+                "rank": s['test_result']['rank'],
+                "top_match": s['test_result']['top_match'],
+                "recall": {
+                    "recall_at_1": 1.0 if s['test_result']['matched'] else 0.0,
+                    "recall_at_5": 1.0 if s['test_result']['matched'] else 0.0,
+                    "recall_at_10": 1.0 if s['test_result']['matched'] else 0.0
+                }
+            }
+            for s in scenario_results
+        ],
+        "pass_fail": {
+            "total": total_scenarios,
+            "passed": total_passed,
+            "failed": total_failed
+        },
+        "test_details": {
+            "timestamp": timestamp,
+            "phase": phase,
+            "scenario_count": total_scenarios
+        }
+    }
+    
+    # Save metrics
+    metrics_file = report_dir / "metrics.json"
+    with open(metrics_file, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    
+    # Create summary CSV with one row per scenario
+    summary_data = []
+    for s in scenario_results:
+        summary_data.append({
+            "scenario_type": s['scenario_type'],
+            "description": s['description'],
+            "severity": "moderate",
+            "count": 1,
+            "recall_at_1": 1.0 if s['test_result']['matched'] else 0.0,
+            "recall_at_5": 1.0 if s['test_result']['matched'] else 0.0,
+            "recall_at_10": 1.0 if s['test_result']['matched'] else 0.0,
+            "mean_rank": float(s['test_result']['rank']) if s['test_result']['rank'] else 1.0,
+            "mean_similarity": s['test_result']['similarity'],
+            "mean_latency_ms": 0.0
+        })
+    
+    summary_file = report_dir / "suite_summary.csv"
+    pd.DataFrame(summary_data).to_csv(summary_file, index=False)
+    
+    # Create final_report directory
+    final_report_dir = report_dir / "final_report"
+    final_report_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy metrics and summary
+    shutil.copy(metrics_file, final_report_dir / "metrics.json")
+    shutil.copy(summary_file, final_report_dir / "suite_summary.csv")
+    
+    # Generate HTML report with multiple scenario sections
+    html_report = generate_multi_scenario_html_report(metrics, scenario_results, phase)
+    html_file = final_report_dir / "report.html"
+    with open(html_file, 'w', encoding='utf-8') as f:
+        f.write(html_report)
+    
+    logger.info(f"Auto-generated {phase} multi-scenario test report: {report_id} ({total_scenarios} scenarios)")
+    
+    return {
+        "report_id": report_id,
+        "report_path": str(report_dir.relative_to(PROJECT_ROOT)),
+        "phase": phase
+    }
+
+
+def generate_multi_scenario_html_report(metrics: dict, scenario_results: List[dict], phase: str) -> str:
+    """Generate HTML report with separate sections for each detection scenario."""
+    phase_color = "#427eea" if phase == "phase1" else "#10b981"
+    total_passed = metrics['pass_fail']['passed']
+    total_failed = metrics['pass_fail']['failed']
+    total_scenarios = metrics['pass_fail']['total']
+    
+    # Build scenario sections HTML
+    scenario_sections_html = ""
+    for i, scenario in enumerate(scenario_results, 1):
+        test_result = scenario['test_result']
+        matched_status = "âœ… MATCHED" if test_result["matched"] else "âŒ NOT MATCHED"
+        status_color = "#10b981" if test_result["matched"] else "#f87171"
+        
+        # Build transform chain display
+        transform_chain_html = ""
+        if scenario.get('transform_chain'):
+            transform_chain_html = "<ul style='margin-top: 10px; padding-left: 20px;'>"
+            for t in scenario['transform_chain']:
+                transform_type = t.get('type', 'unknown')
+                transform_chain_html += f"<li style='margin: 5px 0; color: #c8c8c8;'>{transform_type}"
+                # Add key parameters
+                if transform_type == 'speed':
+                    transform_chain_html += f" ({t.get('speed', 1.0)}x)"
+                elif transform_type == 'pitch':
+                    transform_chain_html += f" ({t.get('semitones', 0):+g} semitones)"
+                elif transform_type == 'embedded_sample':
+                    transform_chain_html += f" (position: {t.get('position', 'start')}, volume: {t.get('volume_db', 0.0):.1f}dB)"
+                elif transform_type == 'song_a_in_song_b':
+                    transform_chain_html += f" (duration: {t.get('sample_duration', 1.5)}s)"
+                transform_chain_html += "</li>"
+            transform_chain_html += "</ul>"
+        else:
+            transform_chain_html = "<p style='color: #9ca3af; margin-top: 10px;'>No transforms applied</p>"
+        
+        scenario_sections_html += f"""
+        <div class="scenario-section">
+            <h2 class="scenario-title">Scenario {i}: {scenario['description']}</h2>
+            <div class="scenario-status" style="border-color: {status_color};">
+                <h3>{matched_status}</h3>
+                <p style="color: #9ca3af; margin-top: 10px;">
+                    Similarity: {(test_result['similarity'] * 100):.1f}% | 
+                    Rank: {test_result['rank'] if test_result['rank'] else '1'} | 
+                    Top Match: {test_result['top_match'] or 'N/A'}
+                </p>
+            </div>
+            <div class="scenario-details">
+                <div class="detail-row">
+                    <span class="detail-label">Original File:</span>
+                    <span class="detail-value">{Path(scenario['original_file']).name}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Original Path:</span>
+                    <span class="detail-value" style="font-size: 12px; color: #c8c8c8;">{scenario['original_file']}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Manipulated File:</span>
+                    <span class="detail-value">{Path(scenario['manipulated_file']).name}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Manipulated Path:</span>
+                    <span class="detail-value" style="font-size: 12px; color: #c8c8c8;">{scenario['manipulated_file']}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Scenario Type:</span>
+                    <span class="detail-value">{scenario['scenario_type']}</span>
+                </div>
+            </div>
+            <div class="transform-chain-section">
+                <h3 style="color: #ffffff; margin-top: 20px; margin-bottom: 10px;">Transform Chain Applied:</h3>
+                {transform_chain_html}
+            </div>
+        </div>
+        """
+    
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fingerprint Test Report - {metrics['test_details']['timestamp']}</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #ffffff;
+            padding: 20px;
+            min-height: 100vh;
+        }}
+        .container {{ max-width: 1400px; margin: 0 auto; }}
+        .header {{
+            background: linear-gradient(135deg, {phase_color} 0%, #1e1e1e 100%);
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }}
+        .header h1 {{ font-size: 2.5em; margin-bottom: 10px; }}
+        .phase-badge {{
+            display: inline-block;
+            background: {phase_color};
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }}
+        .summary-card {{
+            background: #2d2d2d;
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }}
+        .summary-card h2 {{
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }}
+        .summary-stats {{
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }}
+        .stat-item {{
+            text-align: center;
+            margin: 10px;
+            min-width: 150px;
+        }}
+        .stat-value {{
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }}
+        .stat-label {{
+            color: #9ca3af;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+        .scenario-section {{
+            background: #2d2d2d;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            border-left: 4px solid {phase_color};
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }}
+        .scenario-title {{
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }}
+        .scenario-status {{
+            background: #1e1e1e;
+            border: 2px solid;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            text-align: center;
+        }}
+        .scenario-status h3 {{
+            font-size: 2em;
+            margin-bottom: 10px;
+        }}
+        .scenario-details {{
+            margin-top: 20px;
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+        }}
+        .detail-row {{
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #3d3d3d;
+        }}
+        .detail-row:last-child {{ border-bottom: none; }}
+        .detail-label {{
+            color: #9ca3af;
+            font-weight: 500;
+        }}
+        .detail-value {{
+            color: #ffffff;
+            font-weight: 500;
+            text-align: right;
+        }}
+        .transform-chain-section {{
+            margin-top: 20px;
+            padding: 15px;
+            background: #1e1e1e;
+            border-radius: 8px;
+        }}
+        .transform-chain-section h3 {{
+            color: #ffffff;
+            margin-bottom: 10px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>???? Fingerprint Robustness Test Report</h1>
+            <p style="color: #c8c8c8; font-size: 18px;">{metrics['test_details']['timestamp']}</p>
+            <span class="phase-badge">{phase.upper()}</span>
+        </div>
+        
+        <div class="summary-card">
+            <h2>Overall Summary</h2>
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div class="stat-value" style="color: #427eea;">{total_scenarios}</div>
+                    <div class="stat-label">Total Scenarios</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" style="color: #10b981;">{total_passed}</div>
+                    <div class="stat-label">Passed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" style="color: #f87171;">{total_failed}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" style="color: #f59e0b;">{(metrics['overall']['recall']['recall_at_1'] * 100):.1f}%</div>
+                    <div class="stat-label">Overall Recall@1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" style="color: #8b5cf6;">{metrics['overall']['similarity']['mean_similarity_correct']:.3f}</div>
+                    <div class="stat-label">Mean Similarity</div>
+                </div>
+            </div>
+        </div>
+        
+        {scenario_sections_html}
+    </div>
+</body>
+</html>
+"""
+    return html
+
     
     summary_file = report_dir / "suite_summary.csv"
     pd.DataFrame(summary_data).to_csv(summary_file, index=False)
@@ -2868,16 +3321,16 @@ async def get_run_details(run_id: str):
     """Get detailed run information."""
     try:
         report_dir = REPORTS_DIR / run_id
-        
+    
         if not report_dir.exists():
             return JSONResponse({"error": "Run not found"}, status_code=404)
-        
+    
         details = {
-            "id": run_id,
-            "path": str(report_dir.relative_to(PROJECT_ROOT)),
-            "files": {}
+        "id": run_id,
+        "path": str(report_dir.relative_to(PROJECT_ROOT)),
+        "files": {}
         }
-        
+    
         # Load metrics
         metrics_file = report_dir / "metrics.json"
         if metrics_file.exists():
@@ -2891,7 +3344,7 @@ async def get_run_details(run_id: str):
                 details["metrics"] = {"error": f"Failed to load metrics: {str(e)}"}
         else:
             details["metrics"] = None
-        
+    
         # Load summary
         summary_file = report_dir / "suite_summary.csv"
         if summary_file.exists():
@@ -2908,12 +3361,12 @@ async def get_run_details(run_id: str):
                 details["summary"] = {"error": f"Failed to load summary: {str(e)}"}
         else:
             details["summary"] = None
-        
+    
         return JSONResponse(details)
     except Exception as e:
         logger.error(f"Error in get_run_details for {run_id}: {e}", exc_info=True)
         return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)
-
+        return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)
 
 @app.get("/api/runs/{run_id}/download")
 async def download_report_zip(run_id: str):

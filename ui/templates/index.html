@@ -1704,7 +1704,7 @@
                                     <label>Duration (seconds)</label>
                                     <input type="number" id="deliverablesCropDuration" value="10" min="1" max="60" class="form-control">
                                 </div>
-                            </div>
+                </div>
 
                             <!-- Embedded Sample Detection -->
                             <div class="transform-card">
@@ -1763,8 +1763,8 @@
                                     <label>Transform Parameters (JSON)</label>
                                     <input type="text" id="deliverablesEmbeddedTransformParams" class="form-control" placeholder='{"semitones": 2}' style="font-family: monospace; font-size: 11px;">
                                     <small style="color: #9ca3af;">Example: {"semitones": 2} for pitch, {"speed": 1.05} for speed, {"gain_db": 6.0} for EQ</small>
-                                </div>
-                            </div>
+                    </div>
+                </div>
 
                             <!-- Song A in Song B -->
                             <div class="transform-card">
@@ -1773,14 +1773,14 @@
                                     <label>
                                         <input type="checkbox" id="deliverablesSongAInSongBEnabled" onchange="updateDeliverablesTransformState()"> Enable
                                     </label>
-                                </div>
+                </div>
                                 <div class="form-group">
                                     <label>Song A (Original in Database)</label>
                                     <select id="deliverablesSongAFile" class="form-control" onchange="updateDeliverablesTransformState()">
                                         <option value="">-- Use Original Input --</option>
                                     </select>
                                     <small style="color: #9ca3af;">Leave empty to use original input file</small>
-                                </div>
+            </div>
                                 <div class="form-group">
                                     <label>Song B Base Track (optional)</label>
                                     <select id="deliverablesSongBBaseFile" class="form-control" onchange="updateDeliverablesTransformState()">
