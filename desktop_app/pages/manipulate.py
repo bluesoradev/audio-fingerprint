@@ -1199,7 +1199,7 @@ class ManipulatePage(QWidget):
                         
                         if elapsed >= audio_length_seconds:
                             logger.info(f"_play_audio_pydub: Audio finished naturally (elapsed: {elapsed:.2f}s, length: {audio_length_seconds:.2f}s)")
-                        break
+                            break
                         
                         # Check stop event very frequently (every 10ms)
                         time.sleep(0.01)
