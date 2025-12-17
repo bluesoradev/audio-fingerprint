@@ -24,16 +24,47 @@ def compute_file_hash(file_path: Path, algorithm: str = "sha256") -> str:
 
 
 def download_track(url: str, dest: Path, timeout: int = 30) -> bool:
-    """Download audio file from URL."""
+    """Download audio file from URL with proper headers to handle S3 access restrictions."""
     try:
-        response = requests.get(url, timeout=timeout, stream=True)
+        # Add headers to mimic browser request (helps with S3 access restrictions)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Referer': 'https://beatlibrary.com/',  # Common referer for S3 buckets
+            'Origin': 'https://beatlibrary.com',
+            'Sec-Fetch-Dest': 'audio',
+            'Sec-Fetch-Mode': 'no-cors',
+            'Sec-Fetch-Site': 'cross-site',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=timeout, stream=True, allow_redirects=True)
         response.raise_for_status()
         
         dest.parent.mkdir(parents=True, exist_ok=True)
         with open(dest, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+                if chunk:  # Filter out keep-alive chunks
+                    f.write(chunk)
         return True
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            logger.warning(f"403 Forbidden: {url} - File may require authentication or is not publicly accessible")
+            logger.warning(f"  This is common with S3 buckets that have access restrictions")
+            logger.warning(f"  Options: 1) Contact provider for access, 2) Use local files, 3) Skip this file")
+        elif e.response.status_code == 404:
+            logger.warning(f"404 Not Found: {url} - File does not exist on server")
+        else:
+            logger.error(f"HTTP {e.response.status_code} error downloading {url}: {e}")
+        return False
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout downloading {url} (timeout={timeout}s)")
+        return False
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection error downloading {url}: {e}")
+        return False
     except Exception as e:
         logger.error(f"Failed to download {url}: {e}")
         return False
