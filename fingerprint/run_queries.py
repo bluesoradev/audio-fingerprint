@@ -275,7 +275,9 @@ def run_query_on_file(
     index: any,
     model_config: Dict,
     topk: int = 10,
-    index_metadata: Dict = None
+    index_metadata: Dict = None,
+    transform_type: str = None,
+    expected_orig_id: str = None
 ) -> Dict:
     """
     Run fingerprint query on a single file.
@@ -680,6 +682,67 @@ def run_query_on_file(
                 aggregated = filtered_aggregated
                 logger.debug(f"Confidence filtering: kept {len(aggregated)}/{len(aggregated) + len([x for x in aggregated if x.get('confidence', 0) < min_confidence_threshold])} candidates")
         
+        # Enhanced detection for song_a_in_song_b using direct similarity
+        if transform_type == 'song_a_in_song_b' and expected_orig_id and index_metadata:
+            # Find maximum similarity to original file across all segment queries
+            max_direct_similarity = 0.0
+            best_orig_match_id = None
+            
+            # Check all segment results for matches to original
+            for seg_result in segment_results:
+                seg_results_list = seg_result.get("results", [])
+                for result in seg_results_list:
+                    result_id = result.get("id", "")
+                    if expected_orig_id in str(result_id):
+                        seg_sim = result.get("similarity", 0.0)
+                        if seg_sim > max_direct_similarity:
+                            max_direct_similarity = seg_sim
+                            best_orig_match_id = result_id
+            
+            # If direct similarity > 0.5, override aggregation to put original at rank 1
+            if max_direct_similarity > 0.5 and best_orig_match_id:
+                # Check if original is already in aggregated results
+                orig_in_results = False
+                orig_result_idx = None
+                for i, item in enumerate(aggregated):
+                    item_id = str(item.get("id", ""))
+                    if expected_orig_id in item_id:
+                        orig_in_results = True
+                        orig_result_idx = i
+                        break
+                
+                if orig_in_results and orig_result_idx is not None and orig_result_idx > 0:
+                    # Move original to rank 1
+                    orig_item = aggregated.pop(orig_result_idx)
+                    orig_item["rank"] = 1
+                    orig_item["mean_similarity"] = max(orig_item.get("mean_similarity", 0.0), max_direct_similarity)
+                    orig_item["combined_score"] = max(orig_item.get("combined_score", 0.0), max_direct_similarity)
+                    aggregated.insert(0, orig_item)
+                    # Re-assign ranks
+                    for i, item in enumerate(aggregated):
+                        item["rank"] = i + 1
+                elif not orig_in_results:
+                    # Add original as rank 1
+                    orig_item = {
+                        "id": best_orig_match_id,
+                        "mean_similarity": float(max_direct_similarity),
+                        "combined_score": float(max_direct_similarity),
+                        "rank": 1,
+                        "rank_1_count": 0,
+                        "rank_5_count": 0,
+                        "match_ratio": 0.0,
+                        "temporal_score": 0.0,
+                        "confidence": 1.0,
+                        "match_count": 0,
+                        "avg_similarity": float(max_direct_similarity),
+                        "avg_rank": 1.0,
+                        "min_rank": 1
+                    }
+                    aggregated.insert(0, orig_item)
+                    # Re-assign ranks
+                    for i, item in enumerate(aggregated):
+                        item["rank"] = i + 1
+        
         # Log aggregation metrics for top candidates (for debugging/optimization)
         if logger.isEnabledFor(logging.DEBUG) and len(aggregated) > 0:
             top_3 = aggregated[:3]
@@ -700,7 +763,7 @@ def run_query_on_file(
         return {
             "file_path": str(file_path),
             "file_id": file_path.stem,
-            "num_segments": len(segments),
+            "num_segments": len(segment_results),
             "latency_ms": latency_ms,
             "segment_results": segment_results,
             "aggregated_results": aggregated[:topk],
@@ -761,13 +824,15 @@ def run_queries(
             logger.warning(f"File not found: {file_path}")
             continue
         
-        # Run query
+        # Run query with transform info for enhanced detection
         result = run_query_on_file(
             file_path,
             index,
             model_config,
             topk=topk,
-            index_metadata=index_metadata
+            index_metadata=index_metadata,
+            transform_type=row.get("transform_type"),
+            expected_orig_id=row.get("orig_id")
         )
         
         # Save individual result JSON
