@@ -24,12 +24,22 @@ except (ImportError, OSError) as e:
     HAS_TORCH = False
 
 # Try to import MERT (Music Foundation Model) - only if torch is available
+HAS_AMP = False
+autocast = None  # Initialize to None, will be set if import succeeds
 if HAS_TORCH:
     try:
         from transformers import AutoModel, AutoProcessor
         import torchaudio
         HAS_TORCHAUDIO = True
         HAS_TRANSFORMERS = True
+        # Try to import AMP (may not be available in all PyTorch versions)
+        try:
+            from torch.cuda.amp import autocast  # PyTorch AMP for safe FP16 inference
+            HAS_AMP = True
+        except (ImportError, AttributeError):
+            HAS_AMP = False
+            autocast = None
+            logger.warning("torch.cuda.amp.autocast not available - AMP disabled (will use FP32)")
     except (ImportError, OSError):
         HAS_TRANSFORMERS = False
         HAS_TORCHAUDIO = False
@@ -264,9 +274,9 @@ class EmbeddingGenerator:
                 return_tensors="pt"
             )
             
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            inputs = {k: v.to(self.device).float() for k, v in inputs.items()}  # Ensure FP32 inputs
             
-            # Generate embeddings with CUDA error handling
+            # Generate embeddings with CUDA error handling and AMP (Automatic Mixed Precision)
             import torch
             with torch.no_grad():
                 try:
@@ -274,7 +284,13 @@ class EmbeddingGenerator:
                     if self.device == "cuda":
                         torch.cuda.empty_cache()
                     
-                    outputs = self.mert_model(**inputs)
+                    # Use Automatic Mixed Precision (AMP) for safe FP16 inference on GPU
+                    if self.device == "cuda" and HAS_AMP:
+                        with autocast():  # AMP automatically uses FP16 where safe, FP32 where needed
+                            outputs = self.mert_model(**inputs)
+                    else:
+                        # CPU or AMP not available: use FP32
+                        outputs = self.mert_model(**inputs)
                     
                     # Synchronize CUDA operations to catch errors early
                     if self.device == "cuda":
@@ -282,11 +298,19 @@ class EmbeddingGenerator:
                 except RuntimeError as e:
                     if "CUDA" in str(e) or "device-side" in str(e).lower():
                         logger.error(f"CUDA error during inference: {e}")
-                        # Clear cache and retry once
+                        # Clear cache and retry once (without AMP as fallback)
                         if self.device == "cuda":
                             torch.cuda.empty_cache()
                             torch.cuda.synchronize()
-                        raise
+                            # Retry without AMP as fallback
+                            try:
+                                logger.warning("Retrying inference without AMP as fallback")
+                                outputs = self.mert_model(**inputs)
+                            except Exception as retry_e:
+                                logger.error(f"Retry without AMP also failed: {retry_e}")
+                                raise
+                        else:
+                            raise
                     else:
                         raise
                 # Extract embeddings (adjust based on MERT output structure)
@@ -319,11 +343,9 @@ class EmbeddingGenerator:
             if norm > 0:
                 emb = emb / norm
             
-            # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
-            if self.dtype == 'float16':
-                return emb.astype(np.float16)
-            else:
-                return emb.astype(np.float32)
+            # Always use FP32 for output embeddings (FAISS requires FP32)
+            # FP16 is only used internally during model inference via AMP
+            return emb.astype(np.float32)
         
         except Exception as e:
             logger.error(f"Error generating MERT embedding: {e}")
@@ -394,11 +416,9 @@ class EmbeddingGenerator:
         if norm > 0:
             emb = emb / norm
         
-        # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
-        if self.dtype == 'float16':
-            return emb.astype(np.float16)
-        else:
-            return emb.astype(np.float32)
+        # Always use FP32 for output embeddings (FAISS requires FP32)
+        # FP16 is only used internally during model inference via AMP
+        return emb.astype(np.float32)
     
     def _generate_librosa_embedding(self, audio: np.ndarray, sr: int) -> np.ndarray:
         """Generate embedding using librosa features (fallback)."""
@@ -419,11 +439,9 @@ class EmbeddingGenerator:
         if norm > 0:
             emb = emb / norm
         
-        # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
-        if self.dtype == 'float16':
-            return emb.astype(np.float16)
-        else:
-            return emb.astype(np.float32)
+        # Always use FP32 for output embeddings (FAISS requires FP32)
+        # FP16 is only used internally during model inference via AMP
+        return emb.astype(np.float32)
     
     def generate_embeddings_batch(
         self,
@@ -493,7 +511,7 @@ class EmbeddingGenerator:
                 return_tensors="pt"
             )
             
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            inputs = {k: v.to(self.device).float() for k, v in inputs.items()}  # Ensure FP32 inputs
             
             import torch
             with torch.no_grad():
@@ -502,7 +520,13 @@ class EmbeddingGenerator:
                     if self.device == "cuda":
                         torch.cuda.empty_cache()
                     
-                    outputs = self.mert_model(**inputs)
+                    # Use Automatic Mixed Precision (AMP) for safe FP16 batch inference on GPU
+                    if self.device == "cuda" and HAS_AMP:
+                        with autocast():  # AMP automatically uses FP16 where safe, FP32 where needed
+                            outputs = self.mert_model(**inputs)
+                    else:
+                        # CPU or AMP not available: use FP32
+                        outputs = self.mert_model(**inputs)
                     
                     # Synchronize CUDA operations to catch errors early
                     if self.device == "cuda":
@@ -510,11 +534,19 @@ class EmbeddingGenerator:
                 except RuntimeError as e:
                     if "CUDA" in str(e) or "device-side" in str(e).lower():
                         logger.error(f"CUDA error during batch inference: {e}")
-                        # Clear cache and retry once
+                        # Clear cache and retry once (without AMP as fallback)
                         if self.device == "cuda":
                             torch.cuda.empty_cache()
                             torch.cuda.synchronize()
-                        raise
+                            # Retry without AMP as fallback
+                            try:
+                                logger.warning("Retrying batch inference without AMP as fallback")
+                                outputs = self.mert_model(**inputs)
+                            except Exception as retry_e:
+                                logger.error(f"Retry without AMP also failed: {retry_e}")
+                                raise
+                        else:
+                            raise
                     else:
                         raise
                 if hasattr(outputs, 'last_hidden_state'):
@@ -543,12 +575,9 @@ class EmbeddingGenerator:
                 if norm > 0:
                     emb = emb / norm
                 
-                # Convert dtype based on config (FP16 for speed, FP32 for accuracy)
-                dtype_config = getattr(self, 'dtype', 'float32')
-                if dtype_config == 'float16':
-                    results.append(emb.astype(np.float16))
-                else:
-                    results.append(emb.astype(np.float32))
+                # Always use FP32 for output embeddings (FAISS requires FP32)
+                # FP16 is only used internally during model inference via AMP
+                results.append(emb.astype(np.float32))
             
             return results
         except Exception as e:

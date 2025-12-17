@@ -4,8 +4,8 @@
   "parameters": {
     "M": 32,
     "ef_construction": 300,
-    "ef_search": 50
+    "ef_search": 60
   },
   "normalize": true,
-  "description": "HNSW index optimized for balanced performance (ef_search=50 for optimal recall/speed balance with GPU acceleration)"
+  "description": "HNSW index optimized for FP16 AMP compensation (ef_search=60 for better recall with minimal latency cost)"
 }

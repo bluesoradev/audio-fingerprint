@@ -121,7 +121,7 @@ class FallbackEmbeddingGenerator:
         
         # Extract features
         mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-        chroma = librosa.feature.chroma(y=y, sr=sr)
+        chroma = librosa.feature.chroma_stft(y=y, sr=sr)  # Fixed: chroma_stft instead of chroma
         spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
         
         # Concatenate and flatten

@@ -18,7 +18,7 @@ model:
 # Audio processing parameters
 audio:
   sample_rate: 44100
-  segment_length: 4.0  # seconds (OPTIMIZED: 4.0s reduces segments significantly for <550ms latency target)
+  segment_length: 3.5  # seconds (OPTIMIZED: 3.5s for better coverage with minimal latency cost)
   hop_length: null  # null = no overlap, segment_length = hop_length
   mono: true
   normalization: "peak"  # "peak", "rms", or null
@@ -27,32 +27,33 @@ audio:
 embedding:
   dimension: 512  # Expected output dimension
   normalization: "l2"  # "l2", "none"
-  dtype: "float16"  # FP16 for 2x speedup with minimal accuracy loss (critical for <550ms latency)
+  dtype: "float32"  # Output embeddings: FP32 (FAISS requirement)
+  # Note: Model inference uses FP16 automatically via PyTorch AMP (Automatic Mixed Precision)
 
 # Segment processing
 segmentation:
-  method: "fixed_length"  # Fixed length (no overlap) for maximum speed
-  overlap_ratio: 0.0  # No overlap for faster processing (minimal impact on recall with 2.5s segments)
+  method: "overlapping"  # Overlapping segments for better coverage (compensation strategy)
+  overlap_ratio: 0.1  # 10% overlap (minimal latency cost, better recall)
 
 # Aggregation parameters (for query result fusion)
-# OPTIMIZED FOR GPU: Balanced settings for 97%+ recall and high similarity with <550ms latency
+# OPTIMIZED FOR FP16 AMP + COMPENSATION: 97%+ recall with <550ms latency
 aggregation:
   # Similarity threshold: exclude segments with top match similarity below this
-  min_similarity_threshold: 0.1  # Lower threshold to include more good matches (improves recall)
+  min_similarity_threshold: 0.08  # Lower threshold (compensation for FP16 slight accuracy loss)
   
   # Top-K fusion: use only best-matching segments
-  top_k_fusion_ratio: 0.6  # Use top 60% of segments (optimized for speed while maintaining recall)
+  top_k_fusion_ratio: 0.75  # Use top 75% of segments (compensation: better coverage)
   
   # Temporal consistency: weight consecutive segments matching same file
   use_temporal_consistency: true  # ENABLED: Critical for improving recall (especially for difficult transforms)
   
   # Aggregation weights (must sum to ~1.0, will be normalized)
-  # Optimized for high similarity scores while maintaining recall
+  # Optimized for recall compensation while maintaining similarity
   weights:
-    similarity: 0.60      # Increased to emphasize similarity score (improves similarity metric)
-    rank_1: 0.25          # Strong signal for recall
-    rank_5: 0.10          # Supporting signal
-    match_ratio: 0.05     # Minimal weight
+    similarity: 0.55      # Slightly reduced (was 0.60) - compensation strategy
+    rank_1: 0.28          # Increased (was 0.25) - stronger signal for recall
+    rank_5: 0.12          # Increased (was 0.10) - supporting signal
+    match_ratio: 0.05     # Same
     temporal: 0.0         # Temporal weight handled separately in temporal_score
   
   # Confidence-based re-ranking
@@ -61,8 +62,8 @@ aggregation:
   
   # Second-stage re-ranking (more thorough analysis of top candidates)
   second_stage_rerank:
-    enabled: true  # ENABLED: Only top 3 candidates (fast but effective)
-    top_k: 3  # Only re-rank top 3 (minimal latency cost, maximum benefit)
+    enabled: true  # ENABLED: More thorough re-ranking (compensation strategy)
+    top_k: 5  # Increased from 3 (more thorough re-ranking for better accuracy)
   
   # Result validation and quality checks
   validation:
