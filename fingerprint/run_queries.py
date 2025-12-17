@@ -17,6 +17,28 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _extract_file_id_from_segment_id(segment_id: str) -> str:
+    """
+    Extract base file ID from segment ID.
+    
+    Examples:
+        track1_seg_0000 -> track1
+        track2_seg_0042 -> track2
+        track1 -> track1 (if already a file ID)
+    """
+    if not segment_id:
+        return ""
+    
+    segment_id_str = str(segment_id)
+    # Check if it's a segment ID (contains _seg_)
+    if "_seg_" in segment_id_str:
+        # Split on _seg_ and take the first part
+        return segment_id_str.split("_seg_")[0]
+    else:
+        # Already a file ID, return as-is
+        return segment_id_str
+
+
 def _apply_query_augmentation(file_path: Path, variant: str, model_config: Dict) -> Optional[Path]:
     """
     Apply query-time augmentation to audio file.
@@ -694,9 +716,12 @@ def run_query_on_file(
             max_direct_similarity = 0.0
             best_orig_match_id = None
             
-            # Get all original segment IDs from index
+            # Get all original segment IDs from index using proper file ID extraction
             index_ids = index_metadata.get("ids", [])
-            orig_segment_ids = [idx for idx in index_ids if expected_orig_id in str(idx)]
+            orig_segment_ids = [
+                idx for idx in index_ids 
+                if _extract_file_id_from_segment_id(str(idx)) == expected_orig_id
+            ]
             
             # Re-query each segment with MUCH larger topk to find original segments
             if orig_segment_ids and stored_embeddings is not None:
@@ -714,10 +739,11 @@ def run_query_on_file(
                         index_metadata=index_metadata
                     )
                     
-                    # Find best match to original in extended results
+                    # Find best match to original in extended results using proper file ID extraction
                     for result in extended_results:
                         result_id = result.get("id", "")
-                        if expected_orig_id in str(result_id):
+                        result_file_id = _extract_file_id_from_segment_id(str(result_id))
+                        if result_file_id == expected_orig_id:
                             seg_sim = result.get("similarity", 0.0)
                             if seg_sim > max_direct_similarity:
                                 max_direct_similarity = seg_sim
@@ -728,20 +754,22 @@ def run_query_on_file(
                     seg_results_list = seg_result.get("results", [])
                     for result in seg_results_list:
                         result_id = result.get("id", "")
-                        if expected_orig_id in str(result_id):
+                        result_file_id = _extract_file_id_from_segment_id(str(result_id))
+                        if result_file_id == expected_orig_id:
                             seg_sim = result.get("similarity", 0.0)
                             if seg_sim > max_direct_similarity:
                                 max_direct_similarity = seg_sim
                                 best_orig_match_id = result_id
             
-            # If direct similarity > 0.5, override aggregation to put original at rank 1
-            if max_direct_similarity > 0.5 and best_orig_match_id:
-                # Check if original is already in aggregated results
+            # If direct similarity > 0.4 (lowered threshold for quiet/transformed samples), override aggregation
+            if max_direct_similarity > 0.4 and best_orig_match_id:
+                # Check if original is already in aggregated results using proper file ID extraction
                 orig_in_results = False
                 orig_result_idx = None
                 for i, item in enumerate(aggregated):
                     item_id = str(item.get("id", ""))
-                    if expected_orig_id in item_id:
+                    item_file_id = _extract_file_id_from_segment_id(item_id)
+                    if item_file_id == expected_orig_id:
                         orig_in_results = True
                         orig_result_idx = i
                         break
