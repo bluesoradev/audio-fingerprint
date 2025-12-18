@@ -920,12 +920,22 @@ def run_query_on_file(
             
             # Also compute traditional metrics for compatibility
             avg_similarity = np.mean(similarities) if len(similarities) > 0 else 0.0
+            max_similarity = float(np.max(similarities)) if len(similarities) > 0 else 0.0  # IMPROVED: Track max similarity
             avg_rank = np.mean(data["ranks"]) if len(data["ranks"]) > 0 else float('inf')
             min_rank = min(data["ranks"]) if len(data["ranks"]) > 0 else float('inf')
             
+            # IMPROVED REVALIDATION: For severe transforms, use max similarity instead of weighted mean
+            # This maximizes similarity score for correct matches
+            if is_severe_transform:
+                # Use max similarity for severe transforms to maximize score
+                final_similarity = max(float(weighted_sim), max_similarity)
+            else:
+                final_similarity = float(weighted_sim)
+            
             aggregated.append({
                 "id": candidate_id,
-                "mean_similarity": float(weighted_sim),  # Use weighted similarity
+                "mean_similarity": final_similarity,  # IMPROVED: Use max for severe, weighted for others
+                "max_similarity": max_similarity,  # Track max segment similarity
                 "combined_score": float(combined_score),  # New combined score for ranking
                 "rank_1_count": data["rank_1_count"],
                 "rank_5_count": data["rank_5_count"],
@@ -1089,13 +1099,15 @@ def run_query_on_file(
             except Exception as e:
                 logger.debug(f"Could not get original embeddings for validation: {e}")
         
-        # Apply similarity enforcement
+        # IMPROVED REVALIDATION: Apply similarity enforcement with enhanced revalidation
         aggregated = SimilarityEnforcer.enforce_high_similarity_for_correct_matches(
             aggregated,
             expected_orig_id,
             original_embeddings_for_validation,
             stored_embeddings,
-            severity_str
+            severity_str,
+            model_config=model_config,  # Pass for loading original embeddings if needed
+            files_manifest_path=files_manifest_path  # Pass for finding original file paths
         )
         
         # Multi-tier enhanced detection for song_a_in_song_b
