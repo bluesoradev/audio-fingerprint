@@ -178,7 +178,12 @@ class EmbeddingGenerator:
                 try:
                     logger.info(f"Attempting to load MERT model: {model_name}")
                     self.mert_model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
-                    self.mert_processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+                    self.mert_processor = AutoProcessor.from_pretrained(
+                        model_name, 
+                        trust_remote_code=True,
+                        use_fast=False  # Maintain current slow processor behavior for consistency
+                    )
+                    logger.info("Using slow image processor (use_fast=False) to maintain consistent outputs")
                     self.mert_model.to(self.device)
                     self.mert_model.eval()
                     self.active_model = "mert"

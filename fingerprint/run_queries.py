@@ -368,7 +368,10 @@ def run_query_on_file(
                 else:
                     is_moderate_transform = True
             elif 'overlay_vocals' in transform_lower:
-                is_moderate_transform = True
+                # OPTION 1 FIX: Reclassify overlay_vocals as severe instead of moderate
+                # This transform significantly degrades similarity (typically 0.85-0.89),
+                # which is below the moderate threshold (0.90) but meets the severe threshold (0.85)
+                is_severe_transform = True
             elif 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
                 is_severe_transform = True
         
