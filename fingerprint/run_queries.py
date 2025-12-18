@@ -561,11 +561,18 @@ def run_query_on_file(
                 scale_embeddings = normalize_embeddings(scale_embeddings, method="l2")
                 
                 expanded_topk = initial_topk * 2 if needs_expanded_topk else initial_topk
-                # Higher cap for low_pass_filter (it's very challenging)
-                if 'low_pass_filter' in transform_lower:
-                    expanded_topk = min(expanded_topk, 50)
+                # CRITICAL FIX: Increase limits for severe transforms to find buried matches
+                # song_a_in_song_b needs MUCH deeper search (200+) because correct match is often buried
+                if 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
+                    expanded_topk = min(expanded_topk, 200)  # CRITICAL: Increased from 30 to 200
+                elif 'low_pass_filter' in transform_lower:
+                    expanded_topk = min(expanded_topk, 100)  # Increased from 50 to 100
+                elif is_severe_transform:
+                    expanded_topk = min(expanded_topk, 100)  # Increased from 50 to 100
+                elif is_moderate_transform:
+                    expanded_topk = min(expanded_topk, 60)  # Increased from 30 to 60
                 else:
-                    expanded_topk = min(expanded_topk, 30)
+                    expanded_topk = min(expanded_topk, 40)  # Increased from 30 to 40
                 
                 # Prepare segments with metadata
                 scale_segments_with_metadata = []
@@ -656,11 +663,18 @@ def run_query_on_file(
                 scale_embeddings = normalize_embeddings(scale_embeddings, method="l2")
                 
                 expanded_topk = initial_topk * 2 if needs_expanded_topk else initial_topk
-                # Higher cap for low_pass_filter (it's very challenging)
-                if 'low_pass_filter' in transform_lower:
-                    expanded_topk = min(expanded_topk, 50)
+                # CRITICAL FIX: Increase limits for severe transforms to find buried matches
+                # song_a_in_song_b needs MUCH deeper search (200+) because correct match is often buried
+                if 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
+                    expanded_topk = min(expanded_topk, 200)  # CRITICAL: Increased from 30 to 200
+                elif 'low_pass_filter' in transform_lower:
+                    expanded_topk = min(expanded_topk, 100)  # Increased from 50 to 100
+                elif is_severe_transform:
+                    expanded_topk = min(expanded_topk, 100)  # Increased from 50 to 100
+                elif is_moderate_transform:
+                    expanded_topk = min(expanded_topk, 60)  # Increased from 30 to 60
                 else:
-                    expanded_topk = min(expanded_topk, 30)
+                    expanded_topk = min(expanded_topk, 40)  # Increased from 30 to 40
                 
                 # Prepare segments with metadata
                 scale_segments_with_metadata = []

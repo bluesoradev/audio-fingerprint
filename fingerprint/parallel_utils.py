@@ -230,30 +230,37 @@ def get_adaptive_topk(
     """
     transform_lower = str(transform_type).lower() if transform_type else ""
     
-    # Base topk by transform type
+    # CRITICAL FIX: Base topk by transform type - INCREASED for better recall
+    # song_a_in_song_b needs MUCH deeper search (150-200) because correct match is often buried deep
     base_topk_map = {
-        "low_pass_filter": 50,      # Very challenging
-        "song_a_in_song_b": 30,     # Challenging
-        "embedded_sample": 30,      # Challenging
-        "overlay_vocals": 20,       # Moderate
-        "default": 15                # Standard
+        "low_pass_filter": 80,      # Very challenging - increased from 50
+        "song_a_in_song_b": 150,    # CRITICAL: Increased from 30 to 150 - correct match often not in top 50
+        "embedded_sample": 150,     # Same as song_a_in_song_b - increased from 30
+        "overlay_vocals": 40,       # Moderate - increased from 20
+        "add_noise": 60,            # Challenging - needs deeper search
+        "default": 20               # Standard - increased from 15
     }
     
     # Get base topk
     topk = base_topk_map.get(transform_lower, base_topk_map["default"])
     
-    # Adjust based on severity
+    # Adjust based on severity - REDUCED multipliers to avoid excessive topk while maintaining depth
     severity_multiplier = {
-        "severe": 1.5,
-        "moderate": 1.2,
+        "severe": 1.3,   # Reduced from 1.5 to avoid excessive topk
+        "moderate": 1.1, # Reduced from 1.2
         "mild": 1.0
     }
     
     topk = int(topk * severity_multiplier.get(severity, 1.0))
     
-    # Reduce if high initial confidence (from early check)
+    # CRITICAL FIX: Don't reduce topk for song_a_in_song_b even with high confidence
+    # High confidence reduction can cause us to miss buried correct matches
     if initial_confidence and initial_confidence > 0.90:
-        topk = max(10, int(topk * 0.7))  # Reduce by 30%
-        logger.debug(f"Reducing topk from {int(topk / 0.7)} to {topk} due to high confidence {initial_confidence:.3f}")
+        # Only reduce if NOT song_a_in_song_b or embedded_sample (these need deep search)
+        if 'song_a_in_song_b' not in transform_lower and 'embedded_sample' not in transform_lower:
+            topk = max(10, int(topk * 0.7))  # Reduce by 30%
+            logger.debug(f"Reducing topk from {int(topk / 0.7)} to {topk} due to high confidence {initial_confidence:.3f}")
+        else:
+            logger.debug(f"Keeping deep topk={topk} for {transform_lower} despite high confidence (buried matches need deep search)")
     
     return topk

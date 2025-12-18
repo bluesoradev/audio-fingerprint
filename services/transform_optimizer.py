@@ -227,9 +227,10 @@ class TransformOptimizer:
         
         logger.info(f"PERFECT SOLUTION: Applying enhanced song_a_in_song_b optimization for {file_path.name}")
         
-        # PERFECT SOLUTION: Use much deeper search for embedded audio
-        # Embedded audio requires deeper search to find the correct match
-        optimized_topk = max(topk, 50)  # Increased from 30 to 50
+        # CRITICAL FIX: Use MUCH deeper search for embedded audio
+        # Embedded audio requires VERY deep search - correct match often not in top 50-100
+        # For song_a_in_song_b, we need 150-200+ to find the correct match reliably
+        optimized_topk = max(topk, 150)  # CRITICAL: Increased from 50 to 150
         
         # PERFECT SOLUTION: Track temporal consistency for better matching
         candidate_counts = {}  # Track how many segments match each candidate

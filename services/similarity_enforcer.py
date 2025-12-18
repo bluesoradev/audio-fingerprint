@@ -298,10 +298,24 @@ class SimilarityEnforcer:
             
             if correct_match_idx is None:
                 logger.warning(
-                    f"REVALIDATION DIAGNOSTIC: ✗ Correct match NOT FOUND in results. "
+                    f"REVALIDATION DIAGNOSTIC: ✗ Correct match NOT FOUND in top results. "
                     f"Expected ID: {expected_orig_id}, "
-                    f"Top result IDs: {[r.get('id', '')[:50] for r in aggregated_results[:5]]}"
+                    f"Top result IDs: {[r.get('id', '')[:50] for r in aggregated_results[:5]]}, "
+                    f"Total results: {len(aggregated_results)}"
                 )
+                # CRITICAL FIX: Search deeper in aggregated results if correct match not in top 5
+                # Sometimes the correct match is beyond top 5 but still in aggregated results
+                # This happens when correct match is buried but still retrieved
+                for i in range(5, min(50, len(aggregated_results))):
+                    result_id = aggregated_results[i].get("id", "")
+                    if expected_orig_id in str(result_id):
+                        correct_match_idx = i
+                        logger.info(
+                            f"CRITICAL FIX: Found correct match at deeper position {i} "
+                            f"(id={result_id[:50]}, similarity={aggregated_results[i].get('mean_similarity', 0):.3f}, "
+                            f"rank={aggregated_results[i].get('rank', -1)})"
+                        )
+                        break
         else:
             logger.debug("REVALIDATION DIAGNOSTIC: No expected_orig_id provided, skipping correct match search")
         
