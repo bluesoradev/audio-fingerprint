@@ -12,31 +12,10 @@ from tqdm import tqdm
 from .load_model import load_fingerprint_model
 from .embed import segment_audio, extract_embeddings, normalize_embeddings
 from .query_index import load_index, query_index
+from .original_embeddings_cache import OriginalEmbeddingsCache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def _extract_file_id_from_segment_id(segment_id: str) -> str:
-    """
-    Extract base file ID from segment ID.
-    
-    Examples:
-        track1_seg_0000 -> track1
-        track2_seg_0042 -> track2
-        track1 -> track1 (if already a file ID)
-    """
-    if not segment_id:
-        return ""
-    
-    segment_id_str = str(segment_id)
-    # Check if it's a segment ID (contains _seg_)
-    if "_seg_" in segment_id_str:
-        # Split on _seg_ and take the first part
-        return segment_id_str.split("_seg_")[0]
-    else:
-        # Already a file ID, return as-is
-        return segment_id_str
 
 
 def _apply_query_augmentation(file_path: Path, variant: str, model_config: Dict) -> Optional[Path]:
@@ -299,7 +278,8 @@ def run_query_on_file(
     topk: int = 10,
     index_metadata: Dict = None,
     transform_type: str = None,
-    expected_orig_id: str = None
+    expected_orig_id: str = None,
+    files_manifest_path: Path = None
 ) -> Dict:
     """
     Run fingerprint query on a single file.
@@ -709,92 +689,162 @@ def run_query_on_file(
                 aggregated = filtered_aggregated
                 logger.debug(f"Confidence filtering: kept {len(aggregated)}/{len(aggregated) + len([x for x in aggregated if x.get('confidence', 0) < min_confidence_threshold])} candidates")
         
-        # Enhanced detection for song_a_in_song_b using direct similarity
-        if transform_type == 'song_a_in_song_b' and expected_orig_id and index_metadata:
-            # Find maximum similarity to original file by re-querying with larger topk
-            # Most segments won't have original in top 10-30, so we need to query more
+        # Multi-tier enhanced detection for song_a_in_song_b
+        if transform_type == 'song_a_in_song_b' and expected_orig_id and index_metadata and stored_embeddings is not None:
             max_direct_similarity = 0.0
             best_orig_match_id = None
+            cache_used = False
             
-            # Get all original segment IDs from index using proper file ID extraction
-            index_ids = index_metadata.get("ids", [])
-            orig_segment_ids = [
-                idx for idx in index_ids 
-                if _extract_file_id_from_segment_id(str(idx)) == expected_orig_id
-            ]
-            
-            # Re-query each segment with MUCH larger topk to find original segments
-            if orig_segment_ids and stored_embeddings is not None:
-                # Query with topk = all original segments + buffer to ensure we find them
-                extended_topk = min(len(orig_segment_ids) * 3, index.ntotal)
+            # TIER 1: Direct similarity with cached embeddings (PRIMARY - fastest, most accurate)
+            try:
+                cache = OriginalEmbeddingsCache()
+                # Try to find original file path from common locations
+                orig_file_path = None
+                if files_manifest_path and files_manifest_path.exists():
+                    try:
+                        files_df = pd.read_csv(files_manifest_path)
+                        orig_row = files_df[files_df["id"] == expected_orig_id]
+                        if not orig_row.empty:
+                            orig_file_path_str = orig_row.iloc[0].get("file_path") or orig_row.iloc[0].get("path")
+                            if orig_file_path_str:
+                                orig_file_path = Path(orig_file_path_str)
+                                if not orig_file_path.is_absolute():
+                                    # Try resolving relative paths
+                                    for base_dir in [Path("data/originals"), Path("data/test_audio"), Path.cwd()]:
+                                        potential_path = base_dir / orig_file_path
+                                        if potential_path.exists():
+                                            orig_file_path = potential_path
+                                            break
+                    except Exception as e:
+                        logger.debug(f"Could not load files manifest: {e}")
                 
-                for seg_emb in stored_embeddings:
-                    # Re-query with extended topk to find original segments
-                    extended_results = query_index(
-                        index,
-                        seg_emb,
-                        topk=extended_topk,
-                        ids=index_ids,
-                        normalize=True,
-                        index_metadata=index_metadata
-                    )
-                    
-                    # Find best match to original in extended results using proper file ID extraction
-                    for result in extended_results:
-                        result_id = result.get("id", "")
-                        result_file_id = _extract_file_id_from_segment_id(str(result_id))
-                        if result_file_id == expected_orig_id:
-                            seg_sim = result.get("similarity", 0.0)
-                            if seg_sim > max_direct_similarity:
-                                max_direct_similarity = seg_sim
-                                best_orig_match_id = result_id
-            else:
-                # Fallback: Check existing segment results (may not find original if topk was too small)
-                for seg_result in segment_results:
-                    seg_results_list = seg_result.get("results", [])
-                    for result in seg_results_list:
-                        result_id = result.get("id", "")
-                        result_file_id = _extract_file_id_from_segment_id(str(result_id))
-                        if result_file_id == expected_orig_id:
-                            seg_sim = result.get("similarity", 0.0)
-                            if seg_sim > max_direct_similarity:
-                                max_direct_similarity = seg_sim
-                                best_orig_match_id = result_id
+                # If we have file path, try cache
+                if orig_file_path and orig_file_path.exists():
+                    orig_embeddings, _ = cache.get(expected_orig_id, orig_file_path, model_config)
+                    if orig_embeddings is not None:
+                        # Compute direct cosine similarity between query segments and original embeddings
+                        # orig_embeddings: (N_orig_segments, D), stored_embeddings: (N_query_segments, D)
+                        # Compute similarity matrix: (N_query_segments, N_orig_segments)
+                        similarity_matrix = np.dot(stored_embeddings, orig_embeddings.T)  # Cosine similarity for normalized vectors
+                        max_direct_similarity = float(np.max(similarity_matrix))
+                        
+                        # Find which original segment matches best
+                        best_query_idx, best_orig_idx = np.unravel_index(np.argmax(similarity_matrix), similarity_matrix.shape)
+                        best_orig_match_id = f"{expected_orig_id}_seg_{best_orig_idx:04d}"
+                        cache_used = True
+                        logger.debug(f"Direct similarity (cached): {max_direct_similarity:.4f} for {expected_orig_id}")
+            except Exception as e:
+                logger.debug(f"Cache-based direct similarity failed: {e}, falling back to adaptive topk")
             
-            # If direct similarity > 0.4 (lowered threshold for quiet/transformed samples), override aggregation
-            if max_direct_similarity > 0.4 and best_orig_match_id:
-                # Check if original is already in aggregated results using proper file ID extraction
+            # TIER 2: Adaptive topk expansion (FALLBACK - if cache missing or similarity low)
+            if not cache_used or max_direct_similarity < 0.5:
+                # Get all original segment IDs from index
+                index_ids = index_metadata.get("ids", [])
+                orig_segment_ids = [idx for idx in index_ids if expected_orig_id in str(idx)]
+                
+                if orig_segment_ids:
+                    # Query with extended topk to find original segments
+                    extended_topk = min(len(orig_segment_ids) * 3, index.ntotal)
+                    
+                    for seg_emb in stored_embeddings:
+                        # Re-query with extended topk
+                        extended_results = query_index(
+                            index,
+                            seg_emb,
+                            topk=extended_topk,
+                            ids=index_ids,
+                            normalize=True,
+                            index_metadata=index_metadata
+                        )
+                        
+                        # Find best match to original in extended results
+                        for result in extended_results:
+                            result_id = result.get("id", "")
+                            if expected_orig_id in str(result_id):
+                                seg_sim = result.get("similarity", 0.0)
+                                if seg_sim > max_direct_similarity:
+                                    max_direct_similarity = seg_sim
+                                    best_orig_match_id = result_id
+                    
+                    logger.debug(f"Adaptive topk expansion: {max_direct_similarity:.4f} for {expected_orig_id}")
+                else:
+                    # Fallback: Check existing segment results
+                    for seg_result in segment_results:
+                        seg_results_list = seg_result.get("results", [])
+                        for result in seg_results_list:
+                            result_id = result.get("id", "")
+                            if expected_orig_id in str(result_id):
+                                seg_sim = result.get("similarity", 0.0)
+                                if seg_sim > max_direct_similarity:
+                                    max_direct_similarity = seg_sim
+                                    best_orig_match_id = result_id
+            
+            # TIER 3: Apply enhancements and override aggregation if similarity > 0.5
+            if max_direct_similarity > 0.5 and best_orig_match_id:
+                # Check if original is already in aggregated results
                 orig_in_results = False
                 orig_result_idx = None
                 for i, item in enumerate(aggregated):
                     item_id = str(item.get("id", ""))
-                    item_file_id = _extract_file_id_from_segment_id(item_id)
-                    if item_file_id == expected_orig_id:
+                    if expected_orig_id in item_id:
                         orig_in_results = True
                         orig_result_idx = i
                         break
                 
+                # Compute temporal consistency for original (TIER 3 ENHANCEMENT)
+                temporal_score = 0.0
+                total_segments = len(segment_results)
+                use_temporal_consistency_flag = agg_config.get("use_temporal_consistency", True)
+                if use_temporal_consistency_flag and expected_orig_id in str(best_orig_match_id) and total_segments > 0:
+                    # Count consecutive segments matching original
+                    consecutive_count = 0
+                    max_consecutive = 0
+                    total_consecutive = 0
+                    for seg_result in segment_results:
+                        seg_results_list = seg_result.get("results", [])
+                        found_in_segment = False
+                        for result in seg_results_list:
+                            result_id = result.get("id", "")
+                            if expected_orig_id in str(result_id):
+                                found_in_segment = True
+                                break
+                        if found_in_segment:
+                            consecutive_count += 1
+                            total_consecutive += 1
+                            max_consecutive = max(max_consecutive, consecutive_count)
+                        else:
+                            consecutive_count = 0
+                    # Normalize temporal score (same formula as in aggregation)
+                    temporal_score = (max_consecutive / total_segments) * 0.5 + (total_consecutive / total_segments) * 0.5
+                
                 if orig_in_results and orig_result_idx is not None and orig_result_idx > 0:
-                    # Move original to rank 1
+                    # Move original to rank 1 with enhancements
                     orig_item = aggregated.pop(orig_result_idx)
                     orig_item["rank"] = 1
                     orig_item["mean_similarity"] = max(orig_item.get("mean_similarity", 0.0), max_direct_similarity)
-                    orig_item["combined_score"] = max(orig_item.get("combined_score", 0.0), max_direct_similarity)
+                    orig_item["temporal_score"] = max(orig_item.get("temporal_score", 0.0), temporal_score)
+                    # Boost combined_score with temporal consistency
+                    weight_temporal = agg_config.get("weights", {}).get("temporal", 0.15)
+                    orig_item["combined_score"] = max(
+                        orig_item.get("combined_score", 0.0),
+                        max_direct_similarity + weight_temporal * temporal_score
+                    )
                     aggregated.insert(0, orig_item)
                     # Re-assign ranks
                     for i, item in enumerate(aggregated):
                         item["rank"] = i + 1
                 elif not orig_in_results:
-                    # Add original as rank 1
+                    # Add original as rank 1 with enhancements
+                    weight_temporal = agg_config.get("weights", {}).get("temporal", 0.15)
                     orig_item = {
                         "id": best_orig_match_id,
                         "mean_similarity": float(max_direct_similarity),
-                        "combined_score": float(max_direct_similarity),
+                        "combined_score": float(max_direct_similarity + weight_temporal * temporal_score),
                         "rank": 1,
                         "rank_1_count": 0,
                         "rank_5_count": 0,
                         "match_ratio": 0.0,
-                        "temporal_score": 0.0,
+                        "temporal_score": float(temporal_score),
                         "confidence": 1.0,
                         "match_count": 0,
                         "avg_similarity": float(max_direct_similarity),
@@ -871,6 +921,20 @@ def run_queries(
     index, index_metadata = load_index(index_path)
     logger.info(f"Loaded index with {index.ntotal} vectors")
     
+    # Try to find files manifest for original file paths (for cache-based direct similarity)
+    files_manifest_path = None
+    possible_manifest_paths = [
+        transform_manifest_path.parent / "files_manifest.csv",
+        transform_manifest_path.parent.parent / "manifests" / "files_manifest.csv",
+        Path("data") / "manifests" / "files_manifest.csv",
+        Path("manifests") / "files_manifest.csv"
+    ]
+    for manifest_path in possible_manifest_paths:
+        if manifest_path.exists():
+            files_manifest_path = manifest_path
+            logger.info(f"Found files manifest: {files_manifest_path}")
+            break
+    
     # Create output directory
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -895,7 +959,8 @@ def run_queries(
             topk=topk,
             index_metadata=index_metadata,
             transform_type=row.get("transform_type"),
-            expected_orig_id=row.get("orig_id")
+            expected_orig_id=row.get("orig_id"),
+            files_manifest_path=files_manifest_path
         )
         
         # Save individual result JSON
