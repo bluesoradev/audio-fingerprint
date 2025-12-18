@@ -389,11 +389,11 @@ def run_query_on_file(
         first_scale_weight = scale_weights_to_use[0]
         
         segments = segment_audio(  # ← Correct indentation
-            file_path,
+                file_path,
             segment_length=first_scale_len,
-            sample_rate=model_config["sample_rate"],
-            overlap_ratio=overlap_ratio
-        )
+                sample_rate=model_config["sample_rate"],
+                overlap_ratio=overlap_ratio
+            )
             
         # PHASE 3 OPTIMIZATION: Memory-aware embedding extraction
         with MemoryManager.monitor_memory_usage("embedding_extraction"):
