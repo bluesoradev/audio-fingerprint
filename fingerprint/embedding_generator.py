@@ -34,7 +34,7 @@ if HAS_TORCH:
         HAS_TRANSFORMERS = True
         # Try to import AMP (may not be available in all PyTorch versions)
         try:
-            from torch.cuda.amp import autocast  # PyTorch AMP for safe FP16 inference
+            from torch.amp import autocast  # PyTorch AMP for safe FP16 inference
             HAS_AMP = True
         except (ImportError, AttributeError):
             HAS_AMP = False
@@ -285,7 +285,7 @@ class EmbeddingGenerator:
                     
                     # Use Automatic Mixed Precision (AMP) for safe FP16 inference on GPU
                     if self.device == "cuda" and HAS_AMP:
-                        with autocast():  # AMP automatically uses FP16 where safe, FP32 where needed
+                        with autocast(device_type='cuda'):  # AMP automatically uses FP16 where safe, FP32 where needed
                             outputs = self.mert_model(**inputs)
                     else:
                         # CPU or AMP not available: use FP32
@@ -521,7 +521,7 @@ class EmbeddingGenerator:
                     
                     # Use Automatic Mixed Precision (AMP) for safe FP16 batch inference on GPU
                     if self.device == "cuda" and HAS_AMP:
-                        with autocast():  # AMP automatically uses FP16 where safe, FP32 where needed
+                        with autocast(device_type='cuda'):  # AMP automatically uses FP16 where safe, FP32 where needed
                             outputs = self.mert_model(**inputs)
                     else:
                         # CPU or AMP not available: use FP32
