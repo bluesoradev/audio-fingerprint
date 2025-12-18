@@ -385,13 +385,13 @@ def run_query_on_file(
         first_scale_len = segment_lengths_to_use[0]
         first_scale_weight = scale_weights_to_use[0]
         
-        segments = segment_audio(
+        segments = segment_audio(  # ← Correct indentation
             file_path,
             segment_length=first_scale_len,
             sample_rate=model_config["sample_rate"],
             overlap_ratio=overlap_ratio
         )
-        
+            
         # PHASE 3 OPTIMIZATION: Memory-aware embedding extraction
         with MemoryManager.monitor_memory_usage("embedding_extraction"):
             embeddings = safe_execute(
@@ -408,7 +408,7 @@ def run_query_on_file(
             
             embeddings = normalize_embeddings(embeddings, method="l2")
             stored_embeddings = embeddings
-        
+            
         # PHASE 2 OPTIMIZATION: Apply transform-specific optimizations
         # Prepare segments with scale metadata
         segments_with_metadata = []
@@ -426,7 +426,7 @@ def run_query_on_file(
                 transform_type,
                 file_path,
                 model_config,
-                index,
+                    index,
                 index_metadata,
                 segments_with_metadata,
                 embeddings,
