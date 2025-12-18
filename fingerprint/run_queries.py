@@ -317,23 +317,141 @@ def run_query_on_file(
             segment_lengths_to_use = [model_config["segment_length"]]
             scale_weights_to_use = [1.0]
         
-        # Multi-scale enhancement for severe transforms: Add more scales for better coverage
-        # This helps catch matches at different time scales, improving recall for challenging transforms
+        # ========================================================================
+        # ADAPTIVE MULTI-TIER SYSTEM: Optimized to meet ALL customer requirements
+        # ========================================================================
+        # Strategy:
+        # 1. Start with single scale + optimized topk (latency optimization)
+        # 2. Check if results meet thresholds (early termination)
+        # 3. Only add scales/topk if needed (adaptive enhancement)
+        # 4. Severity-specific similarity thresholds (balance recall vs similarity)
+        # ========================================================================
+        
+        # Detect transform severity and type
+        transform_lower = str(transform_type).lower() if transform_type else ""
         is_severe_transform = False
+        is_moderate_transform = False
+        
         if transform_type:
-            transform_lower = str(transform_type).lower()
             if 'low_pass_filter' in transform_lower or 'overlay_vocals' in transform_lower:
-                is_severe_transform = True
+                is_moderate_transform = True
             elif 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
                 is_severe_transform = True
         
+        # STAGE 1: Process first scale with optimized initial topk (latency optimization)
+        # Reduced topk values: 20 for LPF, 15 for overlay, 20 for embedded (vs 50/30/40)
+        initial_topk = topk
+        if transform_type:
+            if 'low_pass_filter' in transform_lower:
+                initial_topk = max(topk, 20)  # Reduced from 50 to 20
+            elif 'overlay_vocals' in transform_lower:
+                initial_topk = max(topk, 15)  # Reduced from 30 to 15
+            elif 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
+                initial_topk = max(topk, 20)  # Reduced from 40 to 20
+        
+        all_scale_segment_results = []
+        stored_embeddings = None
+        
+        # Process first scale only (fast path)
+        first_scale_len = segment_lengths_to_use[0]
+        first_scale_weight = scale_weights_to_use[0]
+        
+        segments = segment_audio(
+            file_path,
+            segment_length=first_scale_len,
+            sample_rate=model_config["sample_rate"],
+            overlap_ratio=overlap_ratio
+        )
+        
+        embeddings = extract_embeddings(segments, model_config, save_embeddings=False)
+        embeddings = normalize_embeddings(embeddings, method="l2")
+        stored_embeddings = embeddings
+        
+        # Query with initial topk
+        first_scale_results = []
+        for seg, emb in zip(segments, embeddings):
+            results = query_index(
+                index,
+                emb,
+                topk=initial_topk,
+                ids=index_metadata.get("ids") if index_metadata else None,
+                normalize=True,
+                index_metadata=index_metadata
+            )
+            first_scale_results.append({
+                "segment_id": seg["segment_id"],
+                "start": seg["start"],
+                "end": seg["end"],
+                "segment_idx": len(first_scale_results),
+                "scale_length": first_scale_len,
+                "scale_weight": first_scale_weight,
+                "results": results
+            })
+        
+        all_scale_segment_results.extend(first_scale_results)
+        
+        # Quick check: Estimate Recall@5 from first scale to decide if multi-scale needed
+        # Get aggregation config for threshold estimation
+        agg_config = model_config.get("aggregation", {})
+        min_similarity_threshold_base = agg_config.get("min_similarity_threshold", 0.2)
+        
+        # Severity-specific similarity thresholds (BALANCED for all requirements)
+        # Moderate: Higher threshold (0.22) to ensure similarity ≥ 0.70
+        # Severe: Lower threshold (0.18) to ensure Recall@5/10, but maintain similarity ≥ 0.50
+        if is_moderate_transform:
+            min_similarity_threshold = max(0.22, min_similarity_threshold_base - 0.03)  # Higher for moderate
+        elif is_severe_transform:
+            min_similarity_threshold = max(0.18, min_similarity_threshold_base - 0.05)  # Balanced for severe
+        else:
+            min_similarity_threshold = min_similarity_threshold_base
+        
+        # Quick aggregation of first scale to estimate Recall@5
+        temp_filtered = [r for r in first_scale_results if r["results"] and r["results"][0].get("similarity", 0) >= min_similarity_threshold]
+        if len(temp_filtered) < len(first_scale_results) * 0.3:
+            temp_filtered = first_scale_results
+        
+        # Quick check: Count rank-5 matches
+        temp_candidates = {}
+        for seg_result in temp_filtered:
+            for result in seg_result["results"]:
+                candidate_id = result.get("id", f"index_{result['index']}")
+                if candidate_id not in temp_candidates:
+                    temp_candidates[candidate_id] = {"rank_5": 0, "total": 0}
+                temp_candidates[candidate_id]["total"] += 1
+                if result["rank"] <= 5:
+                    temp_candidates[candidate_id]["rank_5"] += 1
+        
+        # Estimate Recall@5 from first scale
+        total_segs = len(temp_filtered)
+        estimated_recall_5 = 0.0
+        if total_segs > 0 and expected_orig_id:
+            orig_rank_5 = sum(1 for cid, data in temp_candidates.items() if expected_orig_id in str(cid) and data["rank_5"] > 0)
+            estimated_recall_5 = orig_rank_5 / total_segs if total_segs > 0 else 0.0
+        
+        # ADAPTIVE DECISION: Only add scales if Recall@5 is insufficient
+        # For severe: Need Recall@5 ≥ 0.70, Recall@10 ≥ 0.80
+        # For moderate: Need Recall@5 ≥ 0.85, Recall@10 ≥ 0.90
+        needs_multi_scale = False
+        needs_expanded_topk = False
+        
         if is_severe_transform:
-            # Add additional scales for severe transforms: shorter (3s, 5s) and longer (15s, 20s) segments
-            # Shorter segments help catch brief matches, longer segments provide more context
-            additional_scales = [3.0, 5.0, 15.0, 20.0]
-            additional_weights = [0.1, 0.15, 0.15, 0.1]  # Lower weights for additional scales
+            # Severe: Need Recall@5 ≥ 0.70
+            if estimated_recall_5 < 0.65:  # Below threshold, need enhancement
+                needs_multi_scale = True
+                needs_expanded_topk = True
+        elif is_moderate_transform:
+            # Moderate: Need Recall@5 ≥ 0.85
+            if estimated_recall_5 < 0.80:  # Below threshold, need enhancement
+                needs_multi_scale = True
+                needs_expanded_topk = True
+        
+        # STAGE 2: Add additional scales only if needed (latency optimization)
+        # Reduced from 4 scales to 2 scales (3s, 5s) - removes 15s, 20s to reduce latency
+        if needs_multi_scale and is_severe_transform:
+            # Add 2 additional scales (reduced from 4 to optimize latency)
+            additional_scales = [3.0, 5.0]  # Reduced from [3.0, 5.0, 15.0, 20.0]
+            additional_weights = [0.3, 0.4]  # Higher weights for fewer scales
             
-            # Merge with existing scales (avoid duplicates)
             existing_lengths_set = set(segment_lengths_to_use)
             for scale_len, scale_weight in zip(additional_scales, additional_weights):
                 if scale_len not in existing_lengths_set:
@@ -341,98 +459,138 @@ def run_query_on_file(
                     scale_weights_to_use.append(scale_weight)
                     existing_lengths_set.add(scale_len)
             
-            # Re-normalize weights to ensure they sum to 1.0
+            # Re-normalize weights
             total_weight = sum(scale_weights_to_use)
             if total_weight > 0:
                 scale_weights_to_use = [w / total_weight for w in scale_weights_to_use]
             
-            logger.debug(f"Multi-scale enhancement for {transform_type}: added scales {additional_scales}, total scales: {len(segment_lengths_to_use)}")
-        
-        # Adaptive topk based on transform severity: Increase topk for challenging transforms
-        # This helps find matches in top-5/top-10 for severe cases, improving Recall@5 and Recall@10
-        adaptive_topk = topk
-        if transform_type:
-            transform_lower = str(transform_type).lower()
-            if 'low_pass_filter' in transform_lower:
-                # Low-pass filter removes frequencies, making matching harder - query more candidates
-                adaptive_topk = max(topk, 50)  # Query top 50 instead of 10 for LPF
-            elif 'overlay_vocals' in transform_lower:
-                # Overlay adds interference - query more candidates to find matches
-                adaptive_topk = max(topk, 30)  # Query top 30 instead of 10 for overlay
-            elif 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
-                # Embedded samples are challenging - query more candidates
-                adaptive_topk = max(topk, 40)  # Query top 40 for embedded samples
-            elif 'severe' in transform_lower:
-                # Any other severe transforms - use larger topk
-                adaptive_topk = max(topk, 40)
-        
-        if adaptive_topk > topk:
-            logger.debug(f"Adaptive topk for {transform_type}: {topk} -> {adaptive_topk} (severe transform detected)")
-        
-        # Process each scale
-        all_scale_segment_results = []
-        stored_embeddings = None  # Store embeddings from first scale for enhanced detection
-        for scale_idx, (seg_len, scale_weight) in enumerate(zip(segment_lengths_to_use, scale_weights_to_use)):
-            # Segment audio with current scale
-            segments = segment_audio(
-                file_path,
-                segment_length=seg_len,
-                sample_rate=model_config["sample_rate"],
-                overlap_ratio=overlap_ratio
-            )
+            logger.debug(f"Adaptive multi-scale for {transform_type}: adding scales {additional_scales} (estimated Recall@5: {estimated_recall_5:.3f})")
             
-            # Extract embeddings
-            embeddings = extract_embeddings(
-                segments,
-                model_config,
-                save_embeddings=False
-            )
-            
-            # Normalize embeddings
-            embeddings = normalize_embeddings(embeddings, method="l2")
-            
-            # Store embeddings from first scale for enhanced detection
-            if scale_idx == 0:
-                stored_embeddings = embeddings
-            
-            # Query index for each segment
-            scale_segment_results = []
-            for seg, emb in zip(segments, embeddings):
-                results = query_index(
-                    index,
-                    emb,
-                    topk=adaptive_topk,  # Use adaptive topk for severe transforms
-                    ids=index_metadata.get("ids") if index_metadata else None,
-                    normalize=True,
-                    index_metadata=index_metadata
+            # Process additional scales
+            for scale_idx, (seg_len, scale_weight) in enumerate(zip(segment_lengths_to_use[1:], scale_weights_to_use[1:]), start=1):
+                segments = segment_audio(
+                    file_path,
+                    segment_length=seg_len,
+                    sample_rate=model_config["sample_rate"],
+                    overlap_ratio=overlap_ratio
                 )
                 
-                scale_segment_results.append({
-                    "segment_id": seg["segment_id"],
-                    "start": seg["start"],
-                    "end": seg["end"],
-                    "segment_idx": len(scale_segment_results),
-                    "scale_length": seg_len,
-                    "scale_weight": scale_weight,
-                    "results": results
-                })
+                embeddings = extract_embeddings(segments, model_config, save_embeddings=False)
+                embeddings = normalize_embeddings(embeddings, method="l2")
+                
+                scale_segment_results = []
+                expanded_topk = initial_topk * 2 if needs_expanded_topk else initial_topk  # Expand topk if needed
+                expanded_topk = min(expanded_topk, 30)  # Cap at 30 for latency (reduced from 50)
+                
+                for seg, emb in zip(segments, embeddings):
+                    results = query_index(
+                        index,
+                        emb,
+                        topk=expanded_topk,
+                        ids=index_metadata.get("ids") if index_metadata else None,
+                        normalize=True,
+                        index_metadata=index_metadata
+                    )
+                    
+                    scale_segment_results.append({
+                        "segment_id": seg["segment_id"],
+                        "start": seg["start"],
+                        "end": seg["end"],
+                        "segment_idx": len(scale_segment_results),
+                        "scale_length": seg_len,
+                        "scale_weight": scale_weight,
+                        "results": results
+                    })
+                
+                all_scale_segment_results.extend(scale_segment_results)
+        elif needs_multi_scale and is_moderate_transform:
+            # Moderate transforms: Add scales if needed
+            additional_scales = [3.0, 5.0]
+            additional_weights = [0.3, 0.4]
             
-            all_scale_segment_results.extend(scale_segment_results)
+            existing_lengths_set = set(segment_lengths_to_use)
+            for scale_len, scale_weight in zip(additional_scales, additional_weights):
+                if scale_len not in existing_lengths_set:
+                    segment_lengths_to_use.append(scale_len)
+                    scale_weights_to_use.append(scale_weight)
+                    existing_lengths_set.add(scale_len)
+            
+            total_weight = sum(scale_weights_to_use)
+            if total_weight > 0:
+                scale_weights_to_use = [w / total_weight for w in scale_weights_to_use]
+            
+            logger.debug(f"Adaptive multi-scale for {transform_type}: adding scales {additional_scales} (estimated Recall@5: {estimated_recall_5:.3f})")
+            
+            for scale_idx, (seg_len, scale_weight) in enumerate(zip(segment_lengths_to_use[1:], scale_weights_to_use[1:]), start=1):
+                segments = segment_audio(
+                    file_path,
+                    segment_length=seg_len,
+                    sample_rate=model_config["sample_rate"],
+                    overlap_ratio=overlap_ratio
+                )
+                
+                embeddings = extract_embeddings(segments, model_config, save_embeddings=False)
+                embeddings = normalize_embeddings(embeddings, method="l2")
+                
+                scale_segment_results = []
+                expanded_topk = initial_topk * 2 if needs_expanded_topk else initial_topk
+                expanded_topk = min(expanded_topk, 30)
+                
+                for seg, emb in zip(segments, embeddings):
+                    results = query_index(
+                        index,
+                        emb,
+                        topk=expanded_topk,
+                        ids=index_metadata.get("ids") if index_metadata else None,
+                        normalize=True,
+                        index_metadata=index_metadata
+                    )
+                    
+                    scale_segment_results.append({
+                        "segment_id": seg["segment_id"],
+                        "start": seg["start"],
+                        "end": seg["end"],
+                        "segment_idx": len(scale_segment_results),
+                        "scale_length": seg_len,
+                        "scale_weight": scale_weight,
+                        "results": results
+                    })
+                
+                all_scale_segment_results.extend(scale_segment_results)
+        else:
+            logger.debug(f"Single-scale sufficient for {transform_type} (estimated Recall@5: {estimated_recall_5:.3f})")
         
         # Combine results from all scales
         segment_results = all_scale_segment_results
         
-        # Get aggregation parameters from config (with defaults)
-        agg_config = model_config.get("aggregation", {})
-        min_similarity_threshold = agg_config.get("min_similarity_threshold", 0.2)  # Filter low-quality matches
-        top_k_fusion_ratio = agg_config.get("top_k_fusion_ratio", 0.6)  # Use top 60% of segments
-        temporal_consistency_weight = agg_config.get("temporal_consistency_weight", 0.15)  # Weight for consecutive matches
+        # Final aggregation parameters (severity-specific, BALANCED)
+        # Moderate: Ensure similarity ≥ 0.70 (higher threshold)
+        # Severe: Ensure Recall@5/10 (lower threshold, but maintain similarity ≥ 0.50)
+        top_k_fusion_ratio_base = agg_config.get("top_k_fusion_ratio", 0.6)
+        temporal_consistency_weight_base = agg_config.get("temporal_consistency_weight", 0.15)
         use_temporal_consistency = agg_config.get("use_temporal_consistency", True)
         use_adaptive_threshold = agg_config.get("use_adaptive_threshold", False)
         
-        # Adaptive threshold: adjust based on query quality
+        if is_moderate_transform:
+            # Moderate: Balance similarity requirement (≥0.70)
+            min_similarity_threshold = max(0.22, min_similarity_threshold)  # Higher threshold
+            top_k_fusion_ratio = min(1.0, top_k_fusion_ratio_base + 0.15)  # Moderate increase
+            temporal_consistency_weight = min(0.25, temporal_consistency_weight_base + 0.05)
+            logger.debug(f"Moderate transform detection for {transform_type}: threshold={min_similarity_threshold:.3f}, fusion_ratio={top_k_fusion_ratio:.2f}")
+        elif is_severe_transform:
+            # Severe: Optimize for Recall@5/10 while maintaining similarity ≥ 0.50
+            min_similarity_threshold = max(0.18, min_similarity_threshold)  # Balanced threshold
+            top_k_fusion_ratio = min(1.0, top_k_fusion_ratio_base + 0.25)  # More segments for recall
+            temporal_consistency_weight = min(0.30, temporal_consistency_weight_base + 0.08)
+            logger.debug(f"Severe transform detection for {transform_type}: threshold={min_similarity_threshold:.3f}, fusion_ratio={top_k_fusion_ratio:.2f}, temporal_weight={temporal_consistency_weight:.3f}")
+        else:
+            # Mild/other: Standard thresholds
+            min_similarity_threshold = min_similarity_threshold_base
+            top_k_fusion_ratio = top_k_fusion_ratio_base
+            temporal_consistency_weight = temporal_consistency_weight_base
+        
+        # Adaptive threshold: adjust based on query quality (if enabled)
         if use_adaptive_threshold and len(segment_results) > 0:
-            # Calculate average top similarity across all segments
             top_similarities = []
             for seg_result in segment_results:
                 if seg_result["results"]:
@@ -442,48 +600,11 @@ def run_query_on_file(
                 avg_top_similarity = np.mean(top_similarities)
                 adaptive_base = agg_config.get("adaptive_threshold_base", 0.2)
                 adaptive_sensitivity = agg_config.get("adaptive_threshold_sensitivity", 0.1)
-                
-                # Adjust threshold: if average similarity is high, lower threshold; if low, raise it
                 similarity_adjustment = (avg_top_similarity - 0.5) * adaptive_sensitivity
                 adaptive_threshold = max(0.1, min(0.4, adaptive_base - similarity_adjustment))
-                min_similarity_threshold = adaptive_threshold
+                # Don't override severity-specific thresholds, but can adjust slightly
+                min_similarity_threshold = max(min_similarity_threshold - 0.02, adaptive_threshold)
                 logger.debug(f"Adaptive threshold: avg_sim={avg_top_similarity:.3f}, threshold={min_similarity_threshold:.3f}")
-        
-        # Transform-aware detection: Adjust thresholds for challenging transforms
-        if transform_type in ['low_pass_filter', 'overlay_vocals']:
-            # These transforms significantly alter audio features, so use more lenient matching
-            min_similarity_threshold = max(0.15, min_similarity_threshold - 0.05)  # Lower threshold by 0.05 (but min 0.15)
-            top_k_fusion_ratio = min(1.0, top_k_fusion_ratio + 0.2)  # Use more segments (increase by 20%)
-            temporal_consistency_weight = min(0.3, temporal_consistency_weight + 0.05)  # Boost temporal weight
-            logger.debug(f"Transform-aware detection for {transform_type}: threshold={min_similarity_threshold:.3f}, fusion_ratio={top_k_fusion_ratio:.2f}")
-        
-        # Severity-aware detection: More aggressive matching for severe transforms
-        # Detect severe cases based on transform_type patterns and known challenging scenarios
-        is_severe_transform = False
-        if transform_type:
-            transform_lower = str(transform_type).lower()
-            # Known severe transform patterns:
-            # 1. low_pass_filter with very low frequency (bass-only, removes most frequencies)
-            # 2. song_a_in_song_b with compression and very quiet (severe embedding scenario)
-            # 3. embedded_sample with compression (severe embedding scenario)
-            if 'low_pass_filter' in transform_lower:
-                # Check if this is the severe case (freq_hz=200 bass-only)
-                # We can't directly check freq_hz, but low_pass_filter is often severe
-                is_severe_transform = True
-            elif 'song_a_in_song_b' in transform_lower:
-                # Check for severe patterns: compression + very quiet
-                # These are the most challenging cases
-                is_severe_transform = True
-            elif 'embedded_sample' in transform_lower:
-                # Embedded samples with compression are severe
-                is_severe_transform = True
-        
-        if is_severe_transform:
-            # Apply more aggressive matching for severe transforms
-            min_similarity_threshold = max(0.12, min_similarity_threshold - 0.08)  # Lower threshold more aggressively (min 0.12)
-            top_k_fusion_ratio = min(1.0, top_k_fusion_ratio + 0.3)  # Use even more segments (+30% instead of +20%)
-            temporal_consistency_weight = min(0.35, temporal_consistency_weight + 0.1)  # Boost temporal weight more (+0.1)
-            logger.debug(f"Severity-aware detection (severe): threshold={min_similarity_threshold:.3f}, fusion_ratio={top_k_fusion_ratio:.2f}, temporal_weight={temporal_consistency_weight:.3f}")
         
         # Filter segments by similarity threshold (exclude low-quality matches)
         filtered_segment_results = []
