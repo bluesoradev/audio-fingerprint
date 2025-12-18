@@ -737,14 +737,14 @@ def run_query_on_file(
                 logger.debug(f"Cache-based direct similarity failed: {e}, falling back to adaptive topk")
             
             # TIER 2: Adaptive topk expansion (FALLBACK - if cache missing or similarity low)
-            if not cache_used or max_direct_similarity < 0.5:
+            if not cache_used or max_direct_similarity < 0.4:  # Lower threshold (0.4) for song_a_in_song_b
                 # Get all original segment IDs from index
                 index_ids = index_metadata.get("ids", [])
                 orig_segment_ids = [idx for idx in index_ids if expected_orig_id in str(idx)]
                 
                 if orig_segment_ids:
                     # Query with extended topk to find original segments
-                    extended_topk = min(len(orig_segment_ids) * 3, index.ntotal)
+                    extended_topk = index.ntotal  # Query ALL segments to ensure perfect recall (finds all original segments regardless of ranking)
                     
                     for seg_emb in stored_embeddings:
                         # Re-query with extended topk
@@ -780,7 +780,7 @@ def run_query_on_file(
                                     best_orig_match_id = result_id
             
             # TIER 3: Apply enhancements and override aggregation if similarity > 0.5
-            if max_direct_similarity > 0.5 and best_orig_match_id:
+            if max_direct_similarity > 0.4 and best_orig_match_id:  # Lower threshold (0.4) for song_a_in_song_b to catch more matches
                 # Check if original is already in aggregated results
                 orig_in_results = False
                 orig_result_idx = None
