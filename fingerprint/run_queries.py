@@ -929,6 +929,12 @@ def run_query_on_file(
             if is_severe_transform:
                 # Use max similarity for severe transforms to maximize score
                 final_similarity = max(float(weighted_sim), max_similarity)
+                logger.debug(
+                    f"SIMILARITY CALCULATION: Severe transform - using max similarity. "
+                    f"Candidate: {candidate_id[:50]}, "
+                    f"weighted_sim={weighted_sim:.3f}, max_sim={max_similarity:.3f}, "
+                    f"final={final_similarity:.3f}"
+                )
             else:
                 final_similarity = float(weighted_sim)
             
@@ -1066,9 +1072,22 @@ def run_query_on_file(
         # PHASE 2 OPTIMIZATION: Enforce similarity thresholds for high-quality matches
         severity_str = "severe" if is_severe_transform else ("moderate" if is_moderate_transform else "mild")
         
+        logger.info(
+            f"SIMILARITY ENFORCEMENT: Starting enforcement for {file_path.name}, "
+            f"transform={transform_type}, severity={severity_str}, "
+            f"expected_orig_id={expected_orig_id}, "
+            f"has_stored_embeddings={stored_embeddings is not None}, "
+            f"aggregated_results_count={len(aggregated)}"
+        )
+        
         # Get original embeddings for revalidation if available
         original_embeddings_for_validation = None
         if expected_orig_id and stored_embeddings is not None:
+            logger.debug(
+                f"SIMILARITY ENFORCEMENT: Attempting to get original embeddings for revalidation. "
+                f"Expected ID: {expected_orig_id}, "
+                f"stored_embeddings shape: {stored_embeddings.shape if stored_embeddings is not None else None}"
+            )
             try:
                 cache = OriginalEmbeddingsCache()
                 # Try to find original file path
@@ -1099,6 +1118,23 @@ def run_query_on_file(
             except Exception as e:
                 logger.debug(f"Could not get original embeddings for validation: {e}")
         
+        # Log aggregated results before enforcement
+        if len(aggregated) > 0:
+            top_3_before = [
+                {
+                    "id": r.get("id", "")[:50],
+                    "similarity": r.get("mean_similarity", 0),
+                    "rank": r.get("rank", -1)
+                }
+                for r in aggregated[:3]
+            ]
+            logger.info(
+                f"SIMILARITY ENFORCEMENT: Before enforcement - "
+                f"top-3: {top_3_before}, "
+                f"original_embeddings_available={original_embeddings_for_validation is not None}, "
+                f"query_embeddings_available={stored_embeddings is not None}"
+            )
+        
         # IMPROVED REVALIDATION: Apply similarity enforcement with enhanced revalidation
         aggregated = SimilarityEnforcer.enforce_high_similarity_for_correct_matches(
             aggregated,
@@ -1109,6 +1145,27 @@ def run_query_on_file(
             model_config=model_config,  # Pass for loading original embeddings if needed
             files_manifest_path=files_manifest_path  # Pass for finding original file paths
         )
+        
+        # Log results after enforcement
+        if len(aggregated) > 0:
+            top_3_after = [
+                {
+                    "id": r.get("id", "")[:50],
+                    "similarity": r.get("mean_similarity", 0),
+                    "rank": r.get("rank", -1),
+                    "validated": r.get("is_validated", False)
+                }
+                for r in aggregated[:3]
+            ]
+            logger.info(
+                f"SIMILARITY ENFORCEMENT: After enforcement - "
+                f"kept {len(aggregated)} results, top-3: {top_3_after}"
+            )
+        else:
+            logger.warning(
+                f"SIMILARITY ENFORCEMENT: ✗ All results rejected after enforcement. "
+                f"Transform: {transform_type}, Severity: {severity_str}"
+            )
         
         # Multi-tier enhanced detection for song_a_in_song_b
         if transform_type == 'song_a_in_song_b' and expected_orig_id and index_metadata and stored_embeddings is not None:
@@ -1306,6 +1363,32 @@ def run_query_on_file(
                 )
         
         latency_ms = (time.time() - start_time) * 1000
+        
+        # Final summary log
+        if len(aggregated) > 0:
+            top_result = aggregated[0]
+            top_similarity = top_result.get("mean_similarity", 0)
+            top_id = top_result.get("id", "")[:50]
+            top_validated = top_result.get("is_validated", False)
+            
+            logger.info(
+                f"QUERY SUMMARY for {file_path.name}: "
+                f"latency={latency_ms:.1f}ms, "
+                f"top_match_id={top_id}, "
+                f"top_similarity={top_similarity:.3f}, "
+                f"validated={top_validated}, "
+                f"results_count={len(aggregated)}, "
+                f"transform={transform_type}, "
+                f"severity={severity_str}"
+            )
+        else:
+            logger.warning(
+                f"QUERY SUMMARY for {file_path.name}: "
+                f"latency={latency_ms:.1f}ms, "
+                f"NO RESULTS (all rejected by strict enforcement), "
+                f"transform={transform_type}, "
+                f"severity={severity_str}"
+            )
         
         # PHASE 3 OPTIMIZATION: Cleanup large arrays before returning
         if stored_embeddings is not None:

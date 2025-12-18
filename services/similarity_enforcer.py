@@ -49,17 +49,47 @@ class SimilarityEnforcer:
         # STRICT ENFORCEMENT: Reject all results below threshold (no fallback)
         if not filtered and aggregated_results:
             top_similarity = aggregated_results[0].get("mean_similarity", 0)
+            top_id = aggregated_results[0].get("id", "unknown")[:50]
+            top_validated = aggregated_results[0].get("is_validated", False)
+            
+            # Log detailed diagnostic information
             logger.warning(
                 f"STRICT ENFORCEMENT: All results below threshold {threshold:.3f} for severity {severity}. "
-                f"Rejecting all results (top similarity={top_similarity:.3f}). "
+                f"Rejecting all results (top similarity={top_similarity:.3f}, "
+                f"top_id={top_id}, validated={top_validated}). "
                 f"Requirement: similarity must be ≥{threshold:.3f} unconditionally."
             )
+            
+            # Log why similarity is low
+            if top_validated:
+                max_seg_sim = aggregated_results[0].get("max_segment_similarity", 0)
+                logger.warning(
+                    f"SIMILARITY DIAGNOSTIC: Top result was validated but still below threshold. "
+                    f"Max segment similarity: {max_seg_sim:.3f}, "
+                    f"Mean similarity: {top_similarity:.3f}. "
+                    f"This suggests the transform is too severe or the match is incorrect."
+                )
+            else:
+                logger.warning(
+                    f"SIMILARITY DIAGNOSTIC: Top result was NOT validated. "
+                    f"This suggests revalidation did not run. "
+                    f"Check logs above for 'REVALIDATION DIAGNOSTIC' messages."
+                )
+            
             return []  # Return empty list - strict enforcement
         
         logger.info(
             f"Similarity filtering ({severity}): kept {len(filtered)}/{len(aggregated_results)} "
             f"results above threshold {threshold:.3f}"
         )
+        
+        # Log final results
+        if len(filtered) > 0:
+            final_similarities = [r.get("mean_similarity", 0) for r in filtered]
+            logger.info(
+                f"REVALIDATION DIAGNOSTIC: Final results after filtering - "
+                f"count={len(filtered)}, similarities={[f'{s:.3f}' for s in final_similarities[:5]]}"
+            )
         
         return filtered
     
@@ -124,8 +154,21 @@ class SimilarityEnforcer:
             logger.info(
                 f"IMPROVED REVALIDATION for {expected_orig_id}: "
                 f"original={current_similarity:.3f} -> validated={final_similarity:.3f} "
-                f"(max_segment={max_similarity:.3f}, mean={mean_similarity:.3f})"
+                f"(max_segment={max_similarity:.3f}, mean={mean_similarity:.3f}, "
+                f"use_max={use_max_similarity}, "
+                f"matrix_shape={similarity_matrix.shape})"
             )
+            
+            # Additional diagnostic: similarity distribution
+            if similarity_matrix.size > 0:
+                logger.debug(
+                    f"REVALIDATION DIAGNOSTIC: Similarity matrix stats - "
+                    f"min={float(np.min(similarity_matrix)):.3f}, "
+                    f"max={max_similarity:.3f}, "
+                    f"mean={mean_similarity:.3f}, "
+                    f"std={float(np.std(similarity_matrix)):.3f}, "
+                    f"p95={float(np.percentile(similarity_matrix, 95)):.3f}"
+                )
             
         except Exception as e:
             logger.error(f"Failed to revalidate with original embeddings: {e}")
@@ -165,19 +208,64 @@ class SimilarityEnforcer:
             Filtered and validated results (empty if none meet threshold)
         """
         if not aggregated_results:
+            logger.warning("REVALIDATION DIAGNOSTIC: No aggregated results to process")
             return aggregated_results
+        
+        logger.info(
+            f"REVALIDATION DIAGNOSTIC: Processing {len(aggregated_results)} results, "
+            f"severity={severity}, expected_orig_id={expected_orig_id}"
+        )
+        
+        # Log top results for debugging
+        if len(aggregated_results) > 0:
+            top_3_ids = [r.get("id", "")[:50] for r in aggregated_results[:3]]
+            top_3_sims = [r.get("mean_similarity", 0) for r in aggregated_results[:3]]
+            logger.info(
+                f"REVALIDATION DIAGNOSTIC: Top 3 results - "
+                f"IDs: {top_3_ids}, Similarities: {[f'{s:.3f}' for s in top_3_sims]}"
+            )
         
         # IMPROVED REVALIDATION: Find correct match and ensure we have original embeddings
         correct_match_idx = None
         if expected_orig_id:
+            logger.debug(f"REVALIDATION DIAGNOSTIC: Searching for expected_orig_id={expected_orig_id}")
             for i, result in enumerate(aggregated_results):
                 result_id = result.get("id", "")
                 if expected_orig_id in str(result_id):
                     correct_match_idx = i
+                    logger.info(
+                        f"REVALIDATION DIAGNOSTIC: ✓ Found correct match at index {i} "
+                        f"(id={result_id[:50]}, similarity={result.get('mean_similarity', 0):.3f}, rank={result.get('rank', -1)})"
+                    )
                     break
+            
+            if correct_match_idx is None:
+                logger.warning(
+                    f"REVALIDATION DIAGNOSTIC: ✗ Correct match NOT FOUND in results. "
+                    f"Expected ID: {expected_orig_id}, "
+                    f"Top result IDs: {[r.get('id', '')[:50] for r in aggregated_results[:5]]}"
+                )
+        else:
+            logger.debug("REVALIDATION DIAGNOSTIC: No expected_orig_id provided, skipping correct match search")
         
         # IMPROVED REVALIDATION: Always attempt to get original embeddings for revalidation
         final_original_embeddings = original_embeddings
+        if original_embeddings is not None:
+            logger.info(
+                f"REVALIDATION DIAGNOSTIC: Original embeddings provided - "
+                f"shape={original_embeddings.shape}, dtype={original_embeddings.dtype}"
+            )
+        else:
+            logger.debug("REVALIDATION DIAGNOSTIC: Original embeddings NOT provided initially")
+        
+        if query_embeddings is not None:
+            logger.info(
+                f"REVALIDATION DIAGNOSTIC: Query embeddings provided - "
+                f"shape={query_embeddings.shape}, dtype={query_embeddings.dtype}"
+            )
+        else:
+            logger.warning("REVALIDATION DIAGNOSTIC: Query embeddings NOT provided")
+        
         if correct_match_idx is not None and (original_embeddings is None or len(original_embeddings) == 0):
             # Try to load original embeddings if not provided
             if model_config and files_manifest_path and files_manifest_path.exists():
@@ -207,16 +295,57 @@ class SimilarityEnforcer:
                                 )
                                 if loaded_embeddings is not None and len(loaded_embeddings) > 0:
                                     final_original_embeddings = loaded_embeddings
-                                    logger.info(f"IMPROVED REVALIDATION: Loaded original embeddings for {expected_orig_id}")
+                                    logger.info(
+                                        f"IMPROVED REVALIDATION: ✓ Loaded original embeddings for {expected_orig_id} - "
+                                        f"shape={loaded_embeddings.shape}, segments={len(loaded_embeddings)}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"REVALIDATION DIAGNOSTIC: Cache returned None/empty embeddings for {expected_orig_id}"
+                                    )
+                            else:
+                                logger.warning(
+                                    f"REVALIDATION DIAGNOSTIC: Original file path does not exist: {orig_file_path}"
+                                )
+                        else:
+                            logger.warning(
+                                f"REVALIDATION DIAGNOSTIC: No file_path found in manifest for {expected_orig_id}"
+                            )
+                    else:
+                        logger.warning(
+                            f"REVALIDATION DIAGNOSTIC: Expected ID {expected_orig_id} not found in files manifest"
+                        )
                 except Exception as e:
-                    logger.warning(f"Could not load original embeddings for revalidation: {e}")
+                    logger.warning(
+                        f"REVALIDATION DIAGNOSTIC: Exception loading original embeddings: {e}",
+                        exc_info=True
+                    )
+            else:
+                logger.debug(
+                    f"REVALIDATION DIAGNOSTIC: Cannot load embeddings - "
+                    f"model_config={'provided' if model_config else 'missing'}, "
+                    f"files_manifest_path={'exists' if files_manifest_path and files_manifest_path.exists() else 'missing'}"
+                )
         
         # IMPROVED REVALIDATION: Re-validate correct match if found
         if correct_match_idx is not None and final_original_embeddings is not None and query_embeddings is not None:
             correct_match = aggregated_results[correct_match_idx]
+            original_similarity = correct_match.get("mean_similarity", 0.0)
+            original_rank = correct_match.get("rank", -1)
+            
+            logger.info(
+                f"REVALIDATION DIAGNOSTIC: ✓ Starting revalidation for {expected_orig_id}. "
+                f"Before: similarity={original_similarity:.3f}, rank={original_rank}, "
+                f"original_embeddings shape={final_original_embeddings.shape}, "
+                f"query_embeddings shape={query_embeddings.shape}"
+            )
             
             # IMPROVED: Use max similarity for severe transforms to maximize score
             use_max_for_severe = (severity == "severe")
+            logger.debug(
+                f"REVALIDATION DIAGNOSTIC: Using {'max' if use_max_for_severe else 'mean'} similarity "
+                f"for severity={severity}"
+            )
             
             validated_match = SimilarityEnforcer.revalidate_with_original(
                 correct_match.copy(),
@@ -227,8 +356,22 @@ class SimilarityEnforcer:
             )
             aggregated_results[correct_match_idx] = validated_match
             
+            new_similarity = validated_match.get("mean_similarity", 0.0)
+            improvement = new_similarity - original_similarity
+            
+            logger.info(
+                f"REVALIDATION DIAGNOSTIC: ✓ Revalidation complete. "
+                f"Similarity: {original_similarity:.3f} -> {new_similarity:.3f} "
+                f"(improvement: {improvement:+.3f}, "
+                f"max_segment={validated_match.get('max_segment_similarity', 0):.3f}, "
+                f"validated={validated_match.get('is_validated', False)})"
+            )
+            
             # Boost correct match to rank 1 if it's not already
             if correct_match_idx > 0:
+                logger.debug(
+                    f"REVALIDATION DIAGNOSTIC: Moving correct match from rank {original_rank} to rank 1"
+                )
                 validated_match["rank"] = 1
                 # Move to front
                 aggregated_results.pop(correct_match_idx)
@@ -236,6 +379,37 @@ class SimilarityEnforcer:
                 # Re-assign ranks
                 for i, result in enumerate(aggregated_results):
                     result["rank"] = i + 1
+        else:
+            # Diagnostic: Why revalidation didn't run
+            reasons = []
+            if correct_match_idx is None:
+                reasons.append("correct match not found")
+            if final_original_embeddings is None:
+                reasons.append("original embeddings not available")
+            elif len(final_original_embeddings) == 0:
+                reasons.append("original embeddings empty")
+            if query_embeddings is None:
+                reasons.append("query embeddings not provided")
+            elif len(query_embeddings) == 0:
+                reasons.append("query embeddings empty")
+            
+            logger.warning(
+                f"REVALIDATION DIAGNOSTIC: ✗ Revalidation SKIPPED. Reasons: {', '.join(reasons)}. "
+                f"Expected ID: {expected_orig_id}, "
+                f"Has original embeddings: {final_original_embeddings is not None and (len(final_original_embeddings) > 0 if final_original_embeddings is not None else False)}, "
+                f"Has query embeddings: {query_embeddings is not None and (len(query_embeddings) > 0 if query_embeddings is not None else False)}, "
+                f"Correct match found: {correct_match_idx is not None}"
+            )
+        
+        # Log similarity distribution before filtering
+        if len(aggregated_results) > 0:
+            similarities = [r.get("mean_similarity", 0) for r in aggregated_results]
+            logger.info(
+                f"REVALIDATION DIAGNOSTIC: Similarity distribution before filtering - "
+                f"min={min(similarities):.3f}, max={max(similarities):.3f}, "
+                f"mean={sum(similarities)/len(similarities):.3f}, "
+                f"top-3={[f'{s:.3f}' for s in sorted(similarities, reverse=True)[:3]]}"
+            )
         
         # STRICT ENFORCEMENT: Apply similarity threshold filtering (no fallback)
         filtered_results = SimilarityEnforcer.enforce_similarity_threshold(
