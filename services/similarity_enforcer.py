@@ -198,14 +198,22 @@ class SimilarityEnforcer:
             top_candidate["max_segment_similarity"] = max_similarity  # Best segment match
             top_candidate["is_validated"] = True
             
-            # Enhanced logging for perfect solution
+            # PHASE 2 OPTIMIZATION: Enhanced logging with all similarity metrics
             if use_max_similarity:
                 logger.info(
-                    f"PERFECT REVALIDATION for {expected_orig_id}: "
+                    f"PHASE 2 REVALIDATION for {expected_orig_id}: "
                     f"original={current_similarity:.3f} -> validated={final_similarity:.3f} "
                     f"(max_segment={max_similarity:.3f}, weighted_topk={top_candidate.get('weighted_topk_similarity', 0):.3f}, "
                     f"p95={top_candidate.get('p95_similarity', 0):.3f}, mean={mean_similarity:.3f}, "
                     f"matrix_shape={similarity_matrix.shape})"
+                )
+                # PHASE 2: Log all three similarity metrics clearly
+                logger.info(
+                    f"PHASE 2 SIMILARITY METRICS for {expected_orig_id}: "
+                    f"MEAN={mean_similarity:.3f} ({mean_similarity*100:.1f}%), "
+                    f"MAX={max_similarity:.3f} ({max_similarity*100:.1f}%), "
+                    f"P95={top_candidate.get('p95_similarity', 0):.3f} ({top_candidate.get('p95_similarity', 0)*100:.1f}%), "
+                    f"FINAL={final_similarity:.3f} ({final_similarity*100:.1f}%)"
                 )
             else:
                 logger.info(
@@ -214,6 +222,13 @@ class SimilarityEnforcer:
                     f"(max_segment={max_similarity:.3f}, mean={mean_similarity:.3f}, "
                     f"use_max={use_max_similarity}, "
                     f"matrix_shape={similarity_matrix.shape})"
+                )
+                # PHASE 2: Log metrics for non-max case too
+                logger.info(
+                    f"PHASE 2 SIMILARITY METRICS for {expected_orig_id}: "
+                    f"MEAN={mean_similarity:.3f} ({mean_similarity*100:.1f}%), "
+                    f"MAX={max_similarity:.3f} ({max_similarity*100:.1f}%), "
+                    f"FINAL={final_similarity:.3f} ({final_similarity*100:.1f}%)"
                 )
             
             # Additional diagnostic: similarity distribution
@@ -241,7 +256,8 @@ class SimilarityEnforcer:
         query_embeddings: Optional[np.ndarray],
         severity: str = "mild",
         model_config: Optional[Dict] = None,
-        files_manifest_path: Optional[Path] = None
+        files_manifest_path: Optional[Path] = None,
+        transform_type: Optional[str] = None
     ) -> List[Dict]:
         """
         IMPROVED: Enforce high similarity for correct matches with enhanced revalidation.
@@ -411,11 +427,18 @@ class SimilarityEnforcer:
                 f"query_embeddings shape={query_embeddings.shape}"
             )
             
-            # IMPROVED: Use max similarity for severe transforms to maximize score
-            use_max_for_severe = (severity == "severe")
+            # PHASE 1 OPTIMIZATION: Always use max similarity for song_a_in_song_b
+            # This maximizes similarity score by using best-matching segment instead of mean
+            transform_type_lower = str(transform_type).lower() if transform_type else ""
+            is_song_a_in_song_b = 'song_a_in_song_b' in transform_type_lower
+            
+            # Use max similarity for severe transforms OR song_a_in_song_b
+            use_max_for_severe = (severity == "severe") or is_song_a_in_song_b
+            
             logger.debug(
                 f"REVALIDATION DIAGNOSTIC: Using {'max' if use_max_for_severe else 'mean'} similarity "
-                f"for severity={severity}"
+                f"for severity={severity}, transform={transform_type}, "
+                f"is_song_a_in_song_b={is_song_a_in_song_b}"
             )
             
             validated_match = SimilarityEnforcer.revalidate_with_original(

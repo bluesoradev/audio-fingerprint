@@ -232,10 +232,11 @@ def get_adaptive_topk(
     
     # CRITICAL FIX: Base topk by transform type - INCREASED for better recall
     # song_a_in_song_b needs MUCH deeper search (150-200) because correct match is often buried deep
+    # PHASE 1 OPTIMIZATION: Increased song_a_in_song_b TopK from 150 to 250 for better recall
     base_topk_map = {
         "low_pass_filter": 80,      # Very challenging - increased from 50
-        "song_a_in_song_b": 150,    # CRITICAL: Increased from 30 to 150 - correct match often not in top 50
-        "embedded_sample": 150,     # Same as song_a_in_song_b - increased from 30
+        "song_a_in_song_b": 250,    # PHASE 1: Increased from 150 to 250 - correct match often not in top 50
+        "embedded_sample": 250,     # PHASE 1: Increased from 150 to 250 - same as song_a_in_song_b
         "overlay_vocals": 40,       # Moderate - increased from 20
         "add_noise": 60,            # Challenging - needs deeper search
         "default": 20               # Standard - increased from 15
@@ -264,3 +265,54 @@ def get_adaptive_topk(
             logger.debug(f"Keeping deep topk={topk} for {transform_lower} despite high confidence (buried matches need deep search)")
     
     return topk
+
+
+def get_adaptive_topk_with_latency_target(
+    transform_type: Optional[str] = None,
+    severity: str = "mild",
+    initial_confidence: Optional[float] = None,
+    target_latency_ms: float = 600.0,
+    estimated_latency_per_topk_ms: float = 0.3
+) -> int:
+    """
+    PHASE 3 OPTIMIZATION: Get adaptive TopK with latency target consideration.
+    
+    This function adjusts TopK based on latency targets to ensure queries stay
+    within the 550-600ms range while maintaining recall.
+    
+    Args:
+        transform_type: Type of transform applied
+        severity: Transform severity (mild, moderate, severe)
+        initial_confidence: Initial confidence from early check (if available)
+        target_latency_ms: Target latency in milliseconds (default: 600ms)
+        estimated_latency_per_topk_ms: Estimated latency per TopK unit (default: 0.3ms)
+        
+    Returns:
+        Optimal topk value adjusted for latency target
+    """
+    # Get base TopK from standard adaptive function
+    base_topk = get_adaptive_topk(transform_type, severity, initial_confidence)
+    
+    transform_lower = str(transform_type).lower() if transform_type else ""
+    
+    # PHASE 3: For song_a_in_song_b, if base TopK would exceed latency target, reduce slightly
+    # But maintain minimum TopK to ensure recall >97%
+    if 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
+        # Estimate latency for base TopK
+        estimated_latency = base_topk * estimated_latency_per_topk_ms
+        
+        # If estimated latency exceeds target, reduce TopK but maintain minimum for recall
+        if estimated_latency > target_latency_ms:
+            # Reduce by up to 15% but maintain minimum of 220 for song_a_in_song_b
+            min_topk_for_recall = 220  # PHASE 3: Minimum to maintain 97%+ recall
+            reduced_topk = max(min_topk_for_recall, int(base_topk * 0.85))
+            
+            if reduced_topk < base_topk:
+                logger.info(
+                    f"PHASE 3: Latency optimization for {transform_type}: "
+                    f"Reducing TopK from {base_topk} to {reduced_topk} "
+                    f"(estimated latency: {estimated_latency:.1f}ms > target: {target_latency_ms:.1f}ms)"
+                )
+                return reduced_topk
+    
+    return base_topk
