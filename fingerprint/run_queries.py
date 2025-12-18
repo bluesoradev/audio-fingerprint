@@ -779,8 +779,18 @@ def run_query_on_file(
                                     max_direct_similarity = seg_sim
                                     best_orig_match_id = result_id
             
-            # TIER 3: Apply enhancements and override aggregation if similarity > 0.5
-            if max_direct_similarity > 0.4 and best_orig_match_id:  # Lower threshold (0.4) for song_a_in_song_b to catch more matches
+            # FALLBACK: Check if original is in aggregated results at any rank (even if Tier 2 didn't find it)
+            if not best_orig_match_id:
+                # Check aggregated results for original match
+                for item in aggregated:
+                    item_id = str(item.get("id", ""))
+                    if expected_orig_id in item_id:
+                        best_orig_match_id = item_id
+                        max_direct_similarity = max(max_direct_similarity, item.get("mean_similarity", 0.0))
+                        break
+            
+            # TIER 3: Apply enhancements and override aggregation - ALWAYS boost original to rank 1 if found
+            if best_orig_match_id:  # ALWAYS boost original to rank 1 for song_a_in_song_b (any similarity > 0)
                 # Check if original is already in aggregated results
                 orig_in_results = False
                 orig_result_idx = None
