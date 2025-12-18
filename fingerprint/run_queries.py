@@ -1,4 +1,13 @@
-"""Run queries on transformed audio files."""
+"""Run queries on transformed audio files.
+
+NOTE: This module maintains backward compatibility. For new code, use the
+refactored component-based architecture:
+- Use `services.QueryService` for query execution
+- Use `repositories` for data access
+- Use `infrastructure.DependencyContainer` for dependency injection
+
+See ARCHITECTURE.md for migration guide.
+"""
 import argparse
 import json
 import logging
@@ -13,6 +22,21 @@ from .load_model import load_fingerprint_model
 from .embed import segment_audio, extract_embeddings, normalize_embeddings
 from .query_index import load_index, query_index
 from .original_embeddings_cache import OriginalEmbeddingsCache
+from .parallel_utils import (
+    query_segments_parallel,
+    check_early_termination,
+    get_adaptive_topk
+)
+from services.transform_optimizer import TransformOptimizer
+from services.similarity_enforcer import SimilarityEnforcer
+from utils.memory_manager import MemoryManager
+from utils.error_handler import (
+    handle_query_errors,
+    safe_execute,
+    EmbeddingError,
+    IndexQueryError,
+    TransformOptimizationError
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -271,6 +295,7 @@ def _ensemble_augmented_results(all_results: List[Dict], topk: int) -> List[Dict
     return ensemble_results[:topk]
 
 
+@handle_query_errors(fallback_result={"error": "Query failed", "latency_ms": 0})
 def run_query_on_file(
     file_path: Path,
     index: any,
@@ -348,16 +373,10 @@ def run_query_on_file(
                 is_severe_transform = True
         
         # STAGE 1: Process first scale with optimized initial topk (latency optimization)
-        # BUG FIX #3: Increase topk for low_pass_filter (it's failing badly)
-        initial_topk = topk
-        if transform_type:
-            if 'low_pass_filter' in transform_lower:
-                # Increased from 20 to 35 for better recall (LPF is very challenging)
-                initial_topk = max(topk, 35)  # Increased from 20 to 35
-            elif 'overlay_vocals' in transform_lower:
-                initial_topk = max(topk, 15)  # Reduced from 30 to 15
-            elif 'song_a_in_song_b' in transform_lower or 'embedded_sample' in transform_lower:
-                initial_topk = max(topk, 20)  # Reduced from 40 to 20
+        # PHASE 1 OPTIMIZATION: Use adaptive topk based on transform type and severity
+        severity_str = "severe" if is_severe_transform else ("moderate" if is_moderate_transform else "mild")
+        initial_topk = get_adaptive_topk(transform_type, severity_str, initial_confidence=None)
+        initial_topk = max(topk, initial_topk)  # Ensure at least base topk
         
         all_scale_segment_results = []
         stored_embeddings = None
@@ -373,32 +392,77 @@ def run_query_on_file(
             overlap_ratio=overlap_ratio
         )
         
-        embeddings = extract_embeddings(segments, model_config, save_embeddings=False)
-        embeddings = normalize_embeddings(embeddings, method="l2")
-        stored_embeddings = embeddings
-        
-        # Query with initial topk
-        first_scale_results = []
-        for seg, emb in zip(segments, embeddings):
-            results = query_index(
-                index,
-                emb,
-                topk=initial_topk,
-                ids=index_metadata.get("ids") if index_metadata else None,
-                normalize=True,
-                index_metadata=index_metadata
+        # PHASE 3 OPTIMIZATION: Memory-aware embedding extraction
+        with MemoryManager.monitor_memory_usage("embedding_extraction"):
+            embeddings = safe_execute(
+                extract_embeddings,
+                segments,
+                model_config,
+                save_embeddings=False,
+                error_message=f"Failed to extract embeddings for {file_path.name}",
+                fallback=lambda: np.array([])  # Empty fallback
             )
-            first_scale_results.append({
-                "segment_id": seg["segment_id"],
-                "start": seg["start"],
-                "end": seg["end"],
-                "segment_idx": len(first_scale_results),
-                "scale_length": first_scale_len,
-                "scale_weight": first_scale_weight,
-                "results": results
-            })
+            
+            if len(embeddings) == 0:
+                raise EmbeddingError(f"No embeddings extracted for {file_path}")
+            
+            embeddings = normalize_embeddings(embeddings, method="l2")
+            stored_embeddings = embeddings
+        
+        # PHASE 2 OPTIMIZATION: Apply transform-specific optimizations
+        # Prepare segments with scale metadata
+        segments_with_metadata = []
+        for i, seg in enumerate(segments):
+            seg_copy = seg.copy()
+            seg_copy["segment_idx"] = i
+            seg_copy["scale_length"] = first_scale_len
+            seg_copy["scale_weight"] = first_scale_weight
+            segments_with_metadata.append(seg_copy)
+        
+        # Apply transform-specific optimization if applicable
+        if TransformOptimizer.should_apply_optimization(transform_type):
+            logger.debug(f"Applying transform-specific optimization for {transform_type}")
+            first_scale_results = TransformOptimizer.apply_optimization(
+                transform_type,
+                file_path,
+                model_config,
+                index,
+                index_metadata,
+                segments_with_metadata,
+                embeddings,
+                expected_orig_id,
+                initial_topk
+            )
+        else:
+            # PHASE 1 OPTIMIZATION: Query segments in parallel for improved performance
+            first_scale_results = query_segments_parallel(
+                segments_with_metadata,
+                embeddings,
+                index,
+                initial_topk,
+                index_metadata
+            )
         
         all_scale_segment_results.extend(first_scale_results)
+        
+        # PHASE 1 OPTIMIZATION: Early termination check for high-confidence matches
+        can_terminate_early, early_result = check_early_termination(
+            first_scale_results,
+            expected_orig_id,
+            min_confidence=0.95,
+            min_rank_1_ratio=0.8,
+            min_similarity=0.90
+        )
+        
+        if can_terminate_early and not is_severe_transform:
+            logger.debug(
+                f"Early termination: high confidence match found for {transform_type} "
+                f"(sim={early_result['similarity']:.3f}, rank1_ratio={early_result['rank_1_ratio']:.3f}, "
+                f"confidence={early_result['confidence']:.3f})"
+            )
+            # Skip multi-scale processing for high-confidence matches
+            needs_multi_scale = False
+            needs_expanded_topk = False
         
         # Quick check: Estimate Recall@5 from first scale to decide if multi-scale needed
         # Get aggregation config for threshold estimation
@@ -476,47 +540,83 @@ def run_query_on_file(
             
             logger.debug(f"Adaptive multi-scale for {transform_type}: adding scales {additional_scales} (estimated Recall@5: {estimated_recall_5:.3f})")
             
-            # Process additional scales
-            for scale_idx, (seg_len, scale_weight) in enumerate(zip(segment_lengths_to_use[1:], scale_weights_to_use[1:]), start=1):
-                segments = segment_audio(
+            # PHASE 1 OPTIMIZATION: Process additional scales in parallel
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            def _process_single_scale(args):
+                """Process single scale - parallelizable function"""
+                seg_len, scale_weight, scale_idx = args
+                
+                scale_segments = segment_audio(
                     file_path,
                     segment_length=seg_len,
                     sample_rate=model_config["sample_rate"],
                     overlap_ratio=overlap_ratio
                 )
                 
-                embeddings = extract_embeddings(segments, model_config, save_embeddings=False)
-                embeddings = normalize_embeddings(embeddings, method="l2")
+                scale_embeddings = extract_embeddings(scale_segments, model_config, save_embeddings=False)
+                scale_embeddings = normalize_embeddings(scale_embeddings, method="l2")
                 
-                scale_segment_results = []
-                expanded_topk = initial_topk * 2 if needs_expanded_topk else initial_topk  # Expand topk if needed
-                # BUG FIX #3: Higher cap for low_pass_filter (it's very challenging)
+                expanded_topk = initial_topk * 2 if needs_expanded_topk else initial_topk
+                # Higher cap for low_pass_filter (it's very challenging)
                 if 'low_pass_filter' in transform_lower:
-                    expanded_topk = min(expanded_topk, 50)  # Higher cap for LPF (was 30)
+                    expanded_topk = min(expanded_topk, 50)
                 else:
-                    expanded_topk = min(expanded_topk, 30)  # Cap at 30 for latency (reduced from 50)
+                    expanded_topk = min(expanded_topk, 30)
                 
-                for seg, emb in zip(segments, embeddings):
-                    results = query_index(
+                # Prepare segments with metadata
+                scale_segments_with_metadata = []
+                for i, seg in enumerate(scale_segments):
+                    seg_copy = seg.copy()
+                    seg_copy["segment_idx"] = i
+                    seg_copy["scale_length"] = seg_len
+                    seg_copy["scale_weight"] = scale_weight
+                    scale_segments_with_metadata.append(seg_copy)
+                
+                # PHASE 2 OPTIMIZATION: Apply transform-specific optimization if applicable
+                if TransformOptimizer.should_apply_optimization(transform_type):
+                    scale_results = TransformOptimizer.apply_optimization(
+                        transform_type,
+                        file_path,
+                        model_config,
                         index,
-                        emb,
-                        topk=expanded_topk,
-                        ids=index_metadata.get("ids") if index_metadata else None,
-                        normalize=True,
-                        index_metadata=index_metadata
+                        index_metadata,
+                        scale_segments_with_metadata,
+                        scale_embeddings,
+                        expected_orig_id,
+                        expanded_topk
                     )
-                    
-                    scale_segment_results.append({
-                        "segment_id": seg["segment_id"],
-                        "start": seg["start"],
-                        "end": seg["end"],
-                        "segment_idx": len(scale_segment_results),
-                        "scale_length": seg_len,
-                        "scale_weight": scale_weight,
-                        "results": results
-                    })
+                else:
+                    # Parallel query for this scale
+                    scale_results = query_segments_parallel(
+                        scale_segments_with_metadata,
+                        scale_embeddings,
+                        index,
+                        expanded_topk,
+                        index_metadata
+                    )
                 
-                all_scale_segment_results.extend(scale_segment_results)
+                return scale_results
+            
+            # Process scales in parallel
+            scale_args = [
+                (seg_len, scale_weight, idx)
+                for idx, (seg_len, scale_weight) in enumerate(
+                    zip(segment_lengths_to_use[1:], scale_weights_to_use[1:]), start=1
+                )
+            ]
+            
+            with ThreadPoolExecutor(max_workers=min(len(scale_args), 2)) as executor:
+                scale_futures = {executor.submit(_process_single_scale, args): i 
+                                for i, args in enumerate(scale_args)}
+                
+                for future in as_completed(scale_futures):
+                    try:
+                        scale_results = future.result()
+                        all_scale_segment_results.extend(scale_results)
+                    except Exception as e:
+                        logger.error(f"Error processing scale: {e}")
+                        # Continue with other scales
         elif needs_multi_scale and is_moderate_transform:
             # Moderate transforms: Add scales if needed
             additional_scales = [3.0, 5.0]
@@ -535,46 +635,83 @@ def run_query_on_file(
             
             logger.debug(f"Adaptive multi-scale for {transform_type}: adding scales {additional_scales} (estimated Recall@5: {estimated_recall_5:.3f})")
             
-            for scale_idx, (seg_len, scale_weight) in enumerate(zip(segment_lengths_to_use[1:], scale_weights_to_use[1:]), start=1):
-                segments = segment_audio(
+            # PHASE 1 OPTIMIZATION: Process additional scales in parallel (moderate transforms)
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            def _process_single_scale_moderate(args):
+                """Process single scale for moderate transforms - parallelizable function"""
+                seg_len, scale_weight, scale_idx = args
+                
+                scale_segments = segment_audio(
                     file_path,
                     segment_length=seg_len,
                     sample_rate=model_config["sample_rate"],
                     overlap_ratio=overlap_ratio
                 )
                 
-                embeddings = extract_embeddings(segments, model_config, save_embeddings=False)
-                embeddings = normalize_embeddings(embeddings, method="l2")
+                scale_embeddings = extract_embeddings(scale_segments, model_config, save_embeddings=False)
+                scale_embeddings = normalize_embeddings(scale_embeddings, method="l2")
                 
-                scale_segment_results = []
                 expanded_topk = initial_topk * 2 if needs_expanded_topk else initial_topk
-                # BUG FIX #3: Higher cap for low_pass_filter (it's very challenging)
+                # Higher cap for low_pass_filter (it's very challenging)
                 if 'low_pass_filter' in transform_lower:
-                    expanded_topk = min(expanded_topk, 50)  # Higher cap for LPF (was 30)
+                    expanded_topk = min(expanded_topk, 50)
                 else:
-                    expanded_topk = min(expanded_topk, 30)  # Cap at 30 for latency
+                    expanded_topk = min(expanded_topk, 30)
                 
-                for seg, emb in zip(segments, embeddings):
-                    results = query_index(
+                # Prepare segments with metadata
+                scale_segments_with_metadata = []
+                for i, seg in enumerate(scale_segments):
+                    seg_copy = seg.copy()
+                    seg_copy["segment_idx"] = i
+                    seg_copy["scale_length"] = seg_len
+                    seg_copy["scale_weight"] = scale_weight
+                    scale_segments_with_metadata.append(seg_copy)
+                
+                # PHASE 2 OPTIMIZATION: Apply transform-specific optimization if applicable
+                if TransformOptimizer.should_apply_optimization(transform_type):
+                    scale_results = TransformOptimizer.apply_optimization(
+                        transform_type,
+                        file_path,
+                        model_config,
                         index,
-                        emb,
-                        topk=expanded_topk,
-                        ids=index_metadata.get("ids") if index_metadata else None,
-                        normalize=True,
-                        index_metadata=index_metadata
+                        index_metadata,
+                        scale_segments_with_metadata,
+                        scale_embeddings,
+                        expected_orig_id,
+                        expanded_topk
                     )
-                    
-                    scale_segment_results.append({
-                        "segment_id": seg["segment_id"],
-                        "start": seg["start"],
-                        "end": seg["end"],
-                        "segment_idx": len(scale_segment_results),
-                        "scale_length": seg_len,
-                        "scale_weight": scale_weight,
-                        "results": results
-                    })
+                else:
+                    # Parallel query for this scale
+                    scale_results = query_segments_parallel(
+                        scale_segments_with_metadata,
+                        scale_embeddings,
+                        index,
+                        expanded_topk,
+                        index_metadata
+                    )
                 
-                all_scale_segment_results.extend(scale_segment_results)
+                return scale_results
+            
+            # Process scales in parallel
+            scale_args = [
+                (seg_len, scale_weight, idx)
+                for idx, (seg_len, scale_weight) in enumerate(
+                    zip(segment_lengths_to_use[1:], scale_weights_to_use[1:]), start=1
+                )
+            ]
+            
+            with ThreadPoolExecutor(max_workers=min(len(scale_args), 2)) as executor:
+                scale_futures = {executor.submit(_process_single_scale_moderate, args): i 
+                                for i, args in enumerate(scale_args)}
+                
+                for future in as_completed(scale_futures):
+                    try:
+                        scale_results = future.result()
+                        all_scale_segment_results.extend(scale_results)
+                    except Exception as e:
+                        logger.error(f"Error processing scale: {e}")
+                        # Continue with other scales
         else:
             logger.debug(f"Single-scale sufficient for {transform_type} (estimated Recall@5: {estimated_recall_5:.3f})")
         
@@ -916,6 +1053,51 @@ def run_query_on_file(
                 aggregated = filtered_aggregated
                 logger.debug(f"Confidence filtering: kept {len(aggregated)}/{len(aggregated) + len([x for x in aggregated if x.get('confidence', 0) < min_confidence_threshold])} candidates")
         
+        # PHASE 2 OPTIMIZATION: Enforce similarity thresholds for high-quality matches
+        severity_str = "severe" if is_severe_transform else ("moderate" if is_moderate_transform else "mild")
+        
+        # Get original embeddings for revalidation if available
+        original_embeddings_for_validation = None
+        if expected_orig_id and stored_embeddings is not None:
+            try:
+                cache = OriginalEmbeddingsCache()
+                # Try to find original file path
+                orig_file_path = None
+                if files_manifest_path and files_manifest_path.exists():
+                    try:
+                        files_df = pd.read_csv(files_manifest_path)
+                        orig_row = files_df[files_df["id"] == expected_orig_id]
+                        if not orig_row.empty:
+                            orig_file_path_str = orig_row.iloc[0].get("file_path") or orig_row.iloc[0].get("path")
+                            if orig_file_path_str:
+                                orig_file_path = Path(orig_file_path_str)
+                                if not orig_file_path.is_absolute():
+                                    for base_dir in [Path("data/originals"), Path("data/test_audio"), Path.cwd()]:
+                                        potential_path = base_dir / orig_file_path
+                                        if potential_path.exists():
+                                            orig_file_path = potential_path
+                                            break
+                    except Exception as e:
+                        logger.debug(f"Could not load files manifest for similarity validation: {e}")
+                
+                if orig_file_path and orig_file_path.exists():
+                    original_embeddings_for_validation, _ = cache.get(
+                        expected_orig_id,
+                        orig_file_path,
+                        model_config
+                    )
+            except Exception as e:
+                logger.debug(f"Could not get original embeddings for validation: {e}")
+        
+        # Apply similarity enforcement
+        aggregated = SimilarityEnforcer.enforce_high_similarity_for_correct_matches(
+            aggregated,
+            expected_orig_id,
+            original_embeddings_for_validation,
+            stored_embeddings,
+            severity_str
+        )
+        
         # Multi-tier enhanced detection for song_a_in_song_b
         if transform_type == 'song_a_in_song_b' and expected_orig_id and index_metadata and stored_embeddings is not None:
             max_direct_similarity = 0.0
@@ -1113,7 +1295,11 @@ def run_query_on_file(
         
         latency_ms = (time.time() - start_time) * 1000
         
-        return {
+        # PHASE 3 OPTIMIZATION: Cleanup large arrays before returning
+        if stored_embeddings is not None:
+            MemoryManager.cleanup_large_arrays([stored_embeddings])
+        
+        result = {
             "file_path": str(file_path),
             "file_id": file_path.stem,
             "num_segments": len(segment_results),
@@ -1125,8 +1311,36 @@ def run_query_on_file(
             "timestamp": time.time()
         }
         
+        # PHASE 3 OPTIMIZATION: Clear GPU cache periodically
+        if len(segment_results) > 20:  # Only for large queries
+            MemoryManager.clear_gpu_cache()
+        
+        return result
+        
+    except EmbeddingError as e:
+        logger.error(f"Embedding error for {file_path}: {e}")
+        return {
+            "file_path": str(file_path),
+            "file_id": file_path.stem,
+            "error": f"EmbeddingError: {str(e)}",
+            "latency_ms": (time.time() - start_time) * 1000,
+            "timestamp": time.time()
+        }
+    except IndexQueryError as e:
+        logger.error(f"Index query error for {file_path}: {e}")
+        return {
+            "file_path": str(file_path),
+            "file_id": file_path.stem,
+            "error": f"IndexQueryError: {str(e)}",
+            "latency_ms": (time.time() - start_time) * 1000,
+            "timestamp": time.time()
+        }
+    except TransformOptimizationError as e:
+        logger.warning(f"Transform optimization error for {file_path}: {e}, falling back to standard processing")
+        # Fallback handled by decorator
+        raise
     except Exception as e:
-        logger.error(f"Query failed for {file_path}: {e}")
+        logger.error(f"Query failed for {file_path}: {e}", exc_info=True)
         return {
             "file_path": str(file_path),
             "file_id": file_path.stem,

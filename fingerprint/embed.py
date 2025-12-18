@@ -9,6 +9,59 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
+def _get_optimal_batch_size(model: any, embedding_dim: int = 512, max_batch: int = 128) -> int:
+    """
+    Determine optimal batch size based on available GPU memory.
+    
+    Args:
+        model: Embedding model (to check device)
+        embedding_dim: Embedding dimension
+        max_batch: Maximum batch size limit
+        
+    Returns:
+        Optimal batch size
+    """
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return 32  # CPU fallback
+        
+        device = torch.device("cuda")
+        # Get GPU memory info
+        total_memory_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+        allocated_memory_gb = torch.cuda.memory_allocated(0) / 1e9
+        reserved_memory_gb = torch.cuda.memory_reserved(0) / 1e9
+        available_memory_gb = total_memory_gb - reserved_memory_gb
+        
+        # Estimate: each embedding ~2KB (FP32), batch overhead ~50MB
+        # Conservative: use 40% of available memory for batch processing
+        # Account for model weights and intermediate activations
+        safe_memory_gb = available_memory_gb * 0.4
+        
+        # Estimate batch size: (memory_bytes) / (embedding_dim * 4 bytes * segments_per_batch + overhead)
+        # Rough estimate: 2KB per embedding + 50MB overhead per batch
+        estimated_batch = int((safe_memory_gb * 1e9 - 50e6) / (embedding_dim * 4 * 2))
+        
+        # Clamp between reasonable bounds
+        optimal_batch = max(32, min(estimated_batch, max_batch))
+        
+        logger.debug(
+            f"GPU memory: {total_memory_gb:.2f}GB total, "
+            f"{reserved_memory_gb:.2f}GB reserved, "
+            f"{available_memory_gb:.2f}GB available -> "
+            f"optimal batch size: {optimal_batch}"
+        )
+        
+        return optimal_batch
+        
+    except ImportError:
+        # PyTorch not available, use default
+        return 32
+    except Exception as e:
+        logger.warning(f"Failed to determine optimal batch size: {e}, using default 32")
+        return 32
+
+
 def segment_audio(
     audio_path: Path,
     segment_length: float = 0.5,
@@ -123,6 +176,19 @@ def extract_embeddings(
         embedding_dim = actual_model.embedding_dim
     elif isinstance(model, dict) and "embedding_dim" in model:
         embedding_dim = model["embedding_dim"]
+    
+    # PHASE 1 & 3 OPTIMIZATION: Dynamic batch sizing based on GPU memory
+    if batch_size == 32:  # Only optimize if using default
+        try:
+            from utils.memory_manager import MemoryManager
+            batch_size = MemoryManager.optimize_batch_size(
+                batch_size,
+                target_memory_usage=0.7,
+                embedding_dim=embedding_dim
+            )
+        except Exception:
+            # Fallback to local optimization
+            batch_size = _get_optimal_batch_size(actual_model, embedding_dim, max_batch=128)
     
     logger.info(f"Extracting embeddings using model: {type(actual_model).__name__}, batch_support: {has_batch_method}, batch_size: {batch_size}")
     
