@@ -1440,11 +1440,12 @@
 
                             <!-- Pitch Control -->
                             <div class="transform-card">
-                                <h4> Pitch Shift</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesPitchEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Pitch Shift</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesPitchEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesPitchEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Semitones</label>
@@ -1459,11 +1460,12 @@
 
                             <!-- Reverb -->
                             <div class="transform-card">
-                                <h4> Reverb Delay</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesReverbEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Reverb Delay</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesReverbEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesReverbEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Delay (ms)</label>
@@ -1478,11 +1480,12 @@
 
                             <!-- Noise Reduction -->
                             <div class="transform-card">
-                                <h4> Noise Reduction</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesNoiseEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Noise Reduction</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesNoiseEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesNoiseEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Reduction (%)</label>
@@ -1497,11 +1500,12 @@
 
                             <!-- EQ Adjustment -->
                             <div class="transform-card">
-                                <h4> EQ Adjustment</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesEQEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> EQ Adjustment</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesEQEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesEQEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Gain (dB)</label>
@@ -1516,11 +1520,12 @@
 
                             <!-- Audio Compression -->
                             <div class="transform-card">
-                                <h4> Audio Compression</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesCompressionEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Audio Compression</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesCompressionEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesCompressionEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Codec</label>
@@ -1545,11 +1550,12 @@
 
                             <!-- Overlay/Mixing -->
                             <div class="transform-card">
-                                <h4> Overlay/Mixing</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesOverlayEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Overlay/Mixing</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesOverlayEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesOverlayEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Overlay Audio File (optional)</label>
@@ -1573,12 +1579,13 @@
 
                             <!-- High-Pass Filter -->
                             <div class="transform-card">
-                                <h4> High-Pass Filter</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesHighpassEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
-                        </div>
+                                <div class="transform-card-header">
+                                    <h4> High-Pass Filter</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesHighpassEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesHighpassEnabled">Enable</label>
+                                    </div>
+                                </div>
                                 <div class="form-group">
                                     <label>Frequency (Hz)</label>
                                     <div class="slider-container">
@@ -1592,12 +1599,13 @@
 
                             <!-- Low-Pass Filter -->
                             <div class="transform-card">
-                                <h4> Low-Pass Filter</h4>
-                        <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesLowpassEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
-                        </div>
+                                <div class="transform-card-header">
+                                    <h4> Low-Pass Filter</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesLowpassEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesLowpassEnabled">Enable</label>
+                                    </div>
+                                </div>
                         <div class="form-group">
                                     <label>Frequency (Hz)</label>
                                     <div class="slider-container">
@@ -1611,12 +1619,13 @@
 
                             <!-- Boost Highs -->
                             <div class="transform-card">
-                                <h4> Boost Highs</h4>
-                        <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesBoostHighsEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
-                        </div>
+                                <div class="transform-card-header">
+                                    <h4> Boost Highs</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesBoostHighsEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesBoostHighsEnabled">Enable</label>
+                                    </div>
+                                </div>
                         <div class="form-group">
                                     <label>Gain (dB)</label>
                                     <div class="slider-container">
@@ -1630,11 +1639,12 @@
 
                             <!-- Boost Lows -->
                             <div class="transform-card">
-                                <h4> Boost Lows</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesBoostLowsEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Boost Lows</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesBoostLowsEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesBoostLowsEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Gain (dB)</label>
@@ -1649,11 +1659,12 @@
 
                             <!-- Telephone Filter -->
                             <div class="transform-card">
-                                <h4> Telephone Filter</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesTelephoneEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Telephone Filter</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesTelephoneEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesTelephoneEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Low Freq (Hz)</label>
@@ -1677,12 +1688,13 @@
 
                             <!-- Limiting -->
                             <div class="transform-card">
-                                <h4> Limiting</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesLimitingEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
-                        </div>
+                                <div class="transform-card-header">
+                                    <h4> Limiting</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesLimitingEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesLimitingEnabled">Enable</label>
+                                    </div>
+                                </div>
                                 <div class="form-group">
                                     <label>Ceiling (dB)</label>
                                     <div class="slider-container">

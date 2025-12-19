@@ -1,14 +1,14 @@
 <!-- Audio Manipulation Section - Completely Rewritten -->
 <div id="manipulate" class="section">
     <div class="section-header">
-        <h2>🎵 Audio Manipulation & Testing</h2>
+        <h2> Audio Manipulation & Testing</h2>
         <p class="section-description">Transform audio files and automatically test fingerprint robustness</p>
     </div>
 
     <!-- File Management Panel -->
     <div class="panel-grid">
         <div class="panel-card">
-            <h3 class="panel-title">📁 Audio File Management</h3>
+            <h3 class="panel-title"> Audio File Management</h3>
             <div class="file-selector">
                 <label>Select Audio File</label>
                 <select id="audioFileSelector" class="file-select">
@@ -22,7 +22,7 @@
                      ondragover="handleDragOver(event)" 
                      ondragleave="handleDragLeave(event)"
                      onclick="triggerFileInput()">
-                    <div class="upload-icon">📤</div>
+                    <div class="upload-icon"></div>
                     <p>Drag & drop audio file here</p>
                     <p class="upload-hint">or click to browse</p>
                     <input type="file" id="fileInput" style="display: none;" accept="audio/*" onchange="handleFileSelect(event)">
@@ -42,7 +42,7 @@
 
         <!-- Audio Players Panel -->
         <div class="panel-card">
-            <h3 class="panel-title">🎧 Audio Playback</h3>
+            <h3 class="panel-title"> Audio Playback</h3>
             
             <!-- Original Audio -->
             <div class="audio-player-block">
@@ -94,11 +94,11 @@
 
     <!-- Transform Controls Panel -->
     <div class="panel-card transform-panel">
-        <h3 class="panel-title">⚙️ Audio Transformations</h3>
+        <h3 class="panel-title"> Audio Transformations</h3>
         <div class="transform-grid">
             <!-- Speed -->
             <div class="transform-item">
-                <label>⚡ Speed</label>
+                <label> Speed</label>
                 <div class="slider-group">
                     <input type="range" id="speedControl" min="50" max="200" value="100" 
                            oninput="updateSliderDisplay('speed', this.value)">
@@ -112,7 +112,7 @@
 
             <!-- Pitch -->
             <div class="transform-item">
-                <label>🎹 Pitch</label>
+                <label> Pitch</label>
                 <div class="slider-group">
                     <input type="range" id="pitchControl" min="-12" max="12" value="0" 
                            oninput="updateSliderDisplay('pitch', this.value)">
@@ -123,7 +123,7 @@
 
             <!-- Reverb -->
             <div class="transform-item">
-                <label>🎚️ Reverb</label>
+                <label> Reverb</label>
                 <div class="slider-group">
                     <input type="range" id="reverbControl" min="0" max="500" value="50" 
                            oninput="updateSliderDisplay('reverb', this.value)">
@@ -134,7 +134,7 @@
 
             <!-- Noise Reduction -->
             <div class="transform-item">
-                <label>🔊 Noise Reduction</label>
+                <label> Noise Reduction</label>
                 <div class="slider-group">
                     <input type="range" id="noiseControl" min="0" max="100" value="50" 
                            oninput="updateSliderDisplay('noise', this.value)">
@@ -145,7 +145,7 @@
 
             <!-- EQ -->
             <div class="transform-item">
-                <label>🎛️ EQ Adjustment</label>
+                <label> EQ Adjustment</label>
                 <div class="slider-group">
                     <input type="range" id="eqControl" min="-20" max="20" value="0" 
                            oninput="updateSliderDisplay('eq', this.value)">
@@ -156,7 +156,7 @@
 
             <!-- Compression -->
             <div class="transform-item">
-                <label>💾 Compression</label>
+                <label> Compression</label>
                 <select id="codecSelect" class="codec-select" onchange="updateCodec()">
                     <option value="">None</option>
                     <option value="mp3">MP3</option>
@@ -175,7 +175,7 @@
 
             <!-- Overlay -->
             <div class="transform-item">
-                <label>🎤 Overlay</label>
+                <label> Overlay</label>
                 <input type="file" id="overlayFileInput" accept="audio/*" class="file-input-small">
                 <div class="slider-group">
                     <input type="range" id="overlayControl" min="-20" max="0" value="-6" 
@@ -187,7 +187,7 @@
 
             <!-- High-Pass Filter -->
             <div class="transform-item">
-                <label>🔊 High-Pass Filter</label>
+                <label> High-Pass Filter</label>
                 <div class="slider-group">
                     <input type="range" id="highpassControl" min="50" max="5000" value="150" 
                            oninput="updateSliderDisplay('highpass', this.value)">
@@ -198,7 +198,7 @@
 
             <!-- Low-Pass Filter -->
             <div class="transform-item">
-                <label>🔉 Low-Pass Filter</label>
+                <label> Low-Pass Filter</label>
                 <div class="slider-group">
                     <input type="range" id="lowpassControl" min="500" max="20000" value="6000" 
                            oninput="updateSliderDisplay('lowpass', this.value)">
@@ -209,7 +209,7 @@
 
             <!-- Boost Highs -->
             <div class="transform-item">
-                <label>⬆️ Boost Highs</label>
+                <label> Boost Highs</label>
                 <div class="slider-group">
                     <input type="range" id="boostHighsControl" min="0" max="20" value="6" 
                            oninput="updateSliderDisplay('boostHighs', this.value)">
@@ -220,7 +220,7 @@
 
             <!-- Boost Lows -->
             <div class="transform-item">
-                <label>⬇️ Boost Lows</label>
+                <label> Boost Lows</label>
                 <div class="slider-group">
                     <input type="range" id="boostLowsControl" min="0" max="20" value="6" 
                            oninput="updateSliderDisplay('boostLows', this.value)">
@@ -231,13 +231,13 @@
 
             <!-- Telephone Filter -->
             <div class="transform-item">
-                <label>📞 Telephone Filter</label>
+                <label> Telephone Filter</label>
                 <button class="transform-btn" onclick="applyTransform('telephone')">Apply</button>
             </div>
 
             <!-- Limiting -->
             <div class="transform-item">
-                <label>🔒 Limiting</label>
+                <label> Limiting</label>
                 <div class="slider-group">
                     <input type="range" id="limitingControl" min="-10" max="0" value="-1" 
                            oninput="updateSliderDisplay('limiting', this.value)">
@@ -248,13 +248,13 @@
 
             <!-- Multiband Compression -->
             <div class="transform-item">
-                <label>🎚️ Multiband Compression</label>
+                <label> Multiband Compression</label>
                 <button class="transform-btn" onclick="applyTransform('multiband')">Apply</button>
             </div>
 
             <!-- Add Noise -->
             <div class="transform-item">
-                <label>📢 Add Noise</label>
+                <label> Add Noise</label>
                 <select id="noiseTypeSelect" class="codec-select">
                     <option value="white">White Noise</option>
                     <option value="vinyl">Vinyl Crackle</option>
@@ -269,7 +269,7 @@
 
             <!-- Cropping -->
             <div class="transform-item">
-                <label>✂️ Crop Audio</label>
+                <label> Crop Audio</label>
                 <select id="cropTypeSelect" class="codec-select">
                     <option value="10s">10 seconds (start)</option>
                     <option value="5s">5 seconds (start)</option>
@@ -283,7 +283,7 @@
 
     <!-- Fingerprint Testing Panel -->
     <div class="panel-card test-panel">
-        <h3 class="panel-title">🔍 Fingerprint Robustness Test</h3>
+        <h3 class="panel-title"> Fingerprint Robustness Test</h3>
         <div class="test-config">
             <div class="test-inputs">
                 <div class="test-input-item">
@@ -296,7 +296,7 @@
                 </div>
             </div>
             <button id="testFingerprintBtn" class="test-btn" onclick="runFingerprintTest()" disabled>
-                <span class="test-icon">🔍</span>
+                <span class="test-icon"></span>
                 Test Fingerprint Match
             </button>
         </div>
