@@ -420,16 +420,15 @@ def render_html_report(
     
     overall_pass_rate = (passed_checks / total_checks * 100) if total_checks > 0 else 0
     
-    # Determine overall status color
+    # Determine overall status color - Match image: Orange for WARNING
     status_color = "#10b981" if overall_pass_rate >= 80 else "#f59e0b" if overall_pass_rate >= 50 else "#f87171"
     status_text = "PASS" if overall_pass_rate >= 80 else "WARNING" if overall_pass_rate >= 50 else "FAIL"
     
-    # Build recall table HTML
+    # Build recall table HTML - Match image: "≡ Recall Metrics"
     recall_table_html = ""
     if recall_rows:
-        recall_table_html = "<div class='metric-card'><h3 class='card-title'>📊 Recall Metrics</h3><table class='data-table'><thead><tr><th>Severity</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th></tr></thead><tbody>"
+        recall_table_html = "<div class='metric-card'><h3 class='card-title'>≡ Recall Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Threshold</th><th>Actual Value</th><th>Status</th></tr></thead><tbody>"
         for row in recall_rows:
-            recall_table_html += f"<tr><td class='severity-cell'>{row['severity']}</td>"
             for k in [1, 5, 10]:
                 k_data = row[f"recall_{k}"]
                 passed = k_data["passed"]
@@ -437,35 +436,34 @@ def render_html_report(
                 threshold = k_data["threshold"]
                 status_class = "status-pass" if passed else "status-fail"
                 status_icon = "✓" if passed else "✗"
-                recall_table_html += f"<td class='{status_class}'><span class='status-badge'>{status_icon}</span><div class='metric-value'>{actual:.3f}</div><div class='metric-threshold'>/{threshold:.3f}</div></td>"
-            recall_table_html += "</tr>"
+                recall_table_html += f"<tr><td class='severity-cell'>{row['severity']} Recall@{k}</td><td class='metric-threshold-large'>{threshold:.3f}</td><td class='metric-value-large'>{actual:.3f}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
         recall_table_html += "</tbody></table></div>"
     
-    # Build similarity table HTML
+    # Build similarity table HTML - Match image: "◎ Similarity Metrics"
     similarity_table_html = ""
     if similarity_rows:
-        similarity_table_html = "<div class='metric-card'><h3 class='card-title'>🎯 Similarity Metrics</h3><table class='data-table'><thead><tr><th>Severity</th><th>Mean Similarity</th><th>Threshold</th><th>Status</th></tr></thead><tbody>"
+        similarity_table_html = "<div class='metric-card'><h3 class='card-title'>◎ Similarity Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
         for row in similarity_rows:
             status_class = "status-pass" if row["passed"] else "status-fail"
             status_icon = "✓" if row["passed"] else "✗"
             similarity_table_html += f"<tr><td class='severity-cell'>{row['severity']}</td><td class='metric-value-large'>{row['actual']:.3f}</td><td class='metric-threshold-large'>{row['threshold']:.3f}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
         similarity_table_html += "</tbody></table></div>"
     
-    # Build latency table HTML
+    # Build latency table HTML - Match image: "◷ Latency Metrics"
     latency_table_html = ""
     if latency_rows:
-        latency_table_html = "<div class='metric-card'><h3 class='card-title'>⚡ Latency Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Threshold</th><th>Status</th></tr></thead><tbody>"
+        latency_table_html = "<div class='metric-card'><h3 class='card-title'>◷ Latency Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
         for row in latency_rows:
             status_class = "status-pass" if row["passed"] else "status-fail"
             status_icon = "✓" if row["passed"] else "✗"
             latency_table_html += f"<tr><td class='metric-name'>{row['metric']}</td><td class='metric-value-large'>{row['actual']:.1f}{row['unit']}</td><td class='metric-threshold-large'>{row['threshold']:.1f}{row['unit']}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
         latency_table_html += "</tbody></table></div>"
     
-    # Build per-transform table HTML
+    # Build per-transform table HTML - Match image: "⚙️ Per-Transform Analysis"
     per_transform_html = ""
     per_transform_data = metrics.get('per_transform', {})
     if per_transform_data:
-        per_transform_html = "<div class='metric-card'><h3 class='card-title'>🔧 Per-Transform Analysis</h3><table class='data-table transform-table'><thead><tr><th>Transform</th><th>Count</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Mean Similarity</th><th>Mean Latency</th></tr></thead><tbody>"
+        per_transform_html = "<div class='metric-card'><h3 class='card-title'>⚙️ Per-Transform Analysis</h3><table class='data-table transform-table'><thead><tr><th>Transform</th><th>Total Queries</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Similarity</th><th>Latency</th></tr></thead><tbody>"
         for transform_type, data in per_transform_data.items():
             per_transform_html += f"""<tr>
                 <td class='transform-name'>{transform_type}</td>
@@ -478,10 +476,10 @@ def render_html_report(
             </tr>"""
         per_transform_html += "</tbody></table></div>"
     
-    # Build summary table HTML (styled)
+    # Build summary table HTML - Match image: "📄 Detailed Test Results"
     summary_table_html = ""
     if not summary_df.empty:
-        summary_table_html = f"<div class='metric-card'><h3 class='card-title'>📋 Detailed Test Results</h3><div class='table-wrapper'>{summary_df.to_html(classes='data-table', table_id='summary-table', escape=False, index=False)}</div></div>"
+        summary_table_html = f"<div class='metric-card'><h3 class='card-title'>📄 Detailed Test Results</h3><div class='table-wrapper'>{summary_df.to_html(classes='data-table', table_id='summary-table', escape=False, index=False)}</div></div>"
     
     # Get overall metrics for display
     overall_metrics = metrics.get('overall', {})
@@ -505,7 +503,7 @@ def render_html_report(
             
             body {{
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: #f3f4f6;
                 color: #1f2937;
                 line-height: 1.6;
                 padding: 20px;
@@ -522,7 +520,7 @@ def render_html_report(
             }}
             
             .report-header {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(to right, #4c1d95 0%, #5b21b6 50%, #6366f1 100%);
                 color: #ffffff;
                 padding: 40px;
                 text-align: center;
@@ -574,6 +572,22 @@ def render_html_report(
                 font-weight: 700;
             }}
             
+            .status-icon {{
+                font-size: 1.2em;
+            }}
+            
+            .status-banner.pass .status-icon {{
+                color: #10b981;
+            }}
+            
+            .status-banner.warning .status-icon {{
+                color: #fbbf24;
+            }}
+            
+            .status-banner.fail .status-icon {{
+                color: #f87171;
+            }}
+            
             .report-content {{
                 padding: 40px;
             }}
@@ -586,7 +600,7 @@ def render_html_report(
             }}
             
             .summary-card {{
-                background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+                background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
                 border-radius: 12px;
                 padding: 24px;
                 text-align: center;
@@ -602,13 +616,13 @@ def render_html_report(
             .summary-card .value {{
                 font-size: 2.5em;
                 font-weight: 700;
-                color: #667eea;
+                color: #6b21a8;
                 margin-bottom: 8px;
             }}
             
             .summary-card .label {{
                 font-size: 0.95em;
-                color: #6b7280;
+                color: #d1d5db;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }}
@@ -625,7 +639,7 @@ def render_html_report(
             .card-title {{
                 font-size: 1.4em;
                 font-weight: 600;
-                color: #1f2937;
+                color: #374151;
                 margin-bottom: 20px;
                 padding-bottom: 12px;
                 border-bottom: 2px solid #e5e7eb;
@@ -638,7 +652,7 @@ def render_html_report(
             }}
             
             .data-table thead {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(to right, #4c1d95 0%, #5b21b6 50%, #6366f1 100%);
                 color: #ffffff;
             }}
             
@@ -837,22 +851,16 @@ def render_html_report(
                 <h1> Audio Fingerprint Robustness Report</h1>
                 <div class="subtitle">Comprehensive Analysis & Performance Metrics</div>
                 <div class="meta-info">
-                    <div class="meta-item">
-                       
-                        <span>{datetime.now().strftime('%B %d, %Y at %H:%M:%S')}</span>
-                    </div>
-                    <div class="meta-item">
-                        <span></span>
-                        <span>{metrics['summary'].get('total_queries', 0)} Total Queries</span>
-                    </div>
-                    <div class="meta-item">
-                        <span></span>
-                        <span>{len(metrics['summary'].get('transform_types', []))} Transform Types</span>
-                    </div>
+                    <span>{datetime.now().strftime('%B %d, %Y at %H:%M:%S')}</span>
+                    <span style="margin: 0 15px;">|</span>
+                    <span>{metrics['summary'].get('total_queries', 0)} Total Queries</span>
+                    <span style="margin: 0 15px;">|</span>
+                    <span>{len(metrics['summary'].get('transform_types', []))} Transform Types</span>
                 </div>
             </div>
             
-            <div class="status-banner">
+            <div class="status-banner {'pass' if overall_pass_rate >= 80 else 'warning' if overall_pass_rate >= 50 else 'fail'}">
+                <span class="status-icon">✓</span>
                 <span>Overall Status:</span>
                 <span class="pass-rate">{overall_pass_rate:.1f}%</span>
                 <span>({status_text})</span>
@@ -878,7 +886,7 @@ def render_html_report(
                     </div>
                 </div>
                 
-                <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;"> Pass/Fail Status</h2>
+                <h2 style="font-size: 1.8em; font-weight: 600; color: #374151; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb;">Pass/Fail Status</h2>
                 
                 {recall_table_html}
                 {similarity_table_html}
@@ -887,7 +895,7 @@ def render_html_report(
                 {per_transform_html}
                 
                 <div class="plots-section">
-                    <h2 style="font-size: 1.8em; font-weight: 600; color: #1f2937; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;">📊 Visualizations</h2>
+                    <h2 style="font-size: 1.8em; font-weight: 600; color: #374151; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb;">📊 Visualizations</h2>
                     <div class="plots-grid">
                         <div class="plot-card">
                             <div class="plot-title">Recall@K by Transform Severity</div>
@@ -917,7 +925,7 @@ def render_html_report(
                 
                 
                 <div class="overall-metrics">
-                    <h3> Overall Metrics</h3>
+                    <h3>≡ Overall Metrics</h3>
                     <pre>{json.dumps(metrics['overall'], indent=2, default=str)}</pre>
                 </div>
             </div>
