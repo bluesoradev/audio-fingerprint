@@ -81,10 +81,10 @@ def add_noise(
                 start_idx = max(0, idx - click_length // 2)
                 end_idx = min(len(y), idx + click_length // 2)
                 click_samples = end_idx - start_idx
-                    if click_samples > 0:
-                        t = np.linspace(0, 1, click_samples, dtype=np.float32)
+                if click_samples > 0:
+                    t = np.linspace(0, 1, click_samples, dtype=np.float32)
                 click = np.exp(-t * 50) * np.sin(2 * np.pi * 8000 * t) * np.random.uniform(0.5, 1.5)
-                        noise[start_idx:end_idx] += click.astype(np.float32)
+                noise[start_idx:end_idx] += click.astype(np.float32)
             
             # High-pass filtered hiss
             hiss = np.random.normal(0, np.sqrt(noise_power * 0.3), len(y)).astype(np.float32)
