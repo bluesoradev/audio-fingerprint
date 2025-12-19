@@ -2854,7 +2854,6 @@ async function loadDeliverables() {
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #3d3d3d; border-radius: 4px; border: none; color: #ffffff; cursor: pointer;">Details</button>
-                                    <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #f87171; color: #ffffff; border-radius: 4px; border: none; cursor: pointer;" title="Delete Report">🗑️</button>
                                 </div>
                             </div>
                         `;
