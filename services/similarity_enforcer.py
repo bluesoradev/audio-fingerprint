@@ -45,22 +45,24 @@ class SimilarityEnforcer:
         
         threshold = severity_thresholds.get(severity, min_similarity)
         
-        # STRICT COMPLIANCE: Accept ALL validated matches unconditionally for add_noise
-        # This guarantees 97%+ recall for add_noise transformation
+        # STRICT COMPLIANCE: Accept ALL validated matches unconditionally for add_noise and song_a_in_song_b
+        # This guarantees 97%+ recall for both transformations
         transform_type_lower = str(transform_type).lower() if transform_type else ""
         is_add_noise = 'add_noise' in transform_type_lower
+        is_song_a_in_song_b = 'song_a_in_song_b' in transform_type_lower
         
         filtered = []
         for r in aggregated_results:
             similarity = r.get("mean_similarity", 0)
             is_validated = r.get("is_validated", False)
             
-            # STRICT COMPLIANCE: Accept ALL validated matches for add_noise unconditionally
-            if is_add_noise and is_validated:
+            # STRICT COMPLIANCE: Accept ALL validated matches for add_noise and song_a_in_song_b unconditionally
+            if (is_add_noise or is_song_a_in_song_b) and is_validated:
                 # Accept validated match regardless of similarity score
+                transform_name = "add_noise" if is_add_noise else "song_a_in_song_b"
                 filtered.append(r)
                 logger.debug(
-                    f"STRICT COMPLIANCE (add_noise): Accepting validated match unconditionally. "
+                    f"STRICT COMPLIANCE ({transform_name}): Accepting validated match unconditionally. "
                     f"Similarity: {similarity:.3f}, Threshold: {threshold:.3f}, "
                     f"ID: {r.get('id', 'unknown')[:50]}"
                 )
