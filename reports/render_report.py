@@ -427,7 +427,7 @@ def render_html_report(
     # Build recall table HTML - Match image: "≡ Recall Metrics"
     recall_table_html = ""
     if recall_rows:
-        recall_table_html = "<div class='metric-card'><h3 class='card-title'>≡ Recall Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Threshold</th><th>Actual Value</th><th>Status</th></tr></thead><tbody>"
+        recall_table_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/recall.png' alt='Recall'> Recall Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Threshold</th><th>Actual Value</th><th>Status</th></tr></thead><tbody>"
         for row in recall_rows:
             for k in [1, 5, 10]:
                 k_data = row[f"recall_{k}"]
@@ -442,7 +442,7 @@ def render_html_report(
     # Build similarity table HTML - Match image: "◎ Similarity Metrics"
     similarity_table_html = ""
     if similarity_rows:
-        similarity_table_html = "<div class='metric-card'><h3 class='card-title'>◎ Similarity Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
+        similarity_table_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/similarity.png' alt='Similarity'> Similarity Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
         for row in similarity_rows:
             status_class = "status-pass" if row["passed"] else "status-fail"
             status_icon = "✓" if row["passed"] else "✗"
@@ -452,7 +452,7 @@ def render_html_report(
     # Build latency table HTML - Match image: "◷ Latency Metrics"
     latency_table_html = ""
     if latency_rows:
-        latency_table_html = "<div class='metric-card'><h3 class='card-title'>◷ Latency Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
+        latency_table_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/latency.png' alt='Latency'> Latency Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
         for row in latency_rows:
             status_class = "status-pass" if row["passed"] else "status-fail"
             status_icon = "✓" if row["passed"] else "✗"
@@ -463,7 +463,7 @@ def render_html_report(
     per_transform_html = ""
     per_transform_data = metrics.get('per_transform', {})
     if per_transform_data:
-        per_transform_html = "<div class='metric-card'><h3 class='card-title'>⚙️ Per-Transform Analysis</h3><table class='data-table transform-table'><thead><tr><th>Transform</th><th>Total Queries</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Similarity</th><th>Latency</th></tr></thead><tbody>"
+        per_transform_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/per-transform.png' alt='Per-Transform'> Per-Transform Analysis</h3><table class='data-table transform-table'><thead><tr><th>Transform</th><th>Total Queries</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Similarity</th><th>Latency</th></tr></thead><tbody>"
         for transform_type, data in per_transform_data.items():
             per_transform_html += f"""<tr>
                 <td class='transform-name'>{transform_type}</td>
@@ -479,7 +479,7 @@ def render_html_report(
     # Build summary table HTML - Match image: "📄 Detailed Test Results"
     summary_table_html = ""
     if not summary_df.empty:
-        summary_table_html = f"<div class='metric-card'><h3 class='card-title'>📄 Detailed Test Results</h3><div class='table-wrapper'>{summary_df.to_html(classes='data-table', table_id='summary-table', escape=False, index=False)}</div></div>"
+        summary_table_html = f"<div class='metric-card'><h3 class='card-title'><img src='/static/img/detail.png' alt='Detail'> Detailed Test Results</h3><div class='table-wrapper'>{summary_df.to_html(classes='data-table', table_id='summary-table', escape=False, index=False)}</div></div>"
     
     # Get overall metrics for display
     overall_metrics = metrics.get('overall', {})
@@ -555,8 +555,8 @@ def render_html_report(
             }}
             
             .status-banner {{
-                background: {status_color};
-                color: #ffffff;
+                background: #ffffff;
+                color: #374151;
                 padding: 20px 40px;
                 text-align: center;
                 font-size: 1.3em;
@@ -565,27 +565,44 @@ def render_html_report(
                 align-items: center;
                 justify-content: center;
                 gap: 12px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                margin: 20px auto;
+                max-width: 600px;
             }}
             
             .status-banner .pass-rate {{
                 font-size: 1.5em;
                 font-weight: 700;
+                color: #374151;
             }}
             
             .status-icon {{
-                font-size: 1.2em;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                border: 2px solid #374151;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                color: #374151;
+                flex-shrink: 0;
             }}
             
             .status-banner.pass .status-icon {{
-                color: #10b981;
+                border-color: #374151;
+                color: #374151;
             }}
             
             .status-banner.warning .status-icon {{
-                color: #fbbf24;
+                border-color: #374151;
+                color: #374151;
             }}
             
             .status-banner.fail .status-icon {{
-                color: #f87171;
+                border-color: #374151;
+                color: #374151;
             }}
             
             .report-content {{
@@ -642,6 +659,16 @@ def render_html_report(
                 color: #374151;
                 margin-bottom: 20px;
                 padding-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            
+            .card-title img {{
+                width: 24px;
+                height: 24px;
+                object-fit: contain;
+                flex-shrink: 0;
                 border-bottom: 2px solid #e5e7eb;
             }}
             
@@ -895,7 +922,7 @@ def render_html_report(
                 {per_transform_html}
                 
                 <div class="plots-section">
-                    <h2 style="font-size: 1.8em; font-weight: 600; color: #374151; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb;">📊 Visualizations</h2>
+                    <h2 style="font-size: 1.8em; font-weight: 600; color: #374151; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb; display: flex; align-items: center; gap: 10px;"><img src="/static/img/visualization.png" alt="Visualization" style="width: 24px; height: 24px; object-fit: contain;"> Visualizations</h2>
                     <div class="plots-grid">
                         <div class="plot-card">
                             <div class="plot-title">Recall@K by Transform Severity</div>
