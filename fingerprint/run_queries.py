@@ -807,7 +807,7 @@ def run_query_on_file(
                     # Skip filtering for expected original - always include to prevent Recall@10 failures
                     filtered_segment_results.append(seg_result)
                 elif top_result.get("similarity", 0) >= min_similarity_threshold:
-                filtered_segment_results.append(seg_result)
+                    filtered_segment_results.append(seg_result)
         
         # If filtering removed too many segments, use original (at least 30% needed)
         if len(filtered_segment_results) < len(segment_results) * 0.3:
