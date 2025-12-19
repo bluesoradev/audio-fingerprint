@@ -2854,8 +2854,6 @@ async function loadDeliverables() {
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #3d3d3d; border-radius: 4px; border: none; color: #ffffff; cursor: pointer;">Details</button>
-                                    ${hasReport ? `<button class="btn" onclick="viewReport('${reportPath}', '${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #427eea; color: #ffffff; border-radius: 4px; border: none; cursor: pointer;" title="View Report"> View</button>` : ''}
-                                    ${hasReport ? `<button class="btn" onclick="downloadReportZip('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #10b981; color: #ffffff; border-radius: 4px; border: none; cursor: pointer;" title="Download Report as ZIP"> Download</button>` : ''}
                                     <button class="btn" onclick="deleteReport('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #f87171; color: #ffffff; border-radius: 4px; border: none; cursor: pointer;" title="Delete Report">🗑️</button>
                                 </div>
                             </div>
