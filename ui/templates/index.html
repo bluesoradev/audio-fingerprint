@@ -1708,22 +1708,24 @@
 
                             <!-- Multiband Compression -->
                             <div class="transform-card">
-                                <h4> Multiband Compression</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesMultibandEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Multiband Compression</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesMultibandEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesMultibandEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">(Controls for multiband compression go here.)</p>
                     </div>
 
                             <!-- Add Noise -->
                             <div class="transform-card">
-                                <h4> Add Noise</h4>
-                        <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesAddNoiseEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Add Noise</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesAddNoiseEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesAddNoiseEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Noise Type</label>
@@ -1745,11 +1747,12 @@
 
                             <!-- Crop Audio -->
                             <div class="transform-card">
-                                <h4> Crop Audio</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesCropEnabled" checked onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4> Crop Audio</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesCropEnabled" checked onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesCropEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Crop Type</label>
@@ -1768,11 +1771,12 @@
 
                             <!-- Embedded Sample Detection -->
                             <div class="transform-card">
-                                <h4>Embedded Sample Detection</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesEmbeddedSampleEnabled" onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
+                                <div class="transform-card-header">
+                                    <h4>Embedded Sample Detection</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesEmbeddedSampleEnabled" onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesEmbeddedSampleEnabled">Enable</label>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label>Sample File (Song A segment) *</label>
@@ -1828,12 +1832,13 @@
 
                             <!-- Song A in Song B -->
                             <div class="transform-card">
-                                <h4>Song A inside Song B</h4>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="deliverablesSongAInSongBEnabled" onchange="updateDeliverablesTransformState()"> Enable
-                                    </label>
-                </div>
+                                <div class="transform-card-header">
+                                    <h4>Song A inside Song B</h4>
+                                    <div class="enable-checkbox">
+                                        <input type="checkbox" id="deliverablesSongAInSongBEnabled" onchange="updateDeliverablesTransformState()">
+                                        <label for="deliverablesSongAInSongBEnabled">Enable</label>
+                                    </div>
+                                </div>
                                 <div class="form-group">
                                     <label>Song A (Original in Database)</label>
                                     <select id="deliverablesSongAFile" class="form-control" onchange="updateDeliverablesTransformState()">
