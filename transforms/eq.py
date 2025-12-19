@@ -1,10 +1,10 @@
-"""EQ (Equalization) audio transformations for robustness testing."""
+"""EQ (Equalization) audio transformations for robustness testing - OPTIMIZED VERSION."""
 import logging
 import numpy as np
 import soundfile as sf
-import librosa
 from pathlib import Path
 from scipy import signal
+from ._audio_utils import load_audio_fast, normalize_audio_inplace, db_to_linear
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +30,16 @@ def high_pass_filter(
         Path to output file
     """
     try:
-        # Load audio
-        y, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        # OPTIMIZATION #1: Fast loading
+        y, sr = load_audio_fast(input_path, sample_rate, mono=True)
         
-        # Design Butterworth high-pass filter
-        nyquist = sr / 2.0
-        normalized_freq = freq_hz / nyquist
-        
-        # Ensure frequency is in valid range
-        normalized_freq = max(0.01, min(0.99, normalized_freq))
+        # OPTIMIZATION #12: Pre-compute normalized frequency
+        nyquist = sr * 0.5
+        normalized_freq = max(0.01, min(0.99, freq_hz / nyquist))
         
         b, a = signal.butter(order, normalized_freq, btype='high', analog=False)
         
-        # Apply filter
+        # Apply filter (filtfilt for zero-phase - preserves quality)
         y_filtered = signal.filtfilt(b, a, y)
         
         # Save
@@ -80,19 +77,17 @@ def low_pass_filter(
         Path to output file
     """
     try:
-        # Load audio
-        y, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        # OPTIMIZATION #1: Fast loading
+        y, sr = load_audio_fast(input_path, sample_rate, mono=True)
         
-        # Design Butterworth low-pass filter
-        nyquist = sr / 2.0
-        normalized_freq = freq_hz / nyquist
+        # OPTIMIZATION #12: Pre-compute normalized frequency
+        nyquist = sr * 0.5
+        normalized_freq = max(0.01, min(0.99, freq_hz / nyquist))
         
-        # Ensure frequency is in valid range
-        normalized_freq = max(0.01, min(0.99, normalized_freq))
-        
+        # Design filter
         b, a = signal.butter(order, normalized_freq, btype='low', analog=False)
         
-        # Apply filter
+        # Apply filter (filtfilt for zero-phase - preserves quality)
         y_filtered = signal.filtfilt(b, a, y)
         
         # Save
@@ -130,29 +125,25 @@ def boost_highs(
         Path to output file
     """
     try:
-        # Load audio
-        y, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        # OPTIMIZATION #1: Fast loading
+        y, sr = load_audio_fast(input_path, sample_rate, mono=True)
         
-        # Convert dB to linear gain
-        linear_gain = 10 ** (gain_db / 20.0)
+        # OPTIMIZATION #4: Cached dB conversion
+        linear_gain = db_to_linear(gain_db)
         
         # Design high-shelving filter
-        nyquist = sr / 2.0
-        normalized_freq = freq_hz / nyquist
-        normalized_freq = max(0.01, min(0.99, normalized_freq))
+        nyquist = sr * 0.5
+        normalized_freq = max(0.01, min(0.99, freq_hz / nyquist))
         
         # Use a simple approach: apply high-pass and blend
-        # Create a high-pass filter
         b_hp, a_hp = signal.butter(2, normalized_freq, btype='high', analog=False)
         y_highs = signal.filtfilt(b_hp, a_hp, y)
         
         # Blend original with boosted highs
         y_filtered = y + (y_highs * (linear_gain - 1.0))
         
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(y_filtered))
-        if max_val > 1.0:
-            y_filtered = y_filtered / max_val * 0.99
+        # OPTIMIZATION #2: In-place normalization
+        normalize_audio_inplace(y_filtered, threshold=0.99)
         
         # Save
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -189,29 +180,25 @@ def boost_lows(
         Path to output file
     """
     try:
-        # Load audio
-        y, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        # OPTIMIZATION #1: Fast loading
+        y, sr = load_audio_fast(input_path, sample_rate, mono=True)
         
-        # Convert dB to linear gain
-        linear_gain = 10 ** (gain_db / 20.0)
+        # OPTIMIZATION #4: Cached dB conversion
+        linear_gain = db_to_linear(gain_db)
         
         # Design low-shelving filter
-        nyquist = sr / 2.0
-        normalized_freq = freq_hz / nyquist
-        normalized_freq = max(0.01, min(0.99, normalized_freq))
+        nyquist = sr * 0.5
+        normalized_freq = max(0.01, min(0.99, freq_hz / nyquist))
         
         # Use a simple approach: apply low-pass and blend
-        # Create a low-pass filter
         b_lp, a_lp = signal.butter(2, normalized_freq, btype='low', analog=False)
         y_lows = signal.filtfilt(b_lp, a_lp, y)
         
         # Blend original with boosted lows
         y_filtered = y + (y_lows * (linear_gain - 1.0))
         
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(y_filtered))
-        if max_val > 1.0:
-            y_filtered = y_filtered / max_val * 0.99
+        # OPTIMIZATION #2: In-place normalization
+        normalize_audio_inplace(y_filtered, threshold=0.99)
         
         # Save
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -248,21 +235,17 @@ def telephone_filter(
         Path to output file
     """
     try:
-        # Load audio
-        y, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        # OPTIMIZATION #1: Fast loading
+        y, sr = load_audio_fast(input_path, sample_rate, mono=True)
         
-        # Design Butterworth band-pass filter
-        nyquist = sr / 2.0
-        low_norm = low_freq / nyquist
-        high_norm = high_freq / nyquist
-        
-        # Ensure frequencies are in valid range
-        low_norm = max(0.01, min(0.98, low_norm))
-        high_norm = max(low_norm + 0.01, min(0.99, high_norm))
+        # OPTIMIZATION #12: Pre-compute normalized frequencies
+        nyquist = sr * 0.5
+        low_norm = max(0.01, min(0.98, low_freq / nyquist))
+        high_norm = max(low_norm + 0.01, min(0.99, high_freq / nyquist))
         
         b, a = signal.butter(4, [low_norm, high_norm], btype='band', analog=False)
         
-        # Apply filter
+        # Apply filter (filtfilt for zero-phase - preserves quality)
         y_filtered = signal.filtfilt(b, a, y)
         
         # Save

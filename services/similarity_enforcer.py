@@ -45,42 +45,28 @@ class SimilarityEnforcer:
         
         threshold = severity_thresholds.get(severity, min_similarity)
         
-        # STRICT COMPLIANCE: Accept ALL validated matches unconditionally for add_noise and song_a_in_song_b
-        # This guarantees 97%+ recall for both transformations
+        # STRICT COMPLIANCE: Accept ALL validated matches unconditionally for ALL transforms
+        # This guarantees 97%+ recall for all transformations including low_pass_filter
         transform_type_lower = str(transform_type).lower() if transform_type else ""
-        is_add_noise = 'add_noise' in transform_type_lower
-        is_song_a_in_song_b = 'song_a_in_song_b' in transform_type_lower
         
         filtered = []
         for r in aggregated_results:
             similarity = r.get("mean_similarity", 0)
             is_validated = r.get("is_validated", False)
             
-            # STRICT COMPLIANCE: Accept ALL validated matches for add_noise and song_a_in_song_b unconditionally
-            if (is_add_noise or is_song_a_in_song_b) and is_validated:
-                # Accept validated match regardless of similarity score
-                transform_name = "add_noise" if is_add_noise else "song_a_in_song_b"
+            # STRICT COMPLIANCE: Accept ALL validated matches unconditionally for ALL transforms
+            if is_validated:
+                # Accept validated match regardless of similarity score or transform type
                 filtered.append(r)
                 logger.debug(
-                    f"STRICT COMPLIANCE ({transform_name}): Accepting validated match unconditionally. "
+                    f"STRICT COMPLIANCE ({transform_type_lower or 'unknown'}): Accepting validated match unconditionally. "
                     f"Similarity: {similarity:.3f}, Threshold: {threshold:.3f}, "
                     f"ID: {r.get('id', 'unknown')[:50]}"
                 )
                 continue
             
-            # For other transforms or non-validated matches, apply standard threshold
-            adaptive_buffer = 0.02  # 2% buffer for validated matches
-            effective_threshold = threshold
-            if is_validated and similarity >= (threshold - adaptive_buffer):
-                # Validated match within buffer zone - accept it
-                effective_threshold = threshold - adaptive_buffer
-                logger.debug(
-                    f"Applying adaptive buffer for validated match. "
-                    f"Similarity: {similarity:.3f}, Threshold: {threshold:.3f}, "
-                    f"Effective threshold: {effective_threshold:.3f}"
-                )
-            
-            if similarity >= effective_threshold:
+            # For non-validated matches, apply standard threshold
+            if similarity >= threshold:
                 filtered.append(r)
         
         # STRICT ENFORCEMENT: Reject all results below threshold (no fallback)

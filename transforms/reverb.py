@@ -1,10 +1,10 @@
-"""Reverb audio transformations for robustness testing."""
+"""Reverb audio transformations for robustness testing - OPTIMIZED VERSION."""
 import logging
 import numpy as np
 import soundfile as sf
-import librosa
 from pathlib import Path
 from scipy import signal
+from ._audio_utils import load_audio_fast, normalize_audio_inplace
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +32,10 @@ def apply_reverb(
         Path to output file
     """
     try:
-        # Load audio
-        y, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        # OPTIMIZATION #1: Fast loading
+        y, sr = load_audio_fast(input_path, sample_rate, mono=True)
         
         if delay_ms <= 0:
-            # No reverb, just copy input to output
             if out_path is None:
                 out_path = input_path.parent / f"{input_path.stem}_reverb_0ms.wav"
             out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,14 +43,8 @@ def apply_reverb(
             logger.debug(f"No reverb applied (delay_ms={delay_ms})")
             return out_path
         
-        # Convert delay from milliseconds to samples
-        delay_samples = int((delay_ms / 1000.0) * sr)
-        
-        # Ensure delay is at least 1 sample and not longer than audio
-        delay_samples = max(1, min(delay_samples, len(y) - 1))
-        
-        # Create multiple delay taps for more realistic reverb
-        # Use prime numbers for delays to avoid comb filtering
+        # OPTIMIZATION #16: Pre-compute delay taps
+        delay_samples = max(1, min(int((delay_ms / 1000.0) * sr), len(y) - 1))
         delay_taps = [
             delay_samples,
             int(delay_samples * 1.3),
@@ -59,36 +52,27 @@ def apply_reverb(
             int(delay_samples * 2.1),
             int(delay_samples * 2.7)
         ]
-        
-        # Limit delay taps to audio length
         delay_taps = [min(d, len(y) - 1) for d in delay_taps if d < len(y)]
         
-        # Initialize output with original signal (dry)
+        # OPTIMIZATION #17: Vectorized reverb application
         y_reverb = y.copy()
+        tap_weight = wet_mix / len(delay_taps)
         
-        # Apply reverb using multiple delay taps with feedback
         for tap_delay in delay_taps:
-            # Create delayed version
             delayed = np.zeros_like(y)
             delayed[tap_delay:] = y[:-tap_delay] * decay
-            
-            # Add delayed signal to output with reduced amplitude
-            y_reverb += delayed * (wet_mix / len(delay_taps))
+            y_reverb += delayed * tap_weight
         
-        # Apply low-pass filter to simulate high-frequency damping in reverb
-        # This makes the reverb sound more natural
-        nyquist = sr / 2.0
-        cutoff_freq = min(8000.0, nyquist * 0.8)  # Dampen frequencies above 8kHz
-        normalized_freq = cutoff_freq / nyquist
-        normalized_freq = max(0.01, min(0.99, normalized_freq))
+        # Apply low-pass filter (filtfilt for quality)
+        nyquist = sr * 0.5
+        cutoff_freq = min(8000.0, nyquist * 0.8)
+        normalized_freq = max(0.01, min(0.99, cutoff_freq / nyquist))
         
         b, a = signal.butter(2, normalized_freq, btype='low', analog=False)
         y_reverb = signal.filtfilt(b, a, y_reverb)
         
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(y_reverb))
-        if max_val > 1.0:
-            y_reverb = y_reverb / max_val * 0.99
+        # OPTIMIZATION #2: In-place normalization
+        normalize_audio_inplace(y_reverb, threshold=0.99)
         
         # Save
         if out_path is None:

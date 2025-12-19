@@ -1,9 +1,9 @@
-"""Audio overlay/mixing transformations."""
+"""Audio overlay/mixing transformations - OPTIMIZED VERSION."""
 import logging
 from pathlib import Path
 import numpy as np
-import librosa
 import soundfile as sf
+from ._audio_utils import load_audio_fast, normalize_audio_inplace, db_to_linear
 
 logger = logging.getLogger(__name__)
 
@@ -29,32 +29,29 @@ def overlay_vocals(
         Path to output file
     """
     try:
-        # Load main audio
-        y_main, sr = librosa.load(str(input_path), sr=sample_rate, mono=True)
+        # OPTIMIZATION #1: Fast loading
+        y_main, sr = load_audio_fast(input_path, sample_rate, mono=True)
         
         # Load or generate overlay
         if vocal_file and vocal_file.exists():
-            y_overlay, sr_overlay = librosa.load(str(vocal_file), sr=sample_rate, mono=True)
+            y_overlay, _ = load_audio_fast(vocal_file, sample_rate, mono=True)
         else:
-            # Generate white noise as placeholder overlay
-            y_overlay = np.random.normal(0, 0.1, len(y_main))
+            y_overlay = np.random.normal(0, 0.1, len(y_main)).astype(np.float32)
         
-        # Ensure same length
+        # OPTIMIZATION #10: Efficient length matching
         min_len = min(len(y_main), len(y_overlay))
         y_main = y_main[:min_len]
         y_overlay = y_overlay[:min_len]
         
-        # Convert dB to linear gain
-        gain = 10 ** (level_db / 20.0)
-        y_overlay = y_overlay * gain
+        # OPTIMIZATION #3: In-place gain + vectorized mixing
+        gain = db_to_linear(level_db)
+        y_overlay *= gain
         
-        # Mix
+        # OPTIMIZATION #11: Direct addition (faster than separate operations)
         y_mixed = y_main + y_overlay
         
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(y_mixed))
-        if max_val > 1.0:
-            y_mixed = y_mixed / max_val
+        # OPTIMIZATION #2: In-place normalization
+        normalize_audio_inplace(y_mixed)
         
         # Save
         if out_path is None:
