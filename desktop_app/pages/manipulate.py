@@ -1311,20 +1311,20 @@ class ManipulatePage(QWidget):
                                         process.wait(timeout=0.5)
                                     except Exception:
                                         pass
-                        break
+                                break
                             
                             # Calculate elapsed time
                             elapsed = time.time() - playback_start_time
                             current_pos_ms = start_pos_ms + (elapsed * 1000)
                     
-                    # Update position
-                    with lock:
+                            # Update position
+                            with lock:
                                 setattr(self, position_attr, min(current_pos_ms, len(audio)))
                             
                             # Check if playback finished (based on elapsed time)
                             if elapsed >= audio_length_seconds:
                                 logger.info(f"_play_audio_pydub: Audio finished naturally (elapsed: {elapsed:.2f}s, length: {audio_length_seconds:.2f}s)")
-                            break
+                                break
                             
                             # Check stop event very frequently (every 10ms)
                             time.sleep(0.01)
@@ -1347,7 +1347,7 @@ class ManipulatePage(QWidget):
                                 setattr(self, position_attr, len(audio))
                             logger.info(f"_play_audio_pydub: Playback FINISHED - position set to end: {len(audio)}ms")
 
-        except Exception as e:
+                    except Exception as e:
                         logger.error(f"_play_audio_pydub: Error in subprocess playback: {e}")
                         if process is not None:
                             try:
@@ -1359,7 +1359,7 @@ class ManipulatePage(QWidget):
                                     process.kill()
                                 except Exception:
                                     pass
-        finally:
+                    finally:
                         # Clear process reference
                         if stream_attr == 'original_stream':
                             process_attr = 'original_process'
@@ -1522,7 +1522,7 @@ class ManipulatePage(QWidget):
                 self.original_thread.join(timeout=0.2)
                 if self.original_thread.is_alive():
                     logger.warning("toggle_original_playback: Thread still alive after timeout")
-        else:
+                else:
                     logger.debug("toggle_original_playback: Thread finished")
         else:
             # PLAY: Start or resume playback
@@ -1699,7 +1699,7 @@ class ManipulatePage(QWidget):
                 self.transformed_thread.join(timeout=0.2)
                 if self.transformed_thread.is_alive():
                     logger.warning("toggle_transformed_playback: Thread still alive after timeout")
-        else:
+                else:
                     logger.debug("toggle_transformed_playback: Thread finished")
         else:
             # PLAY: Start or resume playback
@@ -2343,7 +2343,7 @@ class ManipulatePage(QWidget):
                     result_text += "Interpretation: Moderate match - transformation affects fingerprint but still identifiable."
                 self._update_test_results(result_text, "success")
             else:
-                result_text = f"✗ NOT MATCHED\n\n"
+                result_text = f""
                 result_text += f"Similarity Score: {final_similarity:.3f} ({final_similarity*100:.1f}%)\n"
                 result_text += f"Top Match: {top_match or 'N/A'}\n\n"
                 result_text += "Interpretation: Fingerprint could not match transformed audio to original. "

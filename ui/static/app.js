@@ -601,6 +601,13 @@ function viewRun(runId) {
     window.open(`/report/${runId}`, '_blank');
 }
 
+function viewReportDetail(runId) {
+    // Open report HTML file from VPS in new window
+    const reportPath = `reports/${runId}/final_report/report.html`;
+    const encodedPath = encodeURIComponent(reportPath);
+    window.open(`http://78.46.37.169:8080/api/files/report?path=${encodedPath}`, '_blank');
+}
+
 function downloadReport(runId) {
     window.location.href = `/download/${runId}`;
 }
@@ -2853,7 +2860,7 @@ async function loadDeliverables() {
                                     <p style="color: #9ca3af; font-size: 11px; margin: 0;">${dateStr} | ${sizeStr}</p>
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
-                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #3d3d3d; border-radius: 4px; border: none; color: #ffffff; cursor: pointer;">Details</button>
+                                    <button class="btn" onclick="viewReportDetail('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #3d3d3d; border-radius: 4px; border: none; color: #ffffff; cursor: pointer;">Detail</button>
                                 </div>
                             </div>
                         `;

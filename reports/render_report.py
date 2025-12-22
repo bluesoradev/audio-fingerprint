@@ -126,9 +126,9 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
             logger.warning("Plot 1: No severity data available")
         
         try:
-            plt.tight_layout()
+            plt.tight_layout(pad=2.0)
             plot_path = plots_dir / "recall_by_severity.png"
-            plt.savefig(plot_path, dpi=150)
+            plt.savefig(plot_path, dpi=150, bbox_inches='tight', pad_inches=0.2)
             plt.close()
             if plot_path.exists():
                 logger.info(f"✓ Successfully generated: recall_by_severity.png ({plot_path.stat().st_size} bytes)")
@@ -176,9 +176,9 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
             logger.warning("Plot 2: No similarity data available")
         
         try:
-            plt.tight_layout()
+            plt.tight_layout(pad=2.0)
             plot_path = plots_dir / "similarity_by_severity.png"
-            plt.savefig(plot_path, dpi=150)
+            plt.savefig(plot_path, dpi=150, bbox_inches='tight', pad_inches=0.2)
             plt.close()
             if plot_path.exists():
                 logger.info(f"✓ Successfully generated: similarity_by_severity.png ({plot_path.stat().st_size} bytes)")
@@ -229,9 +229,9 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
             logger.warning("Plot 3: No transform data available")
         
         try:
-            plt.tight_layout()
+            plt.tight_layout(pad=2.0)
             plot_path = plots_dir / "recall_by_transform.png"
-            plt.savefig(plot_path, dpi=150)
+            plt.savefig(plot_path, dpi=150, bbox_inches='tight', pad_inches=0.2)
             plt.close()
             if plot_path.exists():
                 logger.info(f"✓ Successfully generated: recall_by_transform.png ({plot_path.stat().st_size} bytes)")
@@ -278,9 +278,9 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
             logger.warning("Plot 4: No transform data available")
         
         try:
-            plt.tight_layout()
+            plt.tight_layout(pad=2.0)
             plot_path = plots_dir / "latency_by_transform.png"
-            plt.savefig(plot_path, dpi=150)
+            plt.savefig(plot_path, dpi=150, bbox_inches='tight', pad_inches=0.2)
             plt.close()
             if plot_path.exists():
                 logger.info(f"✓ Successfully generated: latency_by_transform.png ({plot_path.stat().st_size} bytes)")
@@ -424,46 +424,45 @@ def render_html_report(
     status_color = "#10b981" if overall_pass_rate >= 80 else "#f59e0b" if overall_pass_rate >= 50 else "#f87171"
     status_text = "PASS" if overall_pass_rate >= 80 else "WARNING" if overall_pass_rate >= 50 else "FAIL"
     
-    # Build recall table HTML - Match image: "≡ Recall Metrics"
+    # Build recall table HTML - Match image: "Recall Metrics" with columns: Metric, Recall@1, Recall@5, Recall@10
     recall_table_html = ""
     if recall_rows:
-        recall_table_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/recall.png' alt='Recall'> Recall Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Threshold</th><th>Actual Value</th><th>Status</th></tr></thead><tbody>"
+        recall_table_html = "<div class='metric-card'><h3 class='card-title'>Recall Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th></tr></thead><tbody>"
         for row in recall_rows:
-            for k in [1, 5, 10]:
-                k_data = row[f"recall_{k}"]
-                passed = k_data["passed"]
-                actual = k_data["actual"]
-                threshold = k_data["threshold"]
-                status_class = "status-pass" if passed else "status-fail"
-                status_icon = "✓" if passed else "✗"
-                recall_table_html += f"<tr><td class='severity-cell'>{row['severity']} Recall@{k}</td><td class='metric-threshold-large'>{threshold:.3f}</td><td class='metric-value-large'>{actual:.3f}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
+            recall_1_data = row["recall_1"]
+            recall_5_data = row["recall_5"]
+            recall_10_data = row["recall_10"]
+            status_icon_1 = "✓" if recall_1_data["passed"] else "✗"
+            status_icon_5 = "✓" if recall_5_data["passed"] else "✗"
+            status_icon_10 = "✓" if recall_10_data["passed"] else "✗"
+            recall_table_html += f"<tr><td class='severity-cell'>{row['severity']}</td><td class='metric-value-large'>{recall_1_data['actual']:.3f} <span class='status-badge-small'>{status_icon_1}</span></td><td class='metric-value-large'>{recall_5_data['actual']:.3f} <span class='status-badge-small'>{status_icon_5}</span></td><td class='metric-value-large'>{recall_10_data['actual']:.3f} <span class='status-badge-small'>{status_icon_10}</span></td></tr>"
         recall_table_html += "</tbody></table></div>"
     
-    # Build similarity table HTML - Match image: "◎ Similarity Metrics"
+    # Build similarity table HTML - Match image: "Similarity Metrics" with columns: Metric, Mean Similarity, Threshold, Status
     similarity_table_html = ""
     if similarity_rows:
-        similarity_table_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/similarity.png' alt='Similarity'> Similarity Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
+        similarity_table_html = "<div class='metric-card'><h3 class='card-title'>Similarity Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Mean Similarity</th><th>Threshold</th><th>Status</th></tr></thead><tbody>"
         for row in similarity_rows:
             status_class = "status-pass" if row["passed"] else "status-fail"
             status_icon = "✓" if row["passed"] else "✗"
             similarity_table_html += f"<tr><td class='severity-cell'>{row['severity']}</td><td class='metric-value-large'>{row['actual']:.3f}</td><td class='metric-threshold-large'>{row['threshold']:.3f}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
         similarity_table_html += "</tbody></table></div>"
     
-    # Build latency table HTML - Match image: "◷ Latency Metrics"
+    # Build latency table HTML - Match image: "Latency Metrics" with columns: Metric, Value, Threshold, Status
     latency_table_html = ""
     if latency_rows:
-        latency_table_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/latency.png' alt='Latency'> Latency Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Actual</th><th>Target</th><th>Status</th></tr></thead><tbody>"
+        latency_table_html = "<div class='metric-card'><h3 class='card-title'>Latency Metrics</h3><table class='data-table'><thead><tr><th>Metric</th><th>Value</th><th>Threshold</th><th>Status</th></tr></thead><tbody>"
         for row in latency_rows:
             status_class = "status-pass" if row["passed"] else "status-fail"
             status_icon = "✓" if row["passed"] else "✗"
             latency_table_html += f"<tr><td class='metric-name'>{row['metric']}</td><td class='metric-value-large'>{row['actual']:.1f}{row['unit']}</td><td class='metric-threshold-large'>{row['threshold']:.1f}{row['unit']}</td><td class='{status_class}'><span class='status-badge'>{status_icon}</span></td></tr>"
         latency_table_html += "</tbody></table></div>"
     
-    # Build per-transform table HTML - Match image: "⚙️ Per-Transform Analysis"
+    # Build per-transform table HTML - Match image: "Per-Transform Analysis" with columns: Transform, Queries, Recall@1, Recall@5, Recall@10, Mean Similarity, Mean Latency
     per_transform_html = ""
     per_transform_data = metrics.get('per_transform', {})
     if per_transform_data:
-        per_transform_html = "<div class='metric-card'><h3 class='card-title'><img src='/static/img/per-transform.png' alt='Per-Transform'> Per-Transform Analysis</h3><table class='data-table transform-table'><thead><tr><th>Transform</th><th>Total Queries</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Similarity</th><th>Latency</th></tr></thead><tbody>"
+        per_transform_html = "<div class='metric-card'><h3 class='card-title'>Per-Transform Analysis</h3><table class='data-table transform-table'><thead><tr><th>Transform</th><th>Queries</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Mean Similarity</th><th>Mean Latency</th></tr></thead><tbody>"
         for transform_type, data in per_transform_data.items():
             per_transform_html += f"""<tr>
                 <td class='transform-name'>{transform_type}</td>
@@ -476,10 +475,23 @@ def render_html_report(
             </tr>"""
         per_transform_html += "</tbody></table></div>"
     
-    # Build summary table HTML - Match image: "📄 Detailed Test Results"
+    # Build summary table HTML - Match image: "Detailed Test Results"
     summary_table_html = ""
     if not summary_df.empty:
-        summary_table_html = f"<div class='metric-card'><h3 class='card-title'><img src='/static/img/detail.png' alt='Detail'> Detailed Test Results</h3><div class='table-wrapper'>{summary_df.to_html(classes='data-table', table_id='summary-table', escape=False, index=False)}</div></div>"
+        # Format the summary table to match the image format
+        summary_table_html = "<div class='metric-card'><h3 class='card-title'>Detailed Test Results</h3><table class='data-table'><thead><tr><th>Metric</th><th>Queries</th><th>Recall@1</th><th>Recall@5</th><th>Recall@10</th><th>Mean Rank</th><th>Mean Similarity</th><th>Mean Latency</th></tr></thead><tbody>"
+        for _, row in summary_df.iterrows():
+            summary_table_html += f"""<tr>
+                <td class='severity-cell'>{row.get('severity', 'N/A')}</td>
+                <td class='metric-count'>{int(row.get('count', 0))}</td>
+                <td class='metric-value'>{row.get('recall_at_1', 0.0):.6f}</td>
+                <td class='metric-value'>{row.get('recall_at_5', 0.0):.6f}</td>
+                <td class='metric-value'>{row.get('recall_at_10', 0.0):.6f}</td>
+                <td class='metric-value'>{row.get('mean_rank', 0.0):.1f}</td>
+                <td class='metric-value'>{row.get('mean_similarity', 0.0):.6f}</td>
+                <td class='metric-value'>{row.get('mean_latency_ms', 0.0):.6f}</td>
+            </tr>"""
+        summary_table_html += "</tbody></table></div>"
     
     # Get overall metrics for display
     overall_metrics = metrics.get('overall', {})
@@ -733,11 +745,29 @@ def render_html_report(
                 vertical-align: middle;
             }}
             
+            .status-badge-small {{
+                display: inline-block;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: #10b981;
+                color: #ffffff;
+                text-align: center;
+                line-height: 18px;
+                font-size: 0.75em;
+                margin-left: 8px;
+                vertical-align: middle;
+            }}
+            
             .status-pass .status-badge {{
                 background: #10b981;
             }}
             
             .status-fail .status-badge {{
+                background: #f87171;
+            }}
+            
+            .status-fail .status-badge-small {{
                 background: #f87171;
             }}
             
@@ -790,9 +820,15 @@ def render_html_report(
             
             .plots-grid {{
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+                grid-template-columns: repeat(2, 1fr);
                 gap: 24px;
                 margin-top: 20px;
+            }}
+            
+            @media (max-width: 1200px) {{
+                .plots-grid {{
+                    grid-template-columns: 1fr;
+                }}
             }}
             
             .plot-card {{
@@ -801,12 +837,19 @@ def render_html_report(
                 padding: 20px;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
                 border: 1px solid #e5e7eb;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
             }}
             
             .plot-card img {{
                 width: 100%;
+                max-width: 100%;
                 height: auto;
                 border-radius: 8px;
+                display: block;
+                margin: 0 auto;
             }}
             
             .plot-title {{
@@ -922,17 +965,17 @@ def render_html_report(
                 {per_transform_html}
                 
                 <div class="plots-section">
-                    <h2 style="font-size: 1.8em; font-weight: 600; color: #374151; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb; display: flex; align-items: center; gap: 10px;"><img src="/static/img/visualization.png" alt="Visualization" style="width: 24px; height: 24px; object-fit: contain;"> Visualizations</h2>
+                    <h2 style="font-size: 1.8em; font-weight: 600; color: #374151; margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb;">Visualizations</h2>
                     <div class="plots-grid">
                         <div class="plot-card">
                             <div class="plot-title">Recall@K by Transform Severity</div>
                             <img src="/api/files/plots/recall_by_severity.png?run_id={run_id}" alt="Recall@K by Transform Severity" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                            <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
+                            
                         </div>
                         <div class="plot-card">
-                            <div class="plot-title">Similarity Scores vs Thresholds by Severity</div>
-                            <img src="/api/files/plots/similarity_by_severity.png?run_id={run_id}" alt="Similarity Scores vs Thresholds by Severity" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                            <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
+                            <div class="plot-title">Similarity Score by Severity</div>
+                            <img src="/api/files/plots/similarity_by_severity.png?run_id={run_id}" alt="Similarity Score by Severity" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                           
                         </div>
                         <div class="plot-card">
                             <div class="plot-title">Recall@K by Transform Type</div>
@@ -940,9 +983,9 @@ def render_html_report(
                             <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
                         </div>
                         <div class="plot-card">
-                            <div class="plot-title">Processing Latency by Transform Type</div>
-                            <img src="/api/files/plots/latency_by_transform.png?run_id={run_id}" alt="Processing Latency by Transform Type" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                            <div style="display:none; padding:40px; text-align:center; color:#6b7280;">Chart not available</div>
+                            <div class="plot-title">Latency by Transform Type</div>
+                            <img src="/api/files/plots/latency_by_transform.png?run_id={run_id}" alt="Latency by Transform Type" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                           
                         </div>
                     </div>
                 </div>
@@ -952,7 +995,7 @@ def render_html_report(
                 
                 
                 <div class="overall-metrics">
-                    <h3>≡ Overall Metrics</h3>
+                    <h3>Overall Metrics</h3>
                     <pre>{json.dumps(metrics['overall'], indent=2, default=str)}</pre>
                 </div>
             </div>
