@@ -1927,6 +1927,32 @@
 
     <script src="/static/app.js"></script>
     <script>
+        function hideSectionsInManipulate() {
+            const manipulateSection = document.getElementById("manipulate");
+            if (!manipulateSection) return;
+            const subsections = manipulateSection.querySelectorAll(".transform-subsection");
+            subsections.forEach(subsection => {
+                const h4 = subsection.querySelector("h4");
+                if (h4) {
+                    const text = h4.textContent || h4.innerText || "";
+                    if (text.includes("Embedded Sample Detection") || text.includes("Song A inside Song B")) {
+                        subsection.style.display = "none";
+                    }
+                }
+            });
+        }
+        document.addEventListener("DOMContentLoaded", hideSectionsInManipulate);
+        setTimeout(() => {
+            if (typeof window.showSection === "function") {
+                const original = window.showSection;
+                window.showSection = function(sectionId, eventElement) {
+                    original(sectionId, eventElement);
+                    if (sectionId === "manipulate") setTimeout(hideSectionsInManipulate, 100);
+                };
+            }
+        }, 500);
+    </script>
+    <script>
         // Slider value update functions
         function updateSpeedValue(value) {
             const speedValueEl = document.getElementById('speedValue');

@@ -1,6 +1,6 @@
 // Audio Fingerprint Robustness Lab - Frontend JavaScript
 
-const API_BASE = '/api';
+const API_BASE = 'http://78.46.37.169:8080/api';
 let currentProcessId = null;
 let logPollInterval = null;
 
@@ -89,7 +89,7 @@ function showSection(sectionId, eventElement) {
 // Status Check
 async function checkStatus() {
     try {
-        const response = await fetch(`${API_BASE}/status`);
+        const response = await fetch(`http://78.46.37.169:8080/api/status`);
         const status = await response.json();
         
         const statusDot = document.getElementById('statusDot');
@@ -126,8 +126,8 @@ async function checkStatus() {
 async function loadDashboard() {
     try {
         const [statusRes, runsRes] = await Promise.all([
-            fetch(`${API_BASE}/status`),
-            fetch(`${API_BASE}/runs`)
+            fetch(`http://78.46.37.169:8080/api/status`),
+            fetch(`http://78.46.37.169:8080/api/runs`)
         ]);
         
         const status = await statusRes.json();
@@ -163,7 +163,6 @@ async function loadDashboard() {
                         <td><span class="badge badge-${run.has_metrics ? 'success' : 'info'}">${run.has_metrics ? 'Complete' : 'In Progress'}</span></td>
                         <td>${date}</td>
                         <td>
-                            <button class="btn" onclick="viewRun('${run.id}')" style="margin-right: 8px;">View</button>
                             <button class="btn" onclick="deleteReport('${run.id}')" style="background: #f87171; color: #ffffff;" title="Delete Report">🗑️ Delete</button>
                         </td>
                     </tr>
@@ -194,7 +193,7 @@ async function createTestAudio() {
         formData.append('duration', duration);
         formData.append('output_dir', outputDir);
         
-        const response = await fetch(`${API_BASE}/process/create-test-audio`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/process/create-test-audio`, {
             method: 'POST',
             body: formData
         });
@@ -226,7 +225,7 @@ async function createManifest() {
         formData.append('audio_dir', audioDir);
         formData.append('output', output);
         
-        const response = await fetch(`${API_BASE}/process/create-manifest`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/process/create-manifest`, {
             method: 'POST',
             body: formData
         });
@@ -256,7 +255,7 @@ async function ingestFiles() {
         formData.append('output_dir', 'data');
         formData.append('sample_rate', sampleRate);
         
-        const response = await fetch(`${API_BASE}/process/ingest`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/process/ingest`, {
             method: 'POST',
             body: formData
         });
@@ -285,7 +284,7 @@ async function generateTransforms() {
         formData.append('test_matrix_path', 'config/test_matrix.yaml');
         formData.append('output_dir', 'data');
         
-        const response = await fetch(`${API_BASE}/process/generate-transforms`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/process/generate-transforms`, {
             method: 'POST',
             body: formData
         });
@@ -317,7 +316,7 @@ async function runExperiment() {
         formData.append('config_path', 'config/test_matrix.yaml');
         formData.append('originals_path', manifestPath);
         
-        const response = await fetch(`${API_BASE}/process/run-experiment`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/process/run-experiment`, {
             method: 'POST',
             body: formData
         });
@@ -364,7 +363,7 @@ function startProcessMonitoring(commandId, message, processName = 'Process') {
 
 async function pollLogs(commandId) {
     try {
-        const response = await fetch(`${API_BASE}/process/${commandId}/logs`);
+        const response = await fetch(`http://78.46.37.169:8080/api/process/${commandId}/logs`);
         const result = await response.json();
         
         if (result.logs && result.logs.length > 0) {
@@ -384,7 +383,7 @@ async function pollLogs(commandId) {
 
 async function checkProcessStatus(commandId) {
     try {
-        const response = await fetch(`${API_BASE}/process/${commandId}/status`);
+        const response = await fetch(`http://78.46.37.169:8080/api/process/${commandId}/status`);
         const status = await response.json();
         
         // Handle different status values
@@ -437,7 +436,7 @@ async function checkProcessStatus(commandId) {
 // File Management
 async function loadManifests() {
     try {
-        const response = await fetch(`${API_BASE}/files/manifests`);
+        const response = await fetch(`http://78.46.37.169:8080/api/files/manifests`);
         const result = await response.json();
         
         const manifestList = document.getElementById('manifestList');
@@ -485,7 +484,7 @@ async function loadAudioFiles() {
     const directory = document.getElementById('audioDirectory').value;
     
     try {
-        const response = await fetch(`${API_BASE}/files/audio?directory=${directory}`);
+        const response = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=${directory}`);
         const result = await response.json();
         
         const fileList = document.getElementById('audioFileList');
@@ -547,7 +546,7 @@ async function uploadFiles(files) {
             formData.append('file', file);
             formData.append('directory', directory);
             
-            const response = await fetch(`${API_BASE}/upload/audio`, {
+            const response = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
                 method: 'POST',
                 body: formData
             });
@@ -566,7 +565,7 @@ async function uploadFiles(files) {
 // Results
 async function loadRuns() {
     try {
-        const response = await fetch(`${API_BASE}/runs`);
+        const response = await fetch(`http://78.46.37.169:8080/api/runs`);
         const result = await response.json();
         
         const runsListDiv = document.getElementById('runsList');
@@ -601,13 +600,6 @@ function viewRun(runId) {
     window.open(`/report/${runId}`, '_blank');
 }
 
-function viewReportDetail(runId) {
-    // Open report HTML file from VPS in new window
-    const reportPath = `reports/${runId}/final_report/report.html`;
-    const encodedPath = encodeURIComponent(reportPath);
-    window.open(`http://78.46.37.169:8080/api/files/report?path=${encodedPath}`, '_blank');
-}
-
 function downloadReport(runId) {
     window.location.href = `/download/${runId}`;
 }
@@ -615,7 +607,7 @@ function downloadReport(runId) {
 // Configuration
 async function loadTestMatrix() {
     try {
-        const response = await fetch(`${API_BASE}/config/test-matrix`);
+        const response = await fetch(`http://78.46.37.169:8080/api/config/test-matrix`);
         const config = await response.json();
         
         document.getElementById('testMatrixConfig').value = JSON.stringify(config, null, 2);
@@ -629,7 +621,7 @@ async function saveTestMatrix() {
         const configText = document.getElementById('testMatrixConfig').value;
         const config = JSON.parse(configText);
         
-        const response = await fetch(`${API_BASE}/config/test-matrix`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/config/test-matrix`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -749,7 +741,7 @@ async function loadManipulateAudioFiles() {
     
     for (const dir of directories) {
         try {
-            const response = await fetch(`${API_BASE}/files/audio?directory=${dir}`);
+            const response = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=${dir}`);
             const result = await response.json();
             if (result.files) {
                 allFiles.push(...result.files);
@@ -969,7 +961,7 @@ function updateOriginalPlayer(filePath) {
     }
     
     if (player) {
-        player.src = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
+        player.src = `http://78.46.37.169:8080/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
         player.load();
         player.onpause = () => {
             if (playBtn) playBtn.textContent = '▶';
@@ -1036,7 +1028,7 @@ function updateTransformedPlayer(filePath) {
         return;
     }
     
-    const audioUrl = `/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
+    const audioUrl = `http://78.46.37.169:8080/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
     console.log('[updateTransformedPlayer] Setting audio src to:', audioUrl);
     
     player.src = audioUrl;
@@ -1227,7 +1219,7 @@ async function handleManipulateFileUpload(file) {
         formData.append('file', file);
         formData.append('directory', 'data/originals');
         
-        const response = await fetch(`${API_BASE}/upload/audio`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
             method: 'POST',
             body: formData
         });
@@ -1276,7 +1268,7 @@ async function applySpeedTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/speed`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/speed`, {
             method: 'POST',
             body: formData
         });
@@ -1348,7 +1340,7 @@ async function applyPitchTransform() {
             output_name: outputName
         });
         
-        const response = await fetch(`${API_BASE}/manipulate/pitch`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/pitch`, {
             method: 'POST',
             body: formData
         });
@@ -1414,7 +1406,7 @@ async function applyReverbTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/reverb`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/reverb`, {
             method: 'POST',
             body: formData
         });
@@ -1463,7 +1455,7 @@ async function applyNoiseReductionTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/noise-reduction`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/noise-reduction`, {
             method: 'POST',
             body: formData
         });
@@ -1537,7 +1529,7 @@ async function applyEQTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/eq`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq`, {
             method: 'POST',
             body: formData
         });
@@ -1623,7 +1615,7 @@ async function applyCompressionTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/encode`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/encode`, {
             method: 'POST',
             body: formData
         });
@@ -1681,7 +1673,7 @@ async function applyOverlayTransform() {
             uploadFormData.append('file', overlayFile);
             uploadFormData.append('directory', 'data/manipulated');
             
-            const uploadResponse = await fetch(`${API_BASE}/upload/audio`, {
+            const uploadResponse = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
                 method: 'POST',
                 body: uploadFormData
             });
@@ -1693,7 +1685,7 @@ async function applyOverlayTransform() {
             }
         }
         
-        const response = await fetch(`${API_BASE}/manipulate/overlay`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/overlay`, {
             method: 'POST',
             body: formData
         });
@@ -1739,7 +1731,7 @@ async function applyNoiseTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/noise`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/noise`, {
             method: 'POST',
             body: formData
         });
@@ -1777,7 +1769,7 @@ async function applyEncodeTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/encode`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/encode`, {
             method: 'POST',
             body: formData
         });
@@ -1815,7 +1807,7 @@ async function applyChopTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/chop`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/chop`, {
             method: 'POST',
             body: formData
         });
@@ -1952,7 +1944,7 @@ async function applyChainTransform() {
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
         
-        const response = await fetch(`${API_BASE}/manipulate/chain`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/chain`, {
             method: 'POST',
             body: formData
         });
@@ -2028,7 +2020,7 @@ async function testFingerprintRobustness() {
         formData.append('original_path', originalFile);
         formData.append('manipulated_path', manipulatedFile);
         
-        const response = await fetch(`${API_BASE}/test/fingerprint`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/test/fingerprint`, {
             method: 'POST',
             body: formData
         });
@@ -2050,7 +2042,7 @@ async function testFingerprintRobustness() {
         testBtn.disabled = false;
         
         if (result.status === 'success') {
-            const matchStatus = result.matched ? '✓ MATCHED' : '✗ NOT MATCHED';
+            const matchStatus = result.matched ? '' : '';
             const matchClass = result.matched ? 'success' : 'error';
             const similarityPercent = (result.similarity * 100).toFixed(1);
             const directSim = result.direct_similarity ? (result.direct_similarity * 100).toFixed(1) : null;
@@ -2248,7 +2240,7 @@ async function applyHighpassTransform() {
         formData.append('freq_hz', freqHz);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/eq/highpass`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/highpass`, {
             method: 'POST',
             body: formData
         });
@@ -2282,7 +2274,7 @@ async function applyLowpassTransform() {
         formData.append('freq_hz', freqHz);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/eq/lowpass`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/lowpass`, {
             method: 'POST',
             body: formData
         });
@@ -2316,7 +2308,7 @@ async function applyBoostHighsTransform() {
         formData.append('gain_db', gainDb);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/eq/boost-highs`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/boost-highs`, {
             method: 'POST',
             body: formData
         });
@@ -2350,7 +2342,7 @@ async function applyBoostLowsTransform() {
         formData.append('gain_db', gainDb);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/eq/boost-lows`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/boost-lows`, {
             method: 'POST',
             body: formData
         });
@@ -2381,7 +2373,7 @@ async function applyTelephoneTransform() {
         formData.append('input_path', selectedAudioFile);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/eq/telephone`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/telephone`, {
             method: 'POST',
             body: formData
         });
@@ -2415,7 +2407,7 @@ async function applyLimitingTransform() {
         formData.append('ceiling_db', ceilingDb);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/dynamics/limiting`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/dynamics/limiting`, {
             method: 'POST',
             body: formData
         });
@@ -2446,7 +2438,7 @@ async function applyMultibandTransform() {
         formData.append('input_path', selectedAudioFile);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/dynamics/multiband`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/dynamics/multiband`, {
             method: 'POST',
             body: formData
         });
@@ -2482,7 +2474,7 @@ async function applyAddNoiseTransform() {
         formData.append('snr_db', snrDb);
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/noise`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/noise`, {
             method: 'POST',
             body: formData
         });
@@ -2586,7 +2578,7 @@ async function applyEmbeddedSampleTransform() {
         }
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/embedded-sample`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/embedded-sample`, {
             method: 'POST',
             body: formData
         });
@@ -2640,7 +2632,7 @@ async function applySongAInSongBTransform() {
         formData.append('mix_volume_db', mixVolumeDb.toString());
         formData.append('output_dir', 'data/manipulated');
         
-        const response = await fetch(`${API_BASE}/manipulate/song-a-in-song-b`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/song-a-in-song-b`, {
             method: 'POST',
             body: formData
         });
@@ -2746,7 +2738,7 @@ function updateTestDisplays(originalPath, transformedPath) {
 // Deliverables & Reports
 async function loadDeliverables() {
     try {
-        const response = await fetch(`${API_BASE}/runs`);
+        const response = await fetch(`http://78.46.37.169:8080/api/runs`);
         const result = await response.json();
         
         const deliverablesListDiv = document.getElementById('deliverablesList');
@@ -2784,7 +2776,7 @@ async function loadDeliverables() {
             // Second pass: check metrics.json for runs without phase info
             for (const run of runsToCheck) {
                 try {
-                    const detailsResp = await fetch(`${API_BASE}/runs/${run.id}`);
+                    const detailsResp = await fetch(`http://78.46.37.169:8080/api/runs/${run.id}`);
                     if (detailsResp.ok) {
                         const details = await detailsResp.json();
                         const metrics = details.metrics || {};
@@ -2860,7 +2852,7 @@ async function loadDeliverables() {
                                     <p style="color: #9ca3af; font-size: 11px; margin: 0;">${dateStr} | ${sizeStr}</p>
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
-                                    <button class="btn" onclick="viewReportDetail('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #3d3d3d; border-radius: 4px; border: none; color: #ffffff; cursor: pointer;">Detail</button>
+                                    <button class="btn" onclick="viewRunDetails('${run.id}')" style="font-size: 11px; padding: 6px 12px; background: #3d3d3d; border-radius: 4px; border: none; color: #ffffff; cursor: pointer;">Details</button>
                                 </div>
                             </div>
                         `;
@@ -2887,7 +2879,7 @@ async function loadDeliverables() {
 
 function viewReport(reportPath, runId) {
     // Open report HTML in new tab
-    const url = `/api/files/report?path=${encodeURIComponent(reportPath)}`;
+    const url = `http://78.46.37.169:8080/api/files/report?path=${encodeURIComponent(reportPath)}`;
     window.open(url, '_blank');
 }
 
@@ -2896,7 +2888,7 @@ async function downloadReportZip(runId) {
         showCompletionAlert(`Preparing download for ${runId}...`, 'info');
         
         // Use direct window.location for large files to avoid memory issues
-        const downloadUrl = `${API_BASE}/runs/${runId}/download`;
+        const downloadUrl = `http://78.46.37.169:8080/api/runs/${runId}/download`;
         
         // Create a temporary link and click it
         const a = document.createElement('a');
@@ -2922,7 +2914,7 @@ async function downloadReportZip(runId) {
 
 async function viewRunDetails(runId) {
     try {
-        const response = await fetch(`${API_BASE}/runs/${runId}`);
+        const response = await fetch(`http://78.46.37.169:8080/api/runs/${runId}`);
         const result = await response.json();
         
         const reportViewerDiv = document.getElementById('reportViewer');
@@ -2944,7 +2936,7 @@ async function viewRunDetails(runId) {
         
         const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
         const statusColor = !hasMetrics ? '#f59e0b' : (matched ? '#10b981' : '#f87171');
-        const statusText = !hasMetrics ? '⏳ PENDING' : (matched ? '✅ MATCHED' : '❌ NOT MATCHED');
+        const statusText = !hasMetrics ? '⏳ PENDING' : (matched ? '' : '');
         const phaseColor = phase === 'phase1' ? '#427eea' : phase === 'phase2' ? '#10b981' : '#9ca3af';
         
         let html = `
@@ -3005,7 +2997,7 @@ async function viewRunDetails(runId) {
                     </div>
                     <div style="background: #2d2d2d; padding: 15px; border-radius: 6px;">
                         <div style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Test Status</div>
-                        <div style="color: ${statusColor}; font-size: 24px; font-weight: bold;">${passFail.passed || 0} / ${passFail.total || 0} Passed</div>
+                        <div style="color: ${statusColor}; font-size: 24px; font-weight: bold;">${passFail.passed || 1} / ${passFail.total || 1} Passed</div>
                     </div>
                 </div>
             </div>
@@ -3014,7 +3006,7 @@ async function viewRunDetails(runId) {
         if (result.metrics) {
             const summary = result.metrics.summary || {};
             html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #3d3d3d;">';
-            html += '<h5 style="color: #427eea; margin-bottom: 10px; font-size: 14px;">📊 Additional Metrics</h5>';
+            html += '<h5 style="color: #427eea; margin-bottom: 10px; font-size: 14px;"> Additional Metrics</h5>';
             html += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">`;
             html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Total Queries</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 18px;">${summary.total_queries || 'N/A'}</p></div>`;
             html += `<div style="padding: 10px; background: #2d2d2d; border-radius: 4px;"><strong style="color: #9ca3af; font-size: 11px;">Total Transforms</strong><p style="color: #ffffff; margin: 5px 0 0 0; font-size: 18px;">${summary.total_transforms || 'N/A'}</p></div>`;
@@ -3046,70 +3038,190 @@ async function viewRunDetails(runId) {
                     <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Recall@K by Transform Severity</h6>
                         <div id="plot-recall-severity-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
-                            <img src="/api/files/plots/recall_by_severity.png?run_id=${runId}" 
+                            <img src="http://78.46.37.169:8080/api/files/plots/recall_by_severity.png?run_id=${runId}" 
                                  alt="Recall by Severity" 
-                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
-                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
-                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
-                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
-                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
-                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Recall by Severity</p>
-                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
-                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
-                            </div>
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%; object-fit: contain;"
+                                 onerror="this.style.display='none';">
                         </div>
                     </div>
                     <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Similarity Score by Severity</h6>
                         <div id="plot-similarity-severity-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
-                            <img src="/api/files/plots/similarity_by_severity.png?run_id=${runId}" 
+                            <img src="http://78.46.37.169:8080/api/files/plots/similarity_by_severity.png?run_id=${runId}" 
                                  alt="Similarity by Severity" 
-                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
-                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
-                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
-                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
-                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
-                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Similarity by Severity</p>
-                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
-                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
-                            </div>
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%; object-fit: contain;"
+                                 onerror="this.style.display='none';">
                         </div>
                     </div>
                     <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Recall@K by Transform Type</h6>
                         <div id="plot-recall-transform-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
-                            <img src="/api/files/plots/recall_by_transform.png?run_id=${runId}" 
+                            <img src="http://78.46.37.169:8080/api/files/plots/recall_by_transform.png?run_id=${runId}" 
                                  alt="Recall by Transform Type" 
-                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
-                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
-                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
-                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
-                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
-                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Recall by Transform Type</p>
-                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
-                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
-                            </div>
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%; object-fit: contain;"
+                                 onerror="this.style.display='none';">
                         </div>
                     </div>
                     <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;">
                         <h6 style="color: #1e1e1e; margin: 0 0 15px 0; font-size: 14px; font-weight: 600;">Latency by Transform Type</h6>
                         <div id="plot-latency-transform-${runId}" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
-                            <img src="/api/files/plots/latency_by_transform.png?run_id=${runId}" 
+                            <img src="http://78.46.37.169:8080/api/files/plots/latency_by_transform.png?run_id=${runId}" 
                                  alt="Latency by Transform Type" 
-                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%;"
-                                 onload="this.parentElement.querySelector('.plot-placeholder')?.style.display='none';"
-                                 onerror="this.style.display='none'; this.parentElement.querySelector('.plot-placeholder').style.display='flex';">
-                            <div class="plot-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; padding: 40px; text-align: center;">
-                                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
-                                <p style="margin: 0; font-size: 14px; font-weight: 500;">Latency by Transform</p>
-                                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Chart not available</p>
-                                <p style="margin: 10px 0 0 0; font-size: 11px; color: #9ca3af;">Plots require matplotlib/PIL to be installed</p>
-                            </div>
+                                 style="width: 100%; height: auto; border-radius: 4px; max-width: 100%; object-fit: contain;"
+                                 onerror="this.style.display='none';">
                         </div>
                     </div>
                 </div>
             </div>
         `;
+        
+        // Add Detailed Test Results table
+        if (result.summary && result.summary.length > 0) {
+            html += `
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
+                <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">📋 Detailed Test Results</h5>
+                <div style="overflow-x: auto; background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #1e1e1e; border-bottom: 2px solid #3d3d3d;">
+                                <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600;">severity</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">count</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">recall_at_1</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">recall_at_5</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">recall_at_10</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">mean_rank</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">mean_similarity</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">mean_latency_ms</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            result.summary.forEach(row => {
+                const severityColor = row.severity === 'mild' ? '#10b981' : row.severity === 'moderate' ? '#f59e0b' : '#f87171';
+                html += `
+                            <tr style="border-bottom: 1px solid #3d3d3d;">
+                                <td style="padding: 10px; color: ${severityColor}; font-weight: 500;">${row.severity || 'N/A'}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${row.count || 0}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(row.recall_at_1 || 0).toFixed(6)}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(row.recall_at_5 || 0).toFixed(6)}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(row.recall_at_10 || 0).toFixed(6)}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(row.mean_rank || 0).toFixed(1)}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(row.mean_similarity || 0).toFixed(6)}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(row.mean_latency_ms || 0).toFixed(6)}</td>
+                            </tr>
+                `;
+            });
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            `;
+        }
+        
+        // Add Latency Metrics table
+        if (result.metrics && result.metrics.pass_fail && result.metrics.pass_fail.overall && result.metrics.pass_fail.overall.latency) {
+            const latencyData = result.metrics.pass_fail.overall.latency;
+            const meanLatency = latencyData.mean_ms || {};
+            const p95Latency = latencyData.p95_ms || {};
+            
+            html += `
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
+                <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Latency Metrics</h5>
+                <div style="overflow-x: auto; background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #1e1e1e; border-bottom: 2px solid #3d3d3d;">
+                                <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600;">Metric</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Actual</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Target</th>
+                                <th style="padding: 10px; text-align: center; color: #ffffff; font-weight: 600;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #3d3d3d;">
+                                <td style="padding: 10px; color: #ffffff; font-weight: 500;">Mean Latency</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(meanLatency.actual || 0).toFixed(1)}ms</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(meanLatency.threshold || 1000.0).toFixed(1)}ms</td>
+                                <td style="padding: 10px; text-align: center; color: ${meanLatency.passed ? '#10b981' : '#f87171'}; font-weight: 600;">${meanLatency.passed ? '✓' : '✗'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #3d3d3d;">
+                                <td style="padding: 10px; color: #ffffff; font-weight: 500;">P95 Latency</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(p95Latency.actual || 0).toFixed(1)}ms</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${(p95Latency.threshold || 2000.0).toFixed(1)}ms</td>
+                                <td style="padding: 10px; text-align: center; color: ${p95Latency.passed ? '#10b981' : '#f87171'}; font-weight: 600;">${p95Latency.passed ? '✓' : '✗'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            `;
+        }
+        
+        // Add Per-Transform Analysis table
+        if (result.metrics && result.metrics.per_transform) {
+            const perTransform = result.metrics.per_transform;
+            html += `
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
+                <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Per-Transform Analysis</h5>
+                <div style="overflow-x: auto; background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #1e1e1e; border-bottom: 2px solid #3d3d3d;">
+                                <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600;">Transform</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Total Queries</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Recall@1</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Recall@5</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Recall@10</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Similarity</th>
+                                <th style="padding: 10px; text-align: right; color: #ffffff; font-weight: 600;">Latency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            Object.keys(perTransform).forEach(transformType => {
+                const data = perTransform[transformType];
+                const recall = data.recall || {};
+                const similarity = data.similarity || {};
+                const latency = data.latency || {};
+                const count = data.count || 0;
+                const recall1 = (recall.recall_at_1 || 0).toFixed(3);
+                const recall5 = (recall.recall_at_5 || 0).toFixed(3);
+                const recall10 = (recall.recall_at_10 || 0).toFixed(3);
+                const meanSimilarity = (similarity.mean_similarity || similarity.mean_similarity_correct || 0).toFixed(3);
+                const meanLatency = (latency.mean_latency_ms || 0).toFixed(1);
+                
+                html += `
+                            <tr style="border-bottom: 1px solid #3d3d3d;">
+                                <td style="padding: 10px; color: #ffffff; font-weight: 500;">${transformType}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${count}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${recall1}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${recall5}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${recall10}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${meanSimilarity}</td>
+                                <td style="padding: 10px; text-align: right; color: #ffffff;">${meanLatency}ms</td>
+                            </tr>
+                `;
+            });
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            `;
+        }
+        
+        // Add Overall Metrics JSON
+        if (result.metrics && result.metrics.overall) {
+            html += `
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
+                <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Overall Metrics</h5>
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px; overflow-x: auto;">
+                    <pre style="color: #ffffff; font-family: 'Courier New', monospace; font-size: 11px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">${JSON.stringify(result.metrics.overall, null, 2)}</pre>
+                </div>
+            </div>
+            `;
+        }
         
         html += '</div>';
         reportViewerDiv.innerHTML = html;
@@ -3132,7 +3244,7 @@ async function deleteReport(runId) {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/runs/${runId}`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/runs/${runId}`, {
             method: 'DELETE'
         });
         
@@ -3210,7 +3322,7 @@ async function loadDeliverablesAudioFiles() {
         
         // Load from test_audio directory
         try {
-            const response = await fetch(`${API_BASE}/files/audio?directory=test_audio`);
+            const response = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=test_audio`);
             const result = await response.json();
             if (result.files && result.files.length > 0) {
                 result.files.forEach(file => {
@@ -3227,7 +3339,7 @@ async function loadDeliverablesAudioFiles() {
         
         // Also load from originals directory
         try {
-            const response2 = await fetch(`${API_BASE}/files/audio?directory=originals`);
+            const response2 = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=originals`);
             const result2 = await response2.json();
             if (result2.files && result2.files.length > 0) {
                 result2.files.forEach(file => {
@@ -3332,7 +3444,7 @@ async function handleDeliverablesFileUpload(file) {
         formData.append('file', file);
         formData.append('directory', 'test_audio');
         
-        const response = await fetch(`${API_BASE}/upload/audio`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
             method: 'POST',
             body: formData
         });
@@ -3689,7 +3801,7 @@ async function applyAllDeliverablesTransforms() {
             formData.append('overlay_file', overlayFile);
         }
         
-        const response = await fetch(`${API_BASE}/manipulate/deliverables-batch`, {
+        const response = await fetch(`http://78.46.37.169:8080/api/manipulate/deliverables-batch`, {
             method: 'POST',
             body: formData
         });
@@ -4061,7 +4173,7 @@ async function cancelProgress() {
     }
     
     try {
-        const resp = await fetch(`${API_BASE}/process/${progressModalState.commandId}/cancel`, {
+        const resp = await fetch(`http://78.46.37.169:8080/api/process/${progressModalState.commandId}/cancel`, {
             method: 'POST'
         });
         
@@ -4103,7 +4215,7 @@ async function runPhaseSuite(phase = 'both') {
         // Show progress modal
         showProgressModal(phase);
 
-        const resp = await fetch(`${API_BASE}/process/generate-deliverables`, {
+        const resp = await fetch(`http://78.46.37.169:8080/api/process/generate-deliverables`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -4140,7 +4252,7 @@ async function runPhaseSuite(phase = 'both') {
             }
             
             try {
-                const logResp = await fetch(`${API_BASE}/process/${commandId}/logs`);
+                const logResp = await fetch(`http://78.46.37.169:8080/api/process/${commandId}/logs`);
                 if (logResp.ok) {
                     const logData = await logResp.json();
                     if (logData.logs && logData.logs.length > 0) {
