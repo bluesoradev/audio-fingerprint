@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Copied UI files (will be generated)
+templates/
+static/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+*.app
+*.dmg
+
