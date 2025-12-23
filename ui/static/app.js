@@ -60,8 +60,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Navigation
 function showSection(sectionId, eventElement) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.getElementById(sectionId).classList.add('active');
+    console.log('showSection called with:', sectionId);
+    
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(s => {
+        s.classList.remove('active');
+        console.log('Removed active from:', s.id);
+    });
+    
+    // Show selected section
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+        console.log('Added active to:', sectionId);
+    } else {
+        console.error('Section not found:', sectionId);
+        return;
+    }
 
     // Update active nav item
     document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
@@ -77,14 +92,44 @@ function showSection(sectionId, eventElement) {
     }
 
     // Load section-specific data
-    if (sectionId === 'manipulate') {
-        loadManipulateAudioFiles();
-        loadTestFileSelects();
-    } else if (sectionId === 'deliverables') {
-        loadDeliverables();
-        loadDeliverablesAudioFiles();
-    } else if (sectionId === 'daw') {
-        loadDAWFiles();
+    try {
+        if (sectionId === 'dashboard') {
+            console.log('Loading dashboard...');
+            loadDashboard().catch(err => {
+                console.error('Failed to load dashboard:', err);
+                const statsGrid = document.getElementById('dashboardStats');
+                if (statsGrid) {
+                    statsGrid.innerHTML = '<p style="color: #f87171;">Failed to load dashboard data. Please check your connection to the server.</p>';
+                }
+            });
+        } else if (sectionId === 'manipulate') {
+            console.log('Loading manipulate section...');
+            loadManipulateAudioFiles().catch(err => {
+                console.error('Failed to load manipulate files:', err);
+            });
+            loadTestFileSelects().catch(err => {
+                console.error('Failed to load test selects:', err);
+            });
+        } else if (sectionId === 'deliverables') {
+            console.log('Loading deliverables...');
+            loadDeliverables().catch(err => {
+                console.error('Failed to load deliverables:', err);
+            });
+            loadDeliverablesAudioFiles().catch(err => {
+                console.error('Failed to load deliverables audio:', err);
+            });
+        } else if (sectionId === 'daw') {
+            console.log('Loading DAW files...');
+            loadDAWFiles().catch(err => {
+                console.error('Failed to load DAW files:', err);
+                const fileList = document.getElementById('dawFileList');
+                if (fileList) {
+                    fileList.innerHTML = '<p style="color: #f87171;">Failed to load DAW files. Please check your connection to the server.</p>';
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error in showSection:', error);
     }
 }
 
@@ -126,55 +171,75 @@ async function checkStatus() {
 
 // Dashboard
 async function loadDashboard() {
+    const statsGrid = document.getElementById('dashboardStats');
+    const recentRunsDiv = document.getElementById('recentRuns');
+    
+    // Show loading state
+    if (statsGrid) {
+        statsGrid.innerHTML = '<p style="color: #9ca3af;">Loading dashboard data...</p>';
+    }
+    
     try {
         const [statusRes, runsRes] = await Promise.all([
-            fetch(`http://78.46.37.169:8080/api/status`),
-            fetch(`http://78.46.37.169:8080/api/runs`)
+            fetch(`${API_BASE}/status`),
+            fetch(`${API_BASE}/runs`)
         ]);
+
+        if (!statusRes.ok || !runsRes.ok) {
+            throw new Error(`API request failed: ${statusRes.status} / ${runsRes.status}`);
+        }
 
         const status = await statusRes.json();
         const runs = await runsRes.json();
 
         // Display stats
-        const statsGrid = document.getElementById('dashboardStats');
-        statsGrid.innerHTML = `
-            <div class="stat-card">
-                <h3>${runs.runs ? runs.runs.length : 0}</h3>
-                <p>Total Runs</p>
-            </div>
-            <div class="stat-card">
-                <h3>${status.running_processes ? status.running_processes.length : 0}</h3>
-                <p>Active Processes</p>
-            </div>
-            <div class="stat-card">
-                <h3>✓</h3>
-                <p>System Status</p>
-            </div>
-        `;
+        if (statsGrid) {
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <h3>${runs.runs ? runs.runs.length : 0}</h3>
+                    <p>Total Runs</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${status.running_processes ? status.running_processes.length : 0}</h3>
+                    <p>Active Processes</p>
+                </div>
+                <div class="stat-card">
+                    <h3>✓</h3>
+                    <p>System Status</p>
+                </div>
+            `;
+        }
 
         // Recent runs
-        const recentRunsDiv = document.getElementById('recentRuns');
-        if (runs.runs && runs.runs.length > 0) {
-            recentRunsDiv.innerHTML = '<h3 style="margin-top: 20px;">Recent Runs</h3><table class="table"><thead><tr><th>Run ID</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>';
-            const tbody = recentRunsDiv.querySelector('tbody');
-            runs.runs.slice(0, 5).forEach(run => {
-                const date = new Date(run.timestamp * 1000).toLocaleString();
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${run.id}</td>
-                        <td><span class="badge badge-${run.has_metrics ? 'success' : 'info'}">${run.has_metrics ? 'Complete' : 'In Progress'}</span></td>
-                        <td>${date}</td>
-                        <td>
-                            <button class="btn" onclick="deleteReport('${run.id}')" style="background: #f87171; color: #ffffff;" title="Delete Report">🗑️ Delete</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        } else {
-            recentRunsDiv.innerHTML = '<p>No runs yet. Start by creating test audio files.</p>';
+        if (recentRunsDiv) {
+            if (runs.runs && runs.runs.length > 0) {
+                recentRunsDiv.innerHTML = '<h3 style="margin-top: 20px;">Recent Runs</h3><table class="table"><thead><tr><th>Run ID</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>';
+                const tbody = recentRunsDiv.querySelector('tbody');
+                runs.runs.slice(0, 5).forEach(run => {
+                    const date = new Date(run.timestamp * 1000).toLocaleString();
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${run.id}</td>
+                            <td><span class="badge badge-${run.has_metrics ? 'success' : 'info'}">${run.has_metrics ? 'Complete' : 'In Progress'}</span></td>
+                            <td>${date}</td>
+                            <td>
+                                <button class="btn" onclick="deleteReport('${run.id}')" style="background: #f87171; color: #ffffff;" title="Delete Report">🗑️ Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else {
+                recentRunsDiv.innerHTML = '<p style="color: #9ca3af;">No runs yet. Start by creating test audio files.</p>';
+            }
         }
     } catch (error) {
         console.error('Dashboard load failed:', error);
+        if (statsGrid) {
+            statsGrid.innerHTML = `<p style="color: #f87171;">Error loading dashboard: ${error.message}</p>`;
+        }
+        if (recentRunsDiv) {
+            recentRunsDiv.innerHTML = `<p style="color: #f87171;">Error loading recent runs: ${error.message}</p>`;
+        }
     }
 }
 
@@ -737,6 +802,14 @@ let transformChain = [];
 let selectedAudioFile = null;
 
 async function loadManipulateAudioFiles() {
+    console.log('loadManipulateAudioFiles called');
+    
+    // Show loading state
+    const audioSelect = document.getElementById('manipulateAudioFile');
+    if (audioSelect) {
+        audioSelect.innerHTML = '<option value="">Loading audio files...</option>';
+    }
+    
     // Load audio files from all directories
     const directories = ['originals', 'transformed', 'test_audio', 'manipulated'];
     const allFiles = [];
@@ -4549,12 +4622,21 @@ async function runPhaseSuite(phase = 'both') {
 
 // DAW Parser Functions
 async function loadDAWFiles() {
+    const fileList = document.getElementById('dawFileList');
+    
+    // Show loading state
+    if (fileList) {
+        fileList.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 20px;">Loading DAW files...</p>';
+    }
+    
     try {
         const response = await fetch(`${API_BASE}/daw/files`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch DAW files: ${response.status} ${response.statusText}`);
+        }
+        
         const data = await response.json();
-
-        const fileList = document.getElementById('dawFileList');
-        if (!fileList) return;
 
         if (data.daw_files && data.daw_files.length > 0) {
             fileList.innerHTML = '';
@@ -4574,10 +4656,15 @@ async function loadDAWFiles() {
                 fileList.appendChild(item);
             });
         } else {
-            fileList.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 20px;">No DAW files uploaded yet</p>';
+            if (fileList) {
+                fileList.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 20px;">No DAW files uploaded yet</p>';
+            }
         }
     } catch (error) {
         console.error('Error loading DAW files:', error);
+        if (fileList) {
+            fileList.innerHTML = `<p style="color: #f87171; text-align: center; padding: 20px;">Error loading DAW files: ${error.message}. Please check your connection to the server.</p>`;
+        }
     }
 }
 
