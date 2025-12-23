@@ -138,8 +138,21 @@ def setup_ui_files():
     """Copy and modify UI files for desktop app"""
     if getattr(sys, 'frozen', False):
         # In bundled mode, files are already copied by PyInstaller
-        # Just need to modify them
+        # But we need to ensure they exist and have content
         print("Modifying bundled UI files...")
+        
+        # If index.html is missing or empty, try to copy from source
+        index_html_path = TEMPLATES_DIR / "index.html"
+        if not index_html_path.exists() or index_html_path.stat().st_size == 0:
+            print("⚠ index.html is missing or empty, attempting to restore...")
+            # Try to find source file
+            source_ui_dir = Path(__file__).parent.parent / "ui"
+            source_index = source_ui_dir / "templates" / "index.html"
+            if source_index.exists() and source_index.stat().st_size > 0:
+                shutil.copy2(source_index, index_html_path)
+                print(f"✓ Restored index.html from source ({source_index.stat().st_size} bytes)")
+            else:
+                print("⚠ Could not find source index.html")
     else:
         # In development mode, copy files from UI directory
         print("Setting up UI files...")
@@ -164,7 +177,7 @@ def setup_ui_files():
     
     # Modify app.js to use VPS API (works in both modes)
     app_js_path = STATIC_DIR / "app.js"
-    if app_js_path.exists():
+    if app_js_path.exists() and app_js_path.stat().st_size > 0:
         content = app_js_path.read_text()
         # Replace API_BASE to point to VPS
         content = content.replace("const API_BASE = '/api';", f"const API_BASE = '{VPS_API_BASE}';")
@@ -176,11 +189,11 @@ def setup_ui_files():
         app_js_path.write_text(content)
         print(f"✓ Modified app.js to use VPS API: {VPS_API_BASE}")
     else:
-        print("⚠ Warning: app.js not found")
+        print("⚠ Warning: app.js not found or empty")
     
     # Modify index.html to use local static files
     index_html_path = TEMPLATES_DIR / "index.html"
-    if index_html_path.exists():
+    if index_html_path.exists() and index_html_path.stat().st_size > 0:
         content = index_html_path.read_text()
         # Replace static file paths - but only if not already replaced
         # Check if already contains localhost URL to avoid duplicate replacements
@@ -197,7 +210,7 @@ def setup_ui_files():
         index_html_path.write_text(content)
         print("✓ Modified index.html to use local static files")
     else:
-        print("⚠ Warning: index.html not found")
+        print(f"⚠ Warning: index.html not found or empty (exists: {index_html_path.exists()}, size: {index_html_path.stat().st_size if index_html_path.exists() else 0})")
 
 def start_local_server():
     """Start a local HTTP server to serve UI files"""

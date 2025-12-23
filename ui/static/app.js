@@ -4,6 +4,106 @@ const API_BASE = 'http://78.46.37.169:8080/api';
 let currentProcessId = null;
 let logPollInterval = null;
 
+// Navigation - MUST be defined at top level for onclick handlers
+function showSection(sectionId, eventElement) {
+    console.log('=== showSection called ===');
+    console.log('Section ID:', sectionId);
+    console.log('Event Element:', eventElement);
+    
+    try {
+        // Verify DOM is ready
+        if (document.readyState === 'loading') {
+            console.warn('DOM not ready, waiting...');
+            document.addEventListener('DOMContentLoaded', () => showSection(sectionId, eventElement));
+            return;
+        }
+        
+        // Hide all sections
+        const allSections = document.querySelectorAll('.section');
+        console.log('Found sections:', allSections.length);
+        allSections.forEach(s => {
+            s.classList.remove('active');
+            console.log('Removed active from:', s.id);
+        });
+        
+        // Show selected section
+        const targetSection = document.getElementById(sectionId);
+        if (!targetSection) {
+            console.error('Section not found:', sectionId);
+            console.error('Available sections:', Array.from(document.querySelectorAll('.section')).map(s => s.id));
+            alert('Section not found: ' + sectionId + '\nAvailable: ' + Array.from(document.querySelectorAll('.section')).map(s => s.id).join(', '));
+            return;
+        }
+        
+        console.log('Found target section:', targetSection.id);
+        targetSection.classList.add('active');
+        console.log('Added active class to:', sectionId);
+        console.log('Section now has classes:', targetSection.className);
+
+        // Update active nav item
+        const navLinks = document.querySelectorAll('.nav-menu a');
+        console.log('Found nav links:', navLinks.length);
+        navLinks.forEach(a => a.classList.remove('active'));
+        
+        if (eventElement) {
+            eventElement.classList.add('active');
+            console.log('Activated nav link:', eventElement);
+        } else {
+            // Find the corresponding nav link and activate it
+            navLinks.forEach(a => {
+                const onclick = a.getAttribute('onclick');
+                if (onclick && onclick.includes(sectionId)) {
+                    a.classList.add('active');
+                    console.log('Found and activated nav link for:', sectionId);
+                }
+            });
+        }
+
+        // Load section-specific data
+        if (sectionId === 'dashboard') {
+            console.log('Loading dashboard...');
+            loadDashboard().catch(err => {
+                console.error('Failed to load dashboard:', err);
+                const statsGrid = document.getElementById('dashboardStats');
+                if (statsGrid) {
+                    statsGrid.innerHTML = '<p style="color: #f87171;">Failed to load dashboard data. Please check your connection to the server.</p>';
+                }
+            });
+        } else if (sectionId === 'manipulate') {
+            console.log('Loading manipulate section...');
+            loadManipulateAudioFiles().catch(err => {
+                console.error('Failed to load manipulate files:', err);
+            });
+            loadTestFileSelects().catch(err => {
+                console.error('Failed to load test selects:', err);
+            });
+        } else if (sectionId === 'deliverables') {
+            console.log('Loading deliverables...');
+            loadDeliverables().catch(err => {
+                console.error('Failed to load deliverables:', err);
+            });
+            loadDeliverablesAudioFiles().catch(err => {
+                console.error('Failed to load deliverables audio:', err);
+            });
+        } else if (sectionId === 'daw') {
+            console.log('Loading DAW files...');
+            loadDAWFiles().catch(err => {
+                console.error('Failed to load DAW files:', err);
+                const fileList = document.getElementById('dawFileList');
+                if (fileList) {
+                    fileList.innerHTML = '<p style="color: #f87171;">Failed to load DAW files. Please check your connection to the server.</p>';
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error in showSection:', error);
+        alert('Error switching section: ' + error.message);
+    }
+}
+
+// Make showSection globally accessible immediately
+window.showSection = showSection;
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     // Show/hide transform params groups based on transform selection
@@ -55,116 +155,114 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboard();
     loadDeliverablesAudioFiles(); // Load deliverables audio files on page load
     loadDeliverables(); // Load deliverables on page load
+    // Set up navigation button event listeners (replace onclick handlers)
+    document.querySelectorAll('.nav-menu a').forEach(link => {
+        const onclick = link.getAttribute('onclick');
+        if (onclick && onclick.includes('showSection')) {
+            // Extract section ID from onclick
+            const match = onclick.match(/showSection\(['"]([^'"]+)['"]/);
+            if (match) {
+                const sectionId = match[1];
+                console.log('Setting up event listener for:', sectionId);
+                // Remove existing onclick to avoid conflicts, use event listener instead
+                link.removeAttribute('onclick');
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Event listener triggered for:', sectionId);
+                    showSection(sectionId, this);
+                    return false;
+                });
+            }
+        }
+    });
+    
+    // Verify showSection is accessible
+    console.log('showSection function available:', typeof window.showSection);
+    console.log('showSection function available:', typeof showSection);
+    
     setInterval(checkStatus, 5000); // Check status every 5 seconds
 });
 
-// Navigation
-function showSection(sectionId, eventElement) {
-    console.log('showSection called with:', sectionId);
-    
-    // Hide all sections
-    document.querySelectorAll('.section').forEach(s => {
-        s.classList.remove('active');
-        console.log('Removed active from:', s.id);
-    });
-    
-    // Show selected section
-    const targetSection = document.getElementById(sectionId);
-    if (targetSection) {
-        targetSection.classList.add('active');
-        console.log('Added active to:', sectionId);
-    } else {
-        console.error('Section not found:', sectionId);
-        return;
-    }
-
-    // Update active nav item
-    document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
-    if (eventElement) {
-        eventElement.classList.add('active');
-    } else {
-        // Find the corresponding nav link and activate it
-        document.querySelectorAll('.nav-menu a').forEach(a => {
-            if (a.getAttribute('onclick') && a.getAttribute('onclick').includes(sectionId)) {
-                a.classList.add('active');
-            }
-        });
-    }
-
-    // Load section-specific data
-    try {
-        if (sectionId === 'dashboard') {
-            console.log('Loading dashboard...');
-            loadDashboard().catch(err => {
-                console.error('Failed to load dashboard:', err);
-                const statsGrid = document.getElementById('dashboardStats');
-                if (statsGrid) {
-                    statsGrid.innerHTML = '<p style="color: #f87171;">Failed to load dashboard data. Please check your connection to the server.</p>';
-                }
-            });
-        } else if (sectionId === 'manipulate') {
-            console.log('Loading manipulate section...');
-            loadManipulateAudioFiles().catch(err => {
-                console.error('Failed to load manipulate files:', err);
-            });
-            loadTestFileSelects().catch(err => {
-                console.error('Failed to load test selects:', err);
-            });
-        } else if (sectionId === 'deliverables') {
-            console.log('Loading deliverables...');
-            loadDeliverables().catch(err => {
-                console.error('Failed to load deliverables:', err);
-            });
-            loadDeliverablesAudioFiles().catch(err => {
-                console.error('Failed to load deliverables audio:', err);
-            });
-        } else if (sectionId === 'daw') {
-            console.log('Loading DAW files...');
-            loadDAWFiles().catch(err => {
-                console.error('Failed to load DAW files:', err);
-                const fileList = document.getElementById('dawFileList');
-                if (fileList) {
-                    fileList.innerHTML = '<p style="color: #f87171;">Failed to load DAW files. Please check your connection to the server.</p>';
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Error in showSection:', error);
-    }
-}
-
-// Status Check
+// Status Check with proper timeout and error handling
 async function checkStatus() {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const sidebarStatusText = document.getElementById('sidebarStatusText');
+    const currentProcess = document.getElementById('currentProcess');
+    
+    console.log('Checking server status at:', API_BASE);
+    
     try {
-        const response = await fetch(`http://78.46.37.169:8080/api/status`);
+        // Add timeout to fetch - 3 seconds (shorter for faster feedback)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            console.log('Status check timeout - server not responding');
+            controller.abort();
+        }, 3000);
+        
+        const response = await fetch(`${API_BASE}/status`, {
+            signal: controller.signal,
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            cache: 'no-cache' // Prevent caching
+        });
+        
+        clearTimeout(timeoutId);
+        
+        console.log('Status response:', response.status, response.ok);
+        
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}`);
+        }
+        
         const status = await response.json();
-
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        const sidebarStatusText = document.getElementById('sidebarStatusText');
+        console.log('Status data:', status);
 
         if (status.running_processes && status.running_processes.length > 0) {
-            statusDot.className = 'status-dot warning';
-            statusText.textContent = `${status.running_processes.length} process(es) running`;
+            if (statusDot) statusDot.className = 'status-dot warning';
+            if (statusText) statusText.textContent = `${status.running_processes.length} process(es) running`;
             if (sidebarStatusText) {
                 sidebarStatusText.textContent = `${status.running_processes.length} process(es) running`;
             }
-            document.getElementById('currentProcess').textContent = `Running: ${status.running_processes.join(', ')}`;
+            if (currentProcess) currentProcess.textContent = `Running: ${status.running_processes.join(', ')}`;
         } else {
-            statusDot.className = 'status-dot';
-            statusText.textContent = 'System Ready';
+            if (statusDot) statusDot.className = 'status-dot';
+            if (statusText) statusText.textContent = 'System Ready';
             if (sidebarStatusText) {
                 sidebarStatusText.textContent = 'System Ready';
             }
-            document.getElementById('currentProcess').textContent = '';
+            if (currentProcess) currentProcess.textContent = '';
         }
     } catch (error) {
         console.error('Status check failed:', error);
-        document.getElementById('statusDot').className = 'status-dot error';
-        document.getElementById('statusText').textContent = 'Connection Error';
-        const sidebarStatusText = document.getElementById('sidebarStatusText');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        
+        // Show error status when server is down
+        // Check if it's a network error or abort
+        const isNetworkError = error.name === 'TypeError' || 
+                               error.name === 'NetworkError' || 
+                               error.name === 'AbortError' ||
+                               error.message.includes('Failed to fetch') ||
+                               error.message.includes('NetworkError');
+        
+        if (statusDot) {
+            statusDot.className = 'status-dot error';
+            console.log('Set status dot to error class');
+        }
+        if (statusText) {
+            statusText.textContent = 'Server Offline';
+            console.log('Set status text to Server Offline');
+        }
         if (sidebarStatusText) {
-            sidebarStatusText.textContent = 'Connection Error';
+            sidebarStatusText.textContent = `Server Offline - Cannot connect to ${API_BASE}`;
+            console.log('Set sidebar status to Server Offline');
+        }
+        if (currentProcess) {
+            currentProcess.textContent = `Connection Error: ${error.message}`;
         }
     }
 }
@@ -935,7 +1033,7 @@ function loadAudioInfo() {
     }
 
     selectedAudioFile = filePath;
-    const fileName = select.options[select.selectedIndex] ? .textContent || filePath.split('/').pop();
+    const fileName = select.options[select.selectedIndex]?.textContent || filePath.split('/').pop();
 
     const selectedFileName = document.getElementById('selectedFileName');
     const selectedFilePath = document.getElementById('selectedFilePath');
@@ -953,7 +1051,7 @@ function loadAudioInfo() {
     // Update original test display in "Test Fingerprint Robustness" section
     // Preserve existing transformed path if it exists
     const transformedDisplay = document.getElementById('transformedTestDisplay');
-    const existingTransformed = transformedDisplay ? .value ? .trim() || null;
+    const existingTransformed = transformedDisplay?.value?.trim() || null;
     console.log('[loadAudioInfo] Updating test displays - Original:', filePath, 'Transformed (preserved):', existingTransformed);
     updateTestDisplays(filePath, existingTransformed);
 
@@ -1331,9 +1429,9 @@ async function applySpeedTransform() {
         return;
     }
     const speedRatio = parseFloat(speedSlider.value) / 100.0; // Convert from 50-200 to 0.5-2.0
-    const preservePitch = document.getElementById('preservePitch') ? .checked || false;
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const preservePitch = document.getElementById('preservePitch')?.checked || false;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1371,7 +1469,7 @@ async function applySpeedTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1398,8 +1496,8 @@ async function applyPitchTransform() {
     console.log('[Pitch Transform] Slider value:', pitchSlider.value, 'Parsed semitones:', semitones);
     addSystemLog(`Applying pitch shift: ${semitones} semitones`, 'info');
 
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1444,7 +1542,7 @@ async function applyPitchTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1471,8 +1569,8 @@ async function applyReverbTransform() {
         return;
     }
     const delayMs = parseInt(reverbSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1495,7 +1593,7 @@ async function applyReverbTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1520,8 +1618,8 @@ async function applyNoiseReductionTransform() {
     }
     const reductionPercent = parseInt(noiseSlider.value);
     const reductionStrength = reductionPercent / 100.0;
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1564,7 +1662,7 @@ async function applyNoiseReductionTransform() {
                 console.log('[Noise Reduction] Calling updateTestDisplays with:', result.output_path);
                 console.log('[Noise Reduction] Calling updateTransformedPlayer with:', result.output_path);
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
@@ -1594,8 +1692,8 @@ async function applyEQTransform() {
         return;
     }
     const gainDb = parseInt(eqSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1638,7 +1736,7 @@ async function applyEQTransform() {
                 console.log('[EQ Transform] Calling updateTestDisplays with:', result.output_path);
                 console.log('[EQ Transform] Calling updateTransformedPlayer with:', result.output_path);
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
@@ -1679,8 +1777,8 @@ async function applyCompressionTransform() {
         return;
     }
     const bitrate = bitrateSelect.value;
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1704,7 +1802,7 @@ async function applyCompressionTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1723,7 +1821,7 @@ async function applyOverlayTransform() {
     }
 
     const overlayFileInput = document.getElementById('overlayFile');
-    const overlayFile = overlayFileInput ? .files ? . [0] || null;
+    const overlayFile = overlayFileInput?.files?.[0] || null;
 
     const overlayGainSlider = document.getElementById('overlayGainSlider');
     if (!overlayGainSlider) {
@@ -1731,8 +1829,8 @@ async function applyOverlayTransform() {
         return;
     }
     const gainDb = parseInt(overlayGainSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1774,7 +1872,7 @@ async function applyOverlayTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1795,8 +1893,8 @@ async function applyNoiseTransform() {
     // This is for adding noise, not reducing it
     const snrDb = 20; // Default SNR
     const noiseType = 'white';
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -1833,7 +1931,7 @@ async function applyEncodeTransform() {
 
     const codec = document.getElementById('encodeCodec').value;
     const bitrate = document.getElementById('encodeBitrate').value;
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
 
     try {
@@ -1871,7 +1969,7 @@ async function applyChopTransform() {
 
     const removeStart = parseFloat(document.getElementById('chopStart').value);
     const removeEnd = parseFloat(document.getElementById('chopEnd').value);
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
 
     try {
@@ -2009,8 +2107,8 @@ async function applyChainTransform() {
         return;
     }
 
-    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName')?.value || null;
 
     try {
         const formData = new FormData();
@@ -2046,7 +2144,7 @@ async function applyChainTransform() {
             // Update transformed test display - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -2307,7 +2405,7 @@ async function applyHighpassTransform() {
         return;
     }
 
-    const freqHz = parseFloat(document.getElementById('highpassSlider') ? .value || 150);
+    const freqHz = parseFloat(document.getElementById('highpassSlider')?.value || 150);
 
     try {
         const formData = new FormData();
@@ -2341,7 +2439,7 @@ async function applyLowpassTransform() {
         return;
     }
 
-    const freqHz = parseFloat(document.getElementById('lowpassSlider') ? .value || 6000);
+    const freqHz = parseFloat(document.getElementById('lowpassSlider')?.value || 6000);
 
     try {
         const formData = new FormData();
@@ -2375,7 +2473,7 @@ async function applyBoostHighsTransform() {
         return;
     }
 
-    const gainDb = parseFloat(document.getElementById('boostHighsSlider') ? .value || 6);
+    const gainDb = parseFloat(document.getElementById('boostHighsSlider')?.value || 6);
 
     try {
         const formData = new FormData();
@@ -2409,7 +2507,7 @@ async function applyBoostLowsTransform() {
         return;
     }
 
-    const gainDb = parseFloat(document.getElementById('boostLowsSlider') ? .value || 6);
+    const gainDb = parseFloat(document.getElementById('boostLowsSlider')?.value || 6);
 
     try {
         const formData = new FormData();
@@ -2474,7 +2572,7 @@ async function applyLimitingTransform() {
         return;
     }
 
-    const ceilingDb = parseFloat(document.getElementById('limitingSlider') ? .value || -1);
+    const ceilingDb = parseFloat(document.getElementById('limitingSlider')?.value || -1);
 
     try {
         const formData = new FormData();
@@ -2539,8 +2637,8 @@ async function applyAddNoiseTransform() {
         return;
     }
 
-    const noiseType = document.getElementById('noiseTypeSelect') ? .value || 'white';
-    const snrDb = parseFloat(document.getElementById('noiseSNRSlider') ? .value || 20);
+    const noiseType = document.getElementById('noiseTypeSelect')?.value || 'white';
+    const snrDb = parseFloat(document.getElementById('noiseSNRSlider')?.value || 20);
 
     try {
         const formData = new FormData();
@@ -2575,7 +2673,7 @@ async function applyCropTransform() {
         return;
     }
 
-    const cropType = document.getElementById('cropTypeSelect') ? .value || '10s';
+    const cropType = document.getElementById('cropTypeSelect')?.value || '10s';
 
     try {
         let endpoint = '';
@@ -2628,17 +2726,17 @@ async function applyEmbeddedSampleTransform() {
         return;
     }
 
-    const backgroundFile = document.getElementById('embeddedBackgroundFile') ? .value;
+    const backgroundFile = document.getElementById('embeddedBackgroundFile')?.value;
     if (!backgroundFile) {
         showError('Please select a background audio file');
         return;
     }
 
-    const position = document.getElementById('embeddedPosition') ? .value || 'start';
-    const sampleDuration = parseFloat(document.getElementById('embeddedSampleDuration') ? .value || '1.5');
-    const volumeDb = parseFloat(document.getElementById('embeddedVolumeDb') ? .value || '0.0');
-    const applyTransform = document.getElementById('embeddedApplyTransform') ? .value || 'None';
-    const transformParams = document.getElementById('embeddedTransformParams') ? .value || null;
+    const position = document.getElementById('embeddedPosition')?.value || 'start';
+    const sampleDuration = parseFloat(document.getElementById('embeddedSampleDuration')?.value || '1.5');
+    const volumeDb = parseFloat(document.getElementById('embeddedVolumeDb')?.value || '0.0');
+    const applyTransform = document.getElementById('embeddedApplyTransform')?.value || 'None';
+    const transformParams = document.getElementById('embeddedTransformParams')?.value || null;
 
     try {
         const formData = new FormData();
@@ -2683,13 +2781,13 @@ async function applySongAInSongBTransform() {
         return;
     }
 
-    const songBBaseFile = document.getElementById('songBBaseFile') ? .value || null;
-    const sampleStartTime = parseFloat(document.getElementById('songASampleStartTime') ? .value || '0.0');
-    const sampleDuration = parseFloat(document.getElementById('songASampleDuration') ? .value || '1.5');
-    const songBDuration = parseFloat(document.getElementById('songBDuration') ? .value || '30.0');
-    const applyTransform = document.getElementById('songAApplyTransform') ? .value || 'None';
-    const transformParams = document.getElementById('songATransformParams') ? .value || null;
-    const mixVolumeDb = parseFloat(document.getElementById('songAMixVolumeDb') ? .value || '0.0');
+    const songBBaseFile = document.getElementById('songBBaseFile')?.value || null;
+    const sampleStartTime = parseFloat(document.getElementById('songASampleStartTime')?.value || '0.0');
+    const sampleDuration = parseFloat(document.getElementById('songASampleDuration')?.value || '1.5');
+    const songBDuration = parseFloat(document.getElementById('songBDuration')?.value || '30.0');
+    const applyTransform = document.getElementById('songAApplyTransform')?.value || 'None';
+    const transformParams = document.getElementById('songATransformParams')?.value || null;
+    const mixVolumeDb = parseFloat(document.getElementById('songAMixVolumeDb')?.value || '0.0');
 
     try {
         const formData = new FormData();
@@ -2804,8 +2902,8 @@ function updateTestDisplays(originalPath, transformedPath) {
         console.log('[updateTestDisplays] Button state check:', {
             hasOriginal,
             hasTransformed,
-            originalValue: originalDisplay ? .value,
-            transformedValue: transformedDisplay ? .value
+            originalValue: originalDisplay?.value,
+            transformedValue: transformedDisplay?.value
         });
 
         testBtn.disabled = !(hasOriginal && hasTransformed);
@@ -2832,7 +2930,7 @@ async function loadDeliverables() {
             result.runs.forEach(run => {
                 const runPath = (run.path || '').toLowerCase();
                 const runId = (run.id || '').toLowerCase();
-                const runPhase = (run.phase || run.summary ? .phase || '').toLowerCase();
+                const runPhase = (run.phase || run.summary?.phase || '').toLowerCase();
 
                 const isPhase1 = runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') ||
                     runPath.includes('phase_1') || runId.includes('phase_1') || (runId.includes('test_') && runId.includes('phase1'));
@@ -2858,7 +2956,7 @@ async function loadDeliverables() {
                     if (detailsResp.ok) {
                         const details = await detailsResp.json();
                         const metrics = details.metrics || {};
-                        const phase = (metrics.summary ? .phase || metrics.test_details ? .phase || '').toLowerCase();
+                        const phase = (metrics.summary?.phase || metrics.test_details?.phase || '').toLowerCase();
 
                         if (phase === 'phase1') {
                             run.phase = 'phase1';
@@ -3024,7 +3122,7 @@ async function viewRunDetails(runId) {
         const rank = overall.rank || {};
         const similarity = overall.similarity || {};
         const passFail = metrics.pass_fail || {};
-        const phase = testDetails.phase || metrics.summary ? .phase || 'unknown';
+        const phase = testDetails.phase || metrics.summary?.phase || 'unknown';
 
         const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
         const statusColor = !hasMetrics ? '#f59e0b' : (matched ? '#10b981' : '#f87171');
@@ -3716,25 +3814,25 @@ function updateDeliverablesTransformState() {
     // Count enabled transformations
     const enabledTransforms = [];
 
-    if (document.getElementById('deliverablesSpeedEnabled') ? .checked) enabledTransforms.push('Speed');
-    if (document.getElementById('deliverablesPitchEnabled') ? .checked) enabledTransforms.push('Pitch');
-    if (document.getElementById('deliverablesReverbEnabled') ? .checked) enabledTransforms.push('Reverb');
-    if (document.getElementById('deliverablesNoiseEnabled') ? .checked) enabledTransforms.push('Noise Reduction');
-    if (document.getElementById('deliverablesEQEnabled') ? .checked) enabledTransforms.push('EQ');
-    if (document.getElementById('deliverablesCompressionEnabled') ? .checked &&
-        document.getElementById('deliverablesCodecSelect') ? .value !== 'None') enabledTransforms.push('Compression');
-    if (document.getElementById('deliverablesOverlayEnabled') ? .checked) enabledTransforms.push('Overlay');
-    if (document.getElementById('deliverablesHighpassEnabled') ? .checked) enabledTransforms.push('High-Pass');
-    if (document.getElementById('deliverablesLowpassEnabled') ? .checked) enabledTransforms.push('Low-Pass');
-    if (document.getElementById('deliverablesBoostHighsEnabled') ? .checked) enabledTransforms.push('Boost Highs');
-    if (document.getElementById('deliverablesBoostLowsEnabled') ? .checked) enabledTransforms.push('Boost Lows');
-    if (document.getElementById('deliverablesTelephoneEnabled') ? .checked) enabledTransforms.push('Telephone');
-    if (document.getElementById('deliverablesLimitingEnabled') ? .checked) enabledTransforms.push('Limiting');
-    if (document.getElementById('deliverablesMultibandEnabled') ? .checked) enabledTransforms.push('Multiband');
-    if (document.getElementById('deliverablesAddNoiseEnabled') ? .checked) enabledTransforms.push('Add Noise');
-    if (document.getElementById('deliverablesCropEnabled') ? .checked) enabledTransforms.push('Crop');
-    if (document.getElementById('deliverablesEmbeddedSampleEnabled') ? .checked) enabledTransforms.push('Embedded Sample');
-    if (document.getElementById('deliverablesSongAInSongBEnabled') ? .checked) enabledTransforms.push('Song A in Song B');
+    if (document.getElementById('deliverablesSpeedEnabled')?.checked) enabledTransforms.push('Speed');
+    if (document.getElementById('deliverablesPitchEnabled')?.checked) enabledTransforms.push('Pitch');
+    if (document.getElementById('deliverablesReverbEnabled')?.checked) enabledTransforms.push('Reverb');
+    if (document.getElementById('deliverablesNoiseEnabled')?.checked) enabledTransforms.push('Noise Reduction');
+    if (document.getElementById('deliverablesEQEnabled')?.checked) enabledTransforms.push('EQ');
+    if (document.getElementById('deliverablesCompressionEnabled')?.checked &&
+        document.getElementById('deliverablesCodecSelect')?.value !== 'None') enabledTransforms.push('Compression');
+    if (document.getElementById('deliverablesOverlayEnabled')?.checked) enabledTransforms.push('Overlay');
+    if (document.getElementById('deliverablesHighpassEnabled')?.checked) enabledTransforms.push('High-Pass');
+    if (document.getElementById('deliverablesLowpassEnabled')?.checked) enabledTransforms.push('Low-Pass');
+    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) enabledTransforms.push('Boost Highs');
+    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) enabledTransforms.push('Boost Lows');
+    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) enabledTransforms.push('Telephone');
+    if (document.getElementById('deliverablesLimitingEnabled')?.checked) enabledTransforms.push('Limiting');
+    if (document.getElementById('deliverablesMultibandEnabled')?.checked) enabledTransforms.push('Multiband');
+    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) enabledTransforms.push('Add Noise');
+    if (document.getElementById('deliverablesCropEnabled')?.checked) enabledTransforms.push('Crop');
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) enabledTransforms.push('Embedded Sample');
+    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) enabledTransforms.push('Song A in Song B');
 
     const count = enabledTransforms.length;
     // Transform count and apply button removed - no longer needed
@@ -3750,166 +3848,166 @@ async function applyAllDeliverablesTransforms() {
     const enabledTransforms = [];
 
     // Collect all enabled transformations
-    if (document.getElementById('deliverablesSpeedEnabled') ? .checked) {
+    if (document.getElementById('deliverablesSpeedEnabled')?.checked) {
         enabledTransforms.push({
             type: 'speed',
             speed: parseFloat(document.getElementById('deliverablesSpeedSlider').value) / 100,
-            preserve_pitch: document.getElementById('deliverablesPreservePitch') ? .checked || false
+            preserve_pitch: document.getElementById('deliverablesPreservePitch')?.checked || false
         });
     }
 
-    if (document.getElementById('deliverablesPitchEnabled') ? .checked) {
+    if (document.getElementById('deliverablesPitchEnabled')?.checked) {
         enabledTransforms.push({
             type: 'pitch',
             semitones: parseInt(document.getElementById('deliverablesPitchSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesReverbEnabled') ? .checked) {
+    if (document.getElementById('deliverablesReverbEnabled')?.checked) {
         enabledTransforms.push({
             type: 'reverb',
             delay_ms: parseFloat(document.getElementById('deliverablesReverbSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesNoiseEnabled') ? .checked) {
+    if (document.getElementById('deliverablesNoiseEnabled')?.checked) {
         enabledTransforms.push({
             type: 'noise_reduction',
             strength: parseFloat(document.getElementById('deliverablesNoiseSlider').value) / 100
         });
     }
 
-    if (document.getElementById('deliverablesEQEnabled') ? .checked) {
+    if (document.getElementById('deliverablesEQEnabled')?.checked) {
         enabledTransforms.push({
             type: 'eq',
             gain_db: parseFloat(document.getElementById('deliverablesEQSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesCompressionEnabled') ? .checked) {
-        const codec = document.getElementById('deliverablesCodecSelect') ? .value;
+    if (document.getElementById('deliverablesCompressionEnabled')?.checked) {
+        const codec = document.getElementById('deliverablesCodecSelect')?.value;
         if (codec !== 'None') {
             enabledTransforms.push({
                 type: 'compression',
                 codec: codec.toLowerCase(),
-                bitrate: document.getElementById('deliverablesBitrateSelect') ? .value
+                bitrate: document.getElementById('deliverablesBitrateSelect')?.value
             });
         }
     }
 
-    if (document.getElementById('deliverablesOverlayEnabled') ? .checked) {
-        const overlayFile = document.getElementById('deliverablesOverlayFile') ? .files[0];
+    if (document.getElementById('deliverablesOverlayEnabled')?.checked) {
+        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
         enabledTransforms.push({
             type: 'overlay',
-            gain_db: parseFloat(document.getElementById('deliverablesOverlayGainSlider') ? .value || -6),
+            gain_db: parseFloat(document.getElementById('deliverablesOverlayGainSlider')?.value || -6),
             overlay_file: overlayFile ? overlayFile.name : null
         });
     }
 
-    if (document.getElementById('deliverablesHighpassEnabled') ? .checked) {
+    if (document.getElementById('deliverablesHighpassEnabled')?.checked) {
         enabledTransforms.push({
             type: 'highpass',
             freq_hz: parseFloat(document.getElementById('deliverablesHighpassSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesLowpassEnabled') ? .checked) {
+    if (document.getElementById('deliverablesLowpassEnabled')?.checked) {
         enabledTransforms.push({
             type: 'lowpass',
             freq_hz: parseFloat(document.getElementById('deliverablesLowpassSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesBoostHighsEnabled') ? .checked) {
+    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) {
         enabledTransforms.push({
             type: 'boost_highs',
             gain_db: parseFloat(document.getElementById('deliverablesBoostHighsSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesBoostLowsEnabled') ? .checked) {
+    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) {
         enabledTransforms.push({
             type: 'boost_lows',
             gain_db: parseFloat(document.getElementById('deliverablesBoostLowsSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesTelephoneEnabled') ? .checked) {
+    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) {
         enabledTransforms.push({
             type: 'telephone',
-            low_freq: parseFloat(document.getElementById('deliverablesTelephoneLow') ? .value || 300),
-            high_freq: parseFloat(document.getElementById('deliverablesTelephoneHigh') ? .value || 3000)
+            low_freq: parseFloat(document.getElementById('deliverablesTelephoneLow')?.value || 300),
+            high_freq: parseFloat(document.getElementById('deliverablesTelephoneHigh')?.value || 3000)
         });
     }
 
-    if (document.getElementById('deliverablesLimitingEnabled') ? .checked) {
+    if (document.getElementById('deliverablesLimitingEnabled')?.checked) {
         enabledTransforms.push({
             type: 'limiting',
             ceiling_db: parseFloat(document.getElementById('deliverablesLimitingSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesMultibandEnabled') ? .checked) {
+    if (document.getElementById('deliverablesMultibandEnabled')?.checked) {
         enabledTransforms.push({
             type: 'multiband'
         });
     }
 
-    if (document.getElementById('deliverablesAddNoiseEnabled') ? .checked) {
+    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) {
         enabledTransforms.push({
             type: 'add_noise',
-            noise_type: document.getElementById('deliverablesNoiseTypeSelect') ? .value || 'white',
-            snr_db: parseFloat(document.getElementById('deliverablesNoiseSNRSlider') ? .value || 20)
+            noise_type: document.getElementById('deliverablesNoiseTypeSelect')?.value || 'white',
+            snr_db: parseFloat(document.getElementById('deliverablesNoiseSNRSlider')?.value || 20)
         });
     }
 
-    if (document.getElementById('deliverablesCropEnabled') ? .checked) {
-        const cropType = document.getElementById('deliverablesCropTypeSelect') ? .value;
+    if (document.getElementById('deliverablesCropEnabled')?.checked) {
+        const cropType = document.getElementById('deliverablesCropTypeSelect')?.value;
         enabledTransforms.push({
             type: 'crop',
             crop_type: cropType,
             duration: (cropType === 'middle' || cropType === 'end') ?
-                parseFloat(document.getElementById('deliverablesCropDuration') ? .value || 10) : null
+                parseFloat(document.getElementById('deliverablesCropDuration')?.value || 10) : null
         });
     }
 
-    if (document.getElementById('deliverablesEmbeddedSampleEnabled') ? .checked) {
-        const samplePath = document.getElementById('deliverablesEmbeddedSampleFile') ? .value;
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) {
+        const samplePath = document.getElementById('deliverablesEmbeddedSampleFile')?.value;
         if (!samplePath || !samplePath.trim()) {
             showError('Embedded Sample requires a sample file to be selected');
             return;
         }
 
-        const backgroundPath = document.getElementById('deliverablesEmbeddedBackgroundFile') ? .value || '';
-        const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform') ? .value || 'None';
-        const transformParams = document.getElementById('deliverablesEmbeddedTransformParams') ? .value || '';
+        const backgroundPath = document.getElementById('deliverablesEmbeddedBackgroundFile')?.value || '';
+        const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform')?.value || 'None';
+        const transformParams = document.getElementById('deliverablesEmbeddedTransformParams')?.value || '';
 
         enabledTransforms.push({
             type: 'embedded_sample',
             sample_path: samplePath,
             background_path: backgroundPath.trim() || null, // null = use chain output
-            position: document.getElementById('deliverablesEmbeddedPosition') ? .value || 'start',
-            sample_duration: parseFloat(document.getElementById('deliverablesEmbeddedSampleDuration') ? .value || 1.5),
-            volume_db: parseFloat(document.getElementById('deliverablesEmbeddedVolumeDb') ? .value || 0),
+            position: document.getElementById('deliverablesEmbeddedPosition')?.value || 'start',
+            sample_duration: parseFloat(document.getElementById('deliverablesEmbeddedSampleDuration')?.value || 1.5),
+            volume_db: parseFloat(document.getElementById('deliverablesEmbeddedVolumeDb')?.value || 0),
             apply_transform: applyTransform !== 'None' ? applyTransform : null,
             transform_params: transformParams.trim() ? transformParams : null
         });
     }
 
-    if (document.getElementById('deliverablesSongAInSongBEnabled') ? .checked) {
-        const songAPath = document.getElementById('deliverablesSongAFile') ? .value || '';
-        const songBBasePath = document.getElementById('deliverablesSongBBaseFile') ? .value || '';
-        const applyTransform = document.getElementById('deliverablesSongAApplyTransform') ? .value || 'None';
-        const transformParams = document.getElementById('deliverablesSongATransformParams') ? .value || '';
+    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) {
+        const songAPath = document.getElementById('deliverablesSongAFile')?.value || '';
+        const songBBasePath = document.getElementById('deliverablesSongBBaseFile')?.value || '';
+        const applyTransform = document.getElementById('deliverablesSongAApplyTransform')?.value || 'None';
+        const transformParams = document.getElementById('deliverablesSongATransformParams')?.value || '';
 
         enabledTransforms.push({
             type: 'song_a_in_song_b',
             song_a_path: songAPath.trim() || null, // null = use original input
             song_b_base_path: songBBasePath.trim() || null, // null = generate synthetic
-            sample_start_time: parseFloat(document.getElementById('deliverablesSongASampleStartTime') ? .value || 0.0),
-            sample_duration: parseFloat(document.getElementById('deliverablesSongASampleDuration') ? .value || 1.5),
-            song_b_duration: parseFloat(document.getElementById('deliverablesSongBDuration') ? .value || 30.0),
-            mix_volume_db: parseFloat(document.getElementById('deliverablesSongAMixVolumeDb') ? .value || 0),
+            sample_start_time: parseFloat(document.getElementById('deliverablesSongASampleStartTime')?.value || 0.0),
+            sample_duration: parseFloat(document.getElementById('deliverablesSongASampleDuration')?.value || 1.5),
+            song_b_duration: parseFloat(document.getElementById('deliverablesSongBDuration')?.value || 30.0),
+            mix_volume_db: parseFloat(document.getElementById('deliverablesSongAMixVolumeDb')?.value || 0),
             apply_transform: applyTransform !== 'None' ? applyTransform : null,
             transform_params: transformParams.trim() ? transformParams : null
         });
@@ -3928,7 +4026,7 @@ async function applyAllDeliverablesTransforms() {
         formData.append('generate_reports', 'false');
 
         // Add overlay file if provided
-        const overlayFile = document.getElementById('deliverablesOverlayFile') ? .files[0];
+        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
         if (overlayFile) {
             formData.append('overlay_file', overlayFile);
         }
