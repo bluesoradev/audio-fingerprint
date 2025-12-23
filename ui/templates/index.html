@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -216,7 +217,9 @@
             font-size: 14px;
         }
 
-        .form-group input, .form-group select, .form-group textarea {
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 8px 12px;
             background: #1e1e1e;
@@ -226,7 +229,9 @@
             color: #ffffff;
         }
 
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: #427eea;
         }
@@ -244,7 +249,8 @@
             align-items: center;
             gap: 10px;
         }
-        .slider{
+
+        .slider {
             border: none !important;
         }
 
@@ -430,7 +436,8 @@
             margin-top: 20px;
         }
 
-        .table th, .table td {
+        .table th,
+        .table td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #3d3d3d;
@@ -541,30 +548,30 @@
             margin-bottom: 15px;
             color: #ffffff;
         }
-        
+
         .transform-card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
         }
-        
+
         .transform-card-header h4 {
             margin: 0;
             flex: 1;
         }
-        
+
         .transform-card-header .enable-checkbox {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        
+
         .transform-card-header .enable-checkbox input[type="checkbox"] {
             width: auto;
             margin: 0;
         }
-        
+
         .transform-card-header .enable-checkbox label {
             margin: 0;
             color: #ffffff;
@@ -605,25 +612,31 @@
         .deliverable-card {
             transition: all 0.3s ease;
         }
+
         .deliverable-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(66, 126, 234, 0.3);
         }
+
         .table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
-        .table th, .table td {
+
+        .table th,
+        .table td {
             padding: 10px;
             text-align: left;
             border-bottom: 1px solid #3d3d3d;
         }
+
         .table th {
             background: #2d2d2d;
             color: #ffffff;
             font-weight: 600;
         }
+
         .table tr:hover {
             background: #2d2d2d;
         }
@@ -828,6 +841,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="status-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #2d2d2d; border-radius: 8px; margin-bottom: 20px; border: 1px solid #3d3d3d;">
@@ -836,10 +850,10 @@
                 <h1 style="margin: 0; font-size: 18px; color: #ffffff;">Audiolab</h1>
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
-            <div class="status-indicator">
-                <span class="status-dot" id="statusDot"></span>
-                <span id="statusText">System Ready</span>
-            </div>
+                <div class="status-indicator">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">System Ready</span>
+                </div>
                 <span style="color: #9ca3af;">|</span>
                 <div id="currentProcess" style="color: #9ca3af; font-size: 12px;"></div>
             </div>
@@ -859,6 +873,7 @@
                     <li><a href="#" onclick="showSection('manipulate', this); return false;"><img src="/static/img/manipulate.png" alt="Manipulate Audio">Manipulate Audio</a></li>
                     <li><a href="#" onclick="showSection('deliverables', this); return false;" class="active"><img src="/static/img/deliverable.png" alt="Deliverables">Deliverables</a></li>
                     <li><a href="#" onclick="showSection('dashboard', this); return false;"><img src="/static/img/dashboard.png" alt="Dashboard">Dashboard</a></li>
+                    <li><a href="#" onclick="showSection('daw', this); return false;"><img src="/static/img/gear.png" alt="DAW Parser">DAW Parser</a></li>
                 </ul>
             </div>
 
@@ -875,7 +890,7 @@
                     <!-- Section 1: Load Audio File -->
                     <div class="workflow-step">
                         <h3>1. Load Audio File</h3>
-                        
+
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <!-- Left: File Selection -->
                             <div>
@@ -888,7 +903,7 @@
                                         <button class="clear-btn" onclick="clearAudioSelection()">Clear</button>
                                     </div>
                                 </div>
-                                
+
                                 <div class="form-group" style="margin-top: 15px;">
                                     <div class="upload-area" id="manipulateUploadArea" ondrop="handleManipulateDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('manipulateFileInput').click()">
                                         <div class="upload-area-cloud">☁️</div>
@@ -898,7 +913,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Right: Audio Players Side-by-Side -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                                 <!-- Original Audio -->
@@ -914,7 +929,7 @@
                                     </div>
                                     <audio id="originalAudioPlayer" style="display: none;" ontimeupdate="updateOriginalTime()" onloadedmetadata="updateOriginalDuration()"></audio>
                                 </div>
-                                
+
                                 <!-- Transformed Audio -->
                                 <div>
                                     <h4 style="margin-bottom: 8px; font-size: 14px; color: #ffffff;">Transformed Audio</h4>
@@ -937,60 +952,60 @@
                     <!-- Section 2: Apply Transforms -->
                     <div class="workflow-step">
                         <h3>2. Apply Transforms</h3>
-                        
+
                         <!-- Core Adjustments -->
                         <div class="transform-subsection">
                             <h4>Core Adjustments</h4>
                             <div class="transform-grid">
-                            <!-- Speed Control -->
-                            <div class="transform-card">
-                                <h4> Speed Change</h4>
-                        <div class="form-group">
-                                    <label>Ratio</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="speedSlider" min="50" max="200" value="100" oninput="updateSpeedValue(this.value)">
+                                <!-- Speed Control -->
+                                <div class="transform-card">
+                                    <h4> Speed Change</h4>
+                                    <div class="form-group">
+                                        <label>Ratio</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="speedSlider" min="50" max="200" value="100" oninput="updateSpeedValue(this.value)">
+                                            </div>
+                                            <span class="slider-value" id="speedValue">1x</span>
                                         </div>
-                                        <span class="slider-value" id="speedValue">1x</span>
                                     </div>
-                        </div>
-                        <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="preservePitch"> Preserve Pitch
-                                    </label>
-                        </div>
-                                <button class="btn" onclick="applyTransform('speed')">Apply Speed Change</button>
-                            </div>
-
-                            <!-- Pitch Control -->
-                            <div class="transform-card">
-                                <h4> Pitch Shift</h4>
-                        <div class="form-group">
-                                    <label>Semitones</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="pitchSlider" min="-12" max="12" value="0" oninput="updatePitchValue(this.value)">
-                        </div>
-                                        <span class="slider-value" id="pitchValue">0 semitones</span>
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="checkbox" id="preservePitch"> Preserve Pitch
+                                        </label>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('speed')">Apply Speed Change</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('pitch')">Apply Pitch Shift</button>
-                    </div>
 
-                            <!-- Reverb -->
-                            <div class="transform-card">
-                                <h4> Reverb Delay</h4>
-                        <div class="form-group">
-                                    <label>Delay</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="reverbSlider" min="0" max="500" value="50" oninput="updateReverbValue(this.value)">
-                        </div>
-                                        <span class="slider-value" id="reverbValue">50 ms</span>
+                                <!-- Pitch Control -->
+                                <div class="transform-card">
+                                    <h4> Pitch Shift</h4>
+                                    <div class="form-group">
+                                        <label>Semitones</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="pitchSlider" min="-12" max="12" value="0" oninput="updatePitchValue(this.value)">
+                                            </div>
+                                            <span class="slider-value" id="pitchValue">0 semitones</span>
+                                        </div>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('pitch')">Apply Pitch Shift</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('reverb')">Apply Reverb</button>
-                            </div>
+
+                                <!-- Reverb -->
+                                <div class="transform-card">
+                                    <h4> Reverb Delay</h4>
+                                    <div class="form-group">
+                                        <label>Delay</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="reverbSlider" min="0" max="500" value="50" oninput="updateReverbValue(this.value)">
+                                            </div>
+                                            <span class="slider-value" id="reverbValue">50 ms</span>
+                                        </div>
+                                    </div>
+                                    <button class="btn" onclick="applyTransform('reverb')">Apply Reverb</button>
+                                </div>
                             </div>
                         </div>
 
@@ -998,198 +1013,198 @@
                         <div class="transform-subsection">
                             <h4>Filtering & Dynamics</h4>
                             <div class="transform-grid">
-                            <!-- Noise Reduction -->
-                            <div class="transform-card">
-                                <h4> Noise Reduction</h4>
-                        <div class="form-group">
-                                    <label>Reduction</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="noiseSlider" min="0" max="100" value="50" oninput="updateNoiseValue(this.value)">
-                        </div>
-                                        <span class="slider-value" id="noiseValue">50%</span>
+                                <!-- Noise Reduction -->
+                                <div class="transform-card">
+                                    <h4> Noise Reduction</h4>
+                                    <div class="form-group">
+                                        <label>Reduction</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="noiseSlider" min="0" max="100" value="50" oninput="updateNoiseValue(this.value)">
+                                            </div>
+                                            <span class="slider-value" id="noiseValue">50%</span>
+                                        </div>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('noise')">Apply Noise-Reduction</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('noise')">Apply Noise-Reduction</button>
-                    </div>
 
-                            <!-- EQ Adjustment -->
-                            <div class="transform-card">
-                                <h4> EQ Adjustment</h4>
-                        <div class="form-group">
-                                    <label>Gain</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="eqSlider" min="-20" max="20" value="0" oninput="updateEQValue(this.value)">
-                        </div>
-                                        <span class="slider-value" id="eqValue">0 dB</span>
+                                <!-- EQ Adjustment -->
+                                <div class="transform-card">
+                                    <h4> EQ Adjustment</h4>
+                                    <div class="form-group">
+                                        <label>Gain</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="eqSlider" min="-20" max="20" value="0" oninput="updateEQValue(this.value)">
+                                            </div>
+                                            <span class="slider-value" id="eqValue">0 dB</span>
+                                        </div>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('eq')">Apply EQ</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('eq')">Apply EQ</button>
-                            </div>
 
-                            <!-- Audio Compression -->
-                            <div class="transform-card">
-                                <h4> Audio Compression</h4>
-                        <div class="form-group">
-                                    <label>Bitrate</label>
-                                    <select id="bitrateSelect">
-                                        <option value="64k">64k</option>
-                                        <option value="128k">128k</option>
-                                        <option value="192k">192k</option>
-                                        <option value="256k">256k</option>
-                                        <option value="320k">320k</option>
-                                    </select>
+                                <!-- Audio Compression -->
+                                <div class="transform-card">
+                                    <h4> Audio Compression</h4>
+                                    <div class="form-group">
+                                        <label>Bitrate</label>
+                                        <select id="bitrateSelect">
+                                            <option value="64k">64k</option>
+                                            <option value="128k">128k</option>
+                                            <option value="192k">192k</option>
+                                            <option value="256k">256k</option>
+                                            <option value="320k">320k</option>
+                                        </select>
+                                    </div>
+                                    <button class="btn" onclick="applyTransform('compression')">Apply Compression</button>
+                                </div>
+                            </div>
                         </div>
-                                <button class="btn" onclick="applyTransform('compression')">Apply Compression</button>
-                            </div>
-                            </div>
-                    </div>
 
                         <!-- Frequency & Overlay -->
                         <div class="transform-subsection">
                             <h4>Frequency & Overlay</h4>
                             <div class="transform-grid">
-                            <!-- Overlay Vocals -->
-                            <div class="transform-card">
-                                <h4> Overlay/Mixing</h4>
-                        <div class="form-group">
-                                    <label>Overlay Audio File (optional)</label>
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <button class="clear-btn" onclick="document.getElementById('overlayFile').click()" style="flex: 1; text-align: left;">Choose File</button>
-                                        <span id="overlayFileName" style="font-size: 12px; color: #9ca3af;">No file chosen</span>
+                                <!-- Overlay Vocals -->
+                                <div class="transform-card">
+                                    <h4> Overlay/Mixing</h4>
+                                    <div class="form-group">
+                                        <label>Overlay Audio File (optional)</label>
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <button class="clear-btn" onclick="document.getElementById('overlayFile').click()" style="flex: 1; text-align: left;">Choose File</button>
+                                            <span id="overlayFileName" style="font-size: 12px; color: #9ca3af;">No file chosen</span>
+                                        </div>
+                                        <input type="file" id="overlayFile" accept="audio/*" style="display: none;" onchange="updateOverlayFileName()">
+                                        <small>Leave empty to generate test overlay</small>
                                     </div>
-                                    <input type="file" id="overlayFile" accept="audio/*" style="display: none;" onchange="updateOverlayFileName()">
-                                    <small>Leave empty to generate test overlay</small>
-                        </div>
-                        <div class="form-group">
-                                    <label>Gain</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="overlayGainSlider" min="-20" max="0" value="-5" oninput="updateOverlayGainValue(this.value)">
-                        </div>
-                                        <span class="slider-value" id="overlayGainValue">-5 dB</span>
+                                    <div class="form-group">
+                                        <label>Gain</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="overlayGainSlider" min="-20" max="0" value="-5" oninput="updateOverlayGainValue(this.value)">
+                                            </div>
+                                            <span class="slider-value" id="overlayGainValue">-5 dB</span>
+                                        </div>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('overlay')">Apply Overlay</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('overlay')">Apply Overlay</button>
-                    </div>
 
-                            <!-- High-Pass Filter -->
-                            <div class="transform-card">
-                                <h4> High-Pass Filter</h4>
-                        <div class="form-group">
-                                    <label>Cutoff</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="highpassSlider" min="50" max="5000" value="150" oninput="updateSliderDisplay('highpass', this.value)">
-                        </div>
-                                        <span class="slider-value" id="highpassDisplay">150 Hz</span>
+                                <!-- High-Pass Filter -->
+                                <div class="transform-card">
+                                    <h4> High-Pass Filter</h4>
+                                    <div class="form-group">
+                                        <label>Cutoff</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="highpassSlider" min="50" max="5000" value="150" oninput="updateSliderDisplay('highpass', this.value)">
+                                            </div>
+                                            <span class="slider-value" id="highpassDisplay">150 Hz</span>
+                                        </div>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('highpass')">Apply High-Pass</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('highpass')">Apply High-Pass</button>
-                            </div>
 
-                            <!-- Low-Pass Filter -->
-                            <div class="transform-card">
-                                <h4>Low-Pass Filter</h4>
-                        <div class="form-group">
-                                    <label>Cutoff</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="lowpassSlider" min="500" max="20000" value="6000" oninput="updateSliderDisplay('lowpass', this.value)">
-                        </div>
-                                        <span class="slider-value" id="lowpassDisplay">6000 Hz</span>
+                                <!-- Low-Pass Filter -->
+                                <div class="transform-card">
+                                    <h4>Low-Pass Filter</h4>
+                                    <div class="form-group">
+                                        <label>Cutoff</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="lowpassSlider" min="500" max="20000" value="6000" oninput="updateSliderDisplay('lowpass', this.value)">
+                                            </div>
+                                            <span class="slider-value" id="lowpassDisplay">6000 Hz</span>
+                                        </div>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('lowpass')">Apply Low-Pass</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('lowpass')">Apply Low-Pass</button>
                             </div>
-                            </div>
-                    </div>
+                        </div>
 
                         <!-- Advanced & Specialized -->
                         <div class="transform-subsection">
                             <h4>Advanced & Specialized</h4>
                             <div class="transform-grid">
-                            <!-- Boost Highs -->
-                            <div class="transform-card">
-                                <h4> Boost Highs</h4>
-                                <div class="form-group">
-                                    <label>Gain</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="boostHighsSlider" min="0" max="20" value="6" oninput="updateSliderDisplay('boostHighs', this.value)">
+                                <!-- Boost Highs -->
+                                <div class="transform-card">
+                                    <h4> Boost Highs</h4>
+                                    <div class="form-group">
+                                        <label>Gain</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="boostHighsSlider" min="0" max="20" value="6" oninput="updateSliderDisplay('boostHighs', this.value)">
+                                            </div>
+                                            <span class="slider-value" id="boostHighsDisplay">6 dB</span>
                                         </div>
-                                        <span class="slider-value" id="boostHighsDisplay">6 dB</span>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('boostHighs')">Apply Boost Highs</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('boostHighs')">Apply Boost Highs</button>
-                </div>
 
-                            <!-- Boost Lows -->
-                            <div class="transform-card">
-                                <h4> Boost Lows</h4>
-                                <div class="form-group">
-                                    <label>Gain</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="boostLowsSlider" min="0" max="20" value="6" oninput="updateSliderDisplay('boostLows', this.value)">
+                                <!-- Boost Lows -->
+                                <div class="transform-card">
+                                    <h4> Boost Lows</h4>
+                                    <div class="form-group">
+                                        <label>Gain</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="boostLowsSlider" min="0" max="20" value="6" oninput="updateSliderDisplay('boostLows', this.value)">
+                                            </div>
+                                            <span class="slider-value" id="boostLowsDisplay">6 dB</span>
                                         </div>
-                                        <span class="slider-value" id="boostLowsDisplay">6 dB</span>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('boostLows')">Apply Boost Lows</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('boostLows')">Apply Boost Lows</button>
-                            </div>
 
-                            <!-- Telephone Filter -->
-                            <div class="transform-card">
-                                <h4> Telephone Filter</h4>
-                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Band-pass filter (300-3000 Hz)</p>
-                                <button class="btn" onclick="applyTransform('telephone')">Apply Telephone Fil</button>
-                            </div>
+                                <!-- Telephone Filter -->
+                                <div class="transform-card">
+                                    <h4> Telephone Filter</h4>
+                                    <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Band-pass filter (300-3000 Hz)</p>
+                                    <button class="btn" onclick="applyTransform('telephone')">Apply Telephone Fil</button>
+                                </div>
 
-                            <!-- Limiting -->
-                            <div class="transform-card">
-                                <h4> Limiting</h4>
-                                <div class="form-group">
-                                    <label>Threshold</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="limitingSlider" min="-10" max="0" value="-1" oninput="updateSliderDisplay('limiting', this.value)">
+                                <!-- Limiting -->
+                                <div class="transform-card">
+                                    <h4> Limiting</h4>
+                                    <div class="form-group">
+                                        <label>Threshold</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="limitingSlider" min="-10" max="0" value="-1" oninput="updateSliderDisplay('limiting', this.value)">
+                                            </div>
+                                            <span class="slider-value" id="limitingDisplay">-1 dB</span>
                                         </div>
-                                        <span class="slider-value" id="limitingDisplay">-1 dB</span>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('limiting')">Apply Limiting</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('limiting')">Apply Limiting</button>
-                            </div>
 
-                            <!-- Multiband Compression -->
-                            <div class="transform-card">
-                                <h4> Multiband Compression</h4>
-                                <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Multi-band dynamic compression</p>
-                                <button class="btn" onclick="applyTransform('multiband')">Apply Multiband</button>
-                            </div>
-
-                            <!-- Add Noise -->
-                            <div class="transform-card">
-                                <h4> Add Noise</h4>
-                                <div class="form-group">
-                                    <label>Noise Type</label>
-                                    <select id="noiseTypeSelect">
-                                        <option value="white">White Noise</option>
-                                        <option value="vinyl">Vinyl Crackle</option>
-                                    </select>
+                                <!-- Multiband Compression -->
+                                <div class="transform-card">
+                                    <h4> Multiband Compression</h4>
+                                    <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">Multi-band dynamic compression</p>
+                                    <button class="btn" onclick="applyTransform('multiband')">Apply Multiband</button>
                                 </div>
-                                <div class="form-group">
-                                    <label>SNF</label>
-                                    <div class="slider-container">
-                                        <div class="slider-wrapper">
-                                            <input type="range" class="slider" id="noiseSNRSlider" min="0" max="40" value="20" oninput="updateSliderDisplay('noiseSNR', this.value)">
+
+                                <!-- Add Noise -->
+                                <div class="transform-card">
+                                    <h4> Add Noise</h4>
+                                    <div class="form-group">
+                                        <label>Noise Type</label>
+                                        <select id="noiseTypeSelect">
+                                            <option value="white">White Noise</option>
+                                            <option value="vinyl">Vinyl Crackle</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>SNF</label>
+                                        <div class="slider-container">
+                                            <div class="slider-wrapper">
+                                                <input type="range" class="slider" id="noiseSNRSlider" min="0" max="40" value="20" oninput="updateSliderDisplay('noiseSNR', this.value)">
+                                            </div>
+                                            <span class="slider-value" id="noiseSNRDisplay">20 dB</span>
                                         </div>
-                                        <span class="slider-value" id="noiseSNRDisplay">20 dB</span>
                                     </div>
+                                    <button class="btn" onclick="applyTransform('addNoise')">Apply Noise</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('addNoise')">Apply Noise</button>
-                            </div>
                             </div>
                         </div>
 
@@ -1197,20 +1212,20 @@
                         <div class="transform-subsection">
                             <h4>Crop Audio</h4>
                             <div class="transform-grid">
-                            <!-- Cropping -->
-                            <div class="transform-card">
-                                <h4> Crop Audio</h4>
-                                <div class="form-group">
-                                    <label>Start Time</label>
-                                    <select id="cropTypeSelect">
-                                        <option value="10s">10 Seconds (start)</option>
-                                        <option value="5s">5 Seconds (start)</option>
-                                        <option value="middle">Middle segment</option>
-                                        <option value="end">End segment</option>
-                                    </select>
+                                <!-- Cropping -->
+                                <div class="transform-card">
+                                    <h4> Crop Audio</h4>
+                                    <div class="form-group">
+                                        <label>Start Time</label>
+                                        <select id="cropTypeSelect">
+                                            <option value="10s">10 Seconds (start)</option>
+                                            <option value="5s">5 Seconds (start)</option>
+                                            <option value="middle">Middle segment</option>
+                                            <option value="end">End segment</option>
+                                        </select>
+                                    </div>
+                                    <button class="btn" onclick="applyTransform('crop')">Apply Crop</button>
                                 </div>
-                                <button class="btn" onclick="applyTransform('crop')">Apply Crop</button>
-                            </div>
                             </div>
                         </div>
 
@@ -1218,52 +1233,52 @@
                         <div class="transform-subsection">
                             <h4>Embedded Sample Detection</h4>
                             <div class="transform-grid">
-                            <div class="transform-card">
-                                <h4>Embed Sample in Track</h4>
-                                <div class="form-group">
-                                    <label>Sample Audio File (Song A segment)</label>
-                                    <p style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Current selection: <span id="embeddedSampleFileDisplay" style="color: #4ade80;">None</span></p>
+                                <div class="transform-card">
+                                    <h4>Embed Sample in Track</h4>
+                                    <div class="form-group">
+                                        <label>Sample Audio File (Song A segment)</label>
+                                        <p style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Current selection: <span id="embeddedSampleFileDisplay" style="color: #4ade80;">None</span></p>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Background Audio File (Full track)</label>
+                                        <select id="embeddedBackgroundFile" class="form-control">
+                                            <option value="">-- Select Background File --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Position</label>
+                                        <select id="embeddedPosition" class="form-control">
+                                            <option value="start">Start</option>
+                                            <option value="middle">Middle</option>
+                                            <option value="end">End</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Sample Duration (seconds)</label>
+                                        <input type="number" id="embeddedSampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Volume (dB)</label>
+                                        <input type="range" class="slider" id="embeddedVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="document.getElementById('embeddedVolumeDbDisplay').textContent = this.value + ' dB'">
+                                        <span class="slider-value" id="embeddedVolumeDbDisplay">0 dB</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Apply Transform to Sample (optional)</label>
+                                        <select id="embeddedApplyTransform" class="form-control">
+                                            <option value="None">None</option>
+                                            <option value="pitch">Pitch Shift</option>
+                                            <option value="speed">Speed Change</option>
+                                            <option value="eq">EQ Adjustment</option>
+                                            <option value="compression">Compression</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="embeddedTransformParamsGroup" style="display: none;">
+                                        <label>Transform Parameters (JSON)</label>
+                                        <input type="text" id="embeddedTransformParams" class="form-control" placeholder='{"semitones": 2}' style="font-family: monospace; font-size: 11px;">
+                                        <small style="color: #9ca3af;">Example: {"semitones": 2} for pitch, {"speed": 1.05} for speed, {"gain_db": 6.0} for EQ</small>
+                                    </div>
+                                    <button class="btn" onclick="applyTransform('embeddedSample')">Apply Embedded Sample</button>
                                 </div>
-                                <div class="form-group">
-                                    <label>Background Audio File (Full track)</label>
-                                    <select id="embeddedBackgroundFile" class="form-control">
-                                        <option value="">-- Select Background File --</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Position</label>
-                                    <select id="embeddedPosition" class="form-control">
-                                        <option value="start">Start</option>
-                                        <option value="middle">Middle</option>
-                                        <option value="end">End</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Sample Duration (seconds)</label>
-                                    <input type="number" id="embeddedSampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
-                                </div>
-                                <div class="form-group">
-                                    <label>Volume (dB)</label>
-                                    <input type="range" class="slider" id="embeddedVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="document.getElementById('embeddedVolumeDbDisplay').textContent = this.value + ' dB'">
-                                    <span class="slider-value" id="embeddedVolumeDbDisplay">0 dB</span>
-                                </div>
-                                <div class="form-group">
-                                    <label>Apply Transform to Sample (optional)</label>
-                                    <select id="embeddedApplyTransform" class="form-control">
-                                        <option value="None">None</option>
-                                        <option value="pitch">Pitch Shift</option>
-                                        <option value="speed">Speed Change</option>
-                                        <option value="eq">EQ Adjustment</option>
-                                        <option value="compression">Compression</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" id="embeddedTransformParamsGroup" style="display: none;">
-                                    <label>Transform Parameters (JSON)</label>
-                                    <input type="text" id="embeddedTransformParams" class="form-control" placeholder='{"semitones": 2}' style="font-family: monospace; font-size: 11px;">
-                                    <small style="color: #9ca3af;">Example: {"semitones": 2} for pitch, {"speed": 1.05} for speed, {"gain_db": 6.0} for EQ</small>
-                                </div>
-                                <button class="btn" onclick="applyTransform('embeddedSample')">Apply Embedded Sample</button>
-                            </div>
                             </div>
                         </div>
 
@@ -1271,53 +1286,53 @@
                         <div class="transform-subsection">
                             <h4>Song A inside Song B</h4>
                             <div class="transform-grid">
-                            <div class="transform-card">
-                                <h4>Create Song B from Song A</h4>
-                                <div class="form-group">
-                                    <label>Song A (Original in Database)</label>
-                                    <p style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Current selection: <span id="songAFileDisplay" style="color: #4ade80;">None</span></p>
+                                <div class="transform-card">
+                                    <h4>Create Song B from Song A</h4>
+                                    <div class="form-group">
+                                        <label>Song A (Original in Database)</label>
+                                        <p style="color: #9ca3af; font-size: 12px; margin-bottom: 5px;">Current selection: <span id="songAFileDisplay" style="color: #4ade80;">None</span></p>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Song B Base Track (optional)</label>
+                                        <select id="songBBaseFile" class="form-control">
+                                            <option value="">-- Generate Synthetic Background --</option>
+                                        </select>
+                                        <small style="color: #9ca3af;">Leave empty to generate synthetic background</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Sample Start Time (seconds)</label>
+                                        <input type="number" id="songASampleStartTime" class="form-control" value="0.0" min="0" step="0.5">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Sample Duration (seconds)</label>
+                                        <input type="number" id="songASampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Song B Duration (seconds)</label>
+                                        <input type="number" id="songBDuration" class="form-control" value="30.0" min="10" max="120" step="5">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Mix Volume (dB)</label>
+                                        <input type="range" class="slider" id="songAMixVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="document.getElementById('songAMixVolumeDbDisplay').textContent = this.value + ' dB'">
+                                        <span class="slider-value" id="songAMixVolumeDbDisplay">0 dB</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Apply Transform to Sample (optional)</label>
+                                        <select id="songAApplyTransform" class="form-control">
+                                            <option value="None">None</option>
+                                            <option value="pitch">Pitch Shift</option>
+                                            <option value="speed">Speed Change</option>
+                                            <option value="eq">EQ Adjustment</option>
+                                            <option value="compression">Compression</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="songATransformParamsGroup" style="display: none;">
+                                        <label>Transform Parameters (JSON)</label>
+                                        <input type="text" id="songATransformParams" class="form-control" placeholder='{"semitones": -2, "position": "start"}' style="font-family: monospace; font-size: 11px;">
+                                        <small style="color: #9ca3af;">Example: {"semitones": -2, "position": "start"} - position can be "start", "middle", or "end"</small>
+                                    </div>
+                                    <button class="btn" onclick="applyTransform('songAInSongB')">Create Song B</button>
                                 </div>
-                                <div class="form-group">
-                                    <label>Song B Base Track (optional)</label>
-                                    <select id="songBBaseFile" class="form-control">
-                                        <option value="">-- Generate Synthetic Background --</option>
-                                    </select>
-                                    <small style="color: #9ca3af;">Leave empty to generate synthetic background</small>
-                                </div>
-                                <div class="form-group">
-                                    <label>Sample Start Time (seconds)</label>
-                                    <input type="number" id="songASampleStartTime" class="form-control" value="0.0" min="0" step="0.5">
-                                </div>
-                                <div class="form-group">
-                                    <label>Sample Duration (seconds)</label>
-                                    <input type="number" id="songASampleDuration" class="form-control" value="1.5" min="1.0" max="2.0" step="0.1">
-                                </div>
-                                <div class="form-group">
-                                    <label>Song B Duration (seconds)</label>
-                                    <input type="number" id="songBDuration" class="form-control" value="30.0" min="10" max="120" step="5">
-                                </div>
-                                <div class="form-group">
-                                    <label>Mix Volume (dB)</label>
-                                    <input type="range" class="slider" id="songAMixVolumeDb" min="-12" max="6" value="0" step="0.5" oninput="document.getElementById('songAMixVolumeDbDisplay').textContent = this.value + ' dB'">
-                                    <span class="slider-value" id="songAMixVolumeDbDisplay">0 dB</span>
-                                </div>
-                                <div class="form-group">
-                                    <label>Apply Transform to Sample (optional)</label>
-                                    <select id="songAApplyTransform" class="form-control">
-                                        <option value="None">None</option>
-                                        <option value="pitch">Pitch Shift</option>
-                                        <option value="speed">Speed Change</option>
-                                        <option value="eq">EQ Adjustment</option>
-                                        <option value="compression">Compression</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" id="songATransformParamsGroup" style="display: none;">
-                                    <label>Transform Parameters (JSON)</label>
-                                    <input type="text" id="songATransformParams" class="form-control" placeholder='{"semitones": -2, "position": "start"}' style="font-family: monospace; font-size: 11px;">
-                                    <small style="color: #9ca3af;">Example: {"semitones": -2, "position": "start"} - position can be "start", "middle", or "end"</small>
-                                </div>
-                                <button class="btn" onclick="applyTransform('songAInSongB')">Create Song B</button>
-                            </div>
                             </div>
                         </div>
                     </div>
@@ -1333,7 +1348,7 @@
                         </div>
                         <button class="btn btn-success" id="testBtn" onclick="testFingerprintRobustness()">🔍 Test Fingerprint Match</button>
                     </div>
-                    
+
                     <!-- Section 4: Test Results -->
                     <div class="workflow-step">
                         <h3>4. Test Results</h3>
@@ -1376,11 +1391,11 @@
                     <p style="margin-bottom: 20px; color: #9ca3af;">
                         Configure transformations and generate comprehensive Phase 1 and Phase 2 test reports.
                     </p>
-                    
+
                     <!-- Section 1: Select Audio File -->
                     <div class="workflow-step" style="margin-bottom: 20px;">
                         <h3>1. Select Audio File</h3>
-                        
+
                         <!-- Browser existing files -->
                         <div class="form-group">
                             <label>Browse Audio Files</label>
@@ -1388,7 +1403,7 @@
                                 <option value="">-- Select Audio File --</option>
                             </select>
                         </div>
-                        
+
                         <!-- Upload new file -->
                         <div class="form-group" style="margin-top: 15px;">
                             <label>Or Upload Audio File</label>
@@ -1396,8 +1411,8 @@
                                 <div class="upload-area-cloud">☁️</div>
                                 <p style="margin: 10px 0; color: #9ca3af;">Drag and drop audio file here or click to browse</p>
                                 <input type="file" id="deliverablesFileInput" style="display: none;" accept="audio/*" onchange="handleDeliverablesFileSelect(event)">
+                            </div>
                         </div>
-                    </div>
 
                         <div id="deliverablesAudioInfo" style="margin-top: 15px; padding: 15px; background: #1e1e1e; border-radius: 5px; border: 1px solid #3d3d3d;">
                             <p style="margin: 0;"><strong>Selected:</strong> <span id="deliverablesSelectedFileName"></span></p>
@@ -1411,7 +1426,7 @@
                         <p style="color: #9ca3af; margin-bottom: 15px; font-size: 12px;">
                             This is a quick single run only. Does not generate full Phase 1/Phase 2 matrix reports—use the "Full Test Suites" buttons below for that.
                         </p>
-                        
+
                         <div class="transform-grid">
                             <!-- Speed Control -->
                             <div class="transform-card">
@@ -1452,7 +1467,7 @@
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="deliverablesPitchSlider" min="-12" max="12" value="0" step="0.1" oninput="updateDeliverablesPitchValue(this.value)">
-                                </div>
+                                        </div>
                                         <span class="slider-value" id="deliverablesPitchValue">0.0</span>
                                     </div>
                                 </div>
@@ -1472,7 +1487,7 @@
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="deliverablesReverbSlider" min="0" max="500" value="50" step="1" oninput="updateDeliverablesReverbValue(this.value)">
-                                </div>
+                                        </div>
                                         <span class="slider-value" id="deliverablesReverbValue">50.0ms</span>
                                     </div>
                                 </div>
@@ -1492,7 +1507,7 @@
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="deliverablesNoiseSlider" min="0" max="100" value="50" oninput="updateDeliverablesNoiseValue(this.value)">
-                                </div>
+                                        </div>
                                         <span class="slider-value" id="deliverablesNoiseValue">50%</span>
                                     </div>
                                 </div>
@@ -1562,10 +1577,10 @@
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <button class="clear-btn" onclick="document.getElementById('deliverablesOverlayFile').click()" style="flex: 1; text-align: left;">Choose File</button>
                                         <span id="deliverablesOverlayFileName" style="font-size: 12px; color: #9ca3af;">No file chosen</span>
-                                </div>
+                                    </div>
                                     <input type="file" id="deliverablesOverlayFile" accept="audio/*" style="display: none;" onchange="updateDeliverablesOverlayFileName()">
                                     <small style="color: #9ca3af;">Leave empty to generate test overlay</small>
-                            </div>
+                                </div>
                                 <div class="form-group">
                                     <label>Gain (dB)</label>
                                     <div class="slider-container">
@@ -1574,8 +1589,8 @@
                                         </div>
                                         <span class="slider-value" id="deliverablesOverlayGainValue">-6.0dB</span>
                                     </div>
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                             <!-- High-Pass Filter -->
                             <div class="transform-card">
@@ -1594,8 +1609,8 @@
                                         </div>
                                         <span class="slider-value" id="deliverablesHighpassDisplay">150.0Hz</span>
                                     </div>
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                             <!-- Low-Pass Filter -->
                             <div class="transform-card">
@@ -1606,7 +1621,7 @@
                                         <label for="deliverablesLowpassEnabled">Enable</label>
                                     </div>
                                 </div>
-                        <div class="form-group">
+                                <div class="form-group">
                                     <label>Frequency (Hz)</label>
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
@@ -1614,8 +1629,8 @@
                                         </div>
                                         <span class="slider-value" id="deliverablesLowpassDisplay">6000.0Hz</span>
                                     </div>
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                             <!-- Boost Highs -->
                             <div class="transform-card">
@@ -1626,16 +1641,16 @@
                                         <label for="deliverablesBoostHighsEnabled">Enable</label>
                                     </div>
                                 </div>
-                        <div class="form-group">
+                                <div class="form-group">
                                     <label>Gain (dB)</label>
                                     <div class="slider-container">
                                         <div class="slider-wrapper">
                                             <input type="range" class="slider" id="deliverablesBoostHighsSlider" min="0" max="20" value="6" step="0.1" oninput="updateDeliverablesSliderDisplay('boostHighs', this.value)">
-                        </div>
+                                        </div>
                                         <span class="slider-value" id="deliverablesBoostHighsDisplay">6.0dB</span>
                                     </div>
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                             <!-- Boost Lows -->
                             <div class="transform-card">
@@ -1655,7 +1670,7 @@
                                         <span class="slider-value" id="deliverablesBoostLowsDisplay">6.0dB</span>
                                     </div>
                                 </div>
-                </div>
+                            </div>
 
                             <!-- Telephone Filter -->
                             <div class="transform-card">
@@ -1704,7 +1719,7 @@
                                         <span class="slider-value" id="deliverablesLimitingDisplay">-1.0dB</span>
                                     </div>
                                 </div>
-                    </div>
+                            </div>
 
                             <!-- Multiband Compression -->
                             <div class="transform-card">
@@ -1716,7 +1731,7 @@
                                     </div>
                                 </div>
                                 <p style="color: #9ca3af; font-size: 12px; margin: 10px 0;">(Controls for multiband compression go here.)</p>
-                    </div>
+                            </div>
 
                             <!-- Add Noise -->
                             <div class="transform-card">
@@ -1732,8 +1747,8 @@
                                     <select id="deliverablesNoiseTypeSelect">
                                         <option value="white" selected>White Noise</option>
                                         <option value="vinyl">Vinyl Crackle</option>
-                            </select>
-                        </div>
+                                    </select>
+                                </div>
                                 <div class="form-group">
                                     <label>SNR (dB)</label>
                                     <div class="slider-container">
@@ -1742,8 +1757,8 @@
                                         </div>
                                         <span class="slider-value" id="deliverablesNoiseSNRDisplay">20.0dB</span>
                                     </div>
-                    </div>
-                </div>
+                                </div>
+                            </div>
 
                             <!-- Crop Audio -->
                             <div class="transform-card">
@@ -1767,7 +1782,7 @@
                                     <label>Duration (seconds)</label>
                                     <input type="number" id="deliverablesCropDuration" value="10" min="1" max="60" class="form-control">
                                 </div>
-                </div>
+                            </div>
 
                             <!-- Embedded Sample Detection -->
                             <div class="transform-card">
@@ -1827,8 +1842,8 @@
                                     <label>Transform Parameters (JSON)</label>
                                     <input type="text" id="deliverablesEmbeddedTransformParams" class="form-control" placeholder='{"semitones": 2}' style="font-family: monospace; font-size: 11px;">
                                     <small style="color: #9ca3af;">Example: {"semitones": 2} for pitch, {"speed": 1.05} for speed, {"gain_db": 6.0} for EQ</small>
-                    </div>
-                </div>
+                                </div>
+                            </div>
 
                             <!-- Song A in Song B -->
                             <div class="transform-card">
@@ -1845,7 +1860,7 @@
                                         <option value="">-- Use Original Input --</option>
                                     </select>
                                     <small style="color: #9ca3af;">Leave empty to use original input file</small>
-            </div>
+                                </div>
                                 <div class="form-group">
                                     <label>Song B Base Track (optional)</label>
                                     <select id="deliverablesSongBBaseFile" class="form-control" onchange="updateDeliverablesTransformState()">
@@ -1891,7 +1906,7 @@
                                 </div>
                             </div>
                         </div>
-                </div>
+                    </div>
 
                     <!-- Section 3: Full Test Suites -->
                     <div class="workflow-step" style="margin-bottom: 20px;">
@@ -1900,18 +1915,18 @@
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="btn btn-primary" onclick="runPhaseSuite('phase1')">Run Phase 1 Suite</button>
                             <button class="btn btn-success" onclick="runPhaseSuite('phase2')">Run Phase 2 Suite</button>
-                          
+
+                        </div>
                     </div>
-                </div>
 
                     <!-- Other Reports -->
                     <div class="workflow-step" style="margin-bottom: 20px;">
                         <h3>Phase 1 & Phase 2 Reports</h3>
                         <div id="deliverablesList" style="margin-top: 20px;">
                             <p style="color: #9ca3af;">Loading deliverables...</p>
-                </div>
+                        </div>
                     </div>
-                    
+
                     <!-- Report Details -->
                     <div class="workflow-step">
                         <h3>Report Details</h3>
@@ -2236,6 +2251,125 @@
                 gap: 24px;
             }
         }
+
+        /* DAW Parser Section Styles */
+        .daw-section {
+            padding: 30px;
+        }
+
+        .daw-upload-area {
+            border: 2px dashed #3d3d3d;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #1e1e1e;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .daw-upload-area:hover {
+            border-color: #427eea;
+            background: #252525;
+        }
+
+        .daw-upload-area.dragover {
+            border-color: #427eea;
+            background: #2a2a2a;
+        }
+
+        .daw-file-list {
+            margin-top: 20px;
+        }
+
+        .daw-file-item {
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .daw-file-info {
+            flex: 1;
+        }
+
+        .daw-file-name {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+
+        .daw-file-meta {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .daw-metadata-view {
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .daw-stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #3d3d3d;
+        }
+
+        .daw-stat-label {
+            color: #9ca3af;
+        }
+
+        .daw-stat-value {
+            color: #ffffff;
+            font-weight: 600;
+        }
     </style>
+
+    <!-- DAW Parser Section -->
+    <div id="daw" class="section">
+        <div class="daw-section">
+            <h2 style="color: #ffffff; margin-bottom: 10px;">DAW Project File Parser</h2>
+            <p style="color: #9ca3af; margin-bottom: 30px;">Upload and parse DAW project files (.als, .flp, .logicx) to extract compositional metadata</p>
+
+            <!-- Upload Area -->
+            <div class="workflow-step">
+                <h3>Upload DAW Project File</h3>
+                <div class="daw-upload-area" id="dawUploadArea" ondrop="handleDAWDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('dawFileInput').click()">
+                    <div style="font-size: 48px; margin-bottom: 15px;">📁</div>
+                    <p style="margin: 0; color: #9ca3af; margin-bottom: 10px;">Drag and drop DAW project file here</p>
+                    <p style="margin: 0; color: #6b7280; font-size: 12px;">Supports: .als (Ableton), .flp (FL Studio), .logicx (Logic Pro)</p>
+                    <button class="btn" style="margin-top: 15px; padding: 8px 20px;">Browse Files</button>
+                    <input type="file" id="dawFileInput" style="display: none;" accept=".als,.flp,.logicx,.logic" onchange="handleDAWFileSelect(event)">
+                </div>
+            </div>
+
+            <!-- DAW Files List -->
+            <div class="workflow-step" style="margin-top: 30px;">
+                <h3>DAW Files</h3>
+                <div class="daw-file-list" id="dawFileList">
+                    <p style="color: #9ca3af; text-align: center; padding: 20px;">No DAW files uploaded yet</p>
+                </div>
+            </div>
+
+            <!-- Metadata Viewer -->
+            <div class="workflow-step" style="margin-top: 30px;">
+                <h3>DAW Metadata</h3>
+                <div class="daw-metadata-view" id="dawMetadataView">
+                    <p style="color: #9ca3af; text-align: center; padding: 20px;">Select a DAW file to view metadata</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
+
 </html>

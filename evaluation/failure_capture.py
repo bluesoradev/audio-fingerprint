@@ -67,7 +67,8 @@ def capture_failure_case(
     top_matches: List[Dict],
     reason: str,
     output_dir: Path,
-    index_metadata: Dict = None
+    index_metadata: Dict = None,
+    include_daw_context: bool = True
 ):
     """
     Capture a failure case with all artifacts.
@@ -110,6 +111,32 @@ def capture_failure_case(
     if original_path.exists():
         save_spectrogram(original_path, case_dir / "spectrogram_original.png")
     
+    # Load DAW metadata if available
+    daw_metadata = None
+    if include_daw_context:
+        try:
+            from daw_parser.integration import find_daw_file_for_audio, get_parser_for_file
+            from daw_parser.integration import get_daw_metadata_for_file
+            
+            # Try to get DAW metadata from index_metadata first
+            if index_metadata:
+                daw_metadata = get_daw_metadata_for_file(original_id, index_metadata)
+            
+            # If not in index, try to find and parse DAW file
+            if not daw_metadata and original_path.exists():
+                daw_file = find_daw_file_for_audio(original_path)
+                if daw_file:
+                    try:
+                        parser = get_parser_for_file(daw_file)
+                        daw_metadata_obj = parser.parse()
+                        daw_metadata = daw_metadata_obj.to_dict()
+                    except Exception as e:
+                        logger.debug(f"Failed to parse DAW file for failure case: {e}")
+        except ImportError:
+            logger.debug("DAW parser not available, skipping DAW context")
+        except Exception as e:
+            logger.debug(f"Error loading DAW context: {e}")
+    
     # Save query results JSON snippet
     query_snippet = {
         "transformed_id": transformed_id,
@@ -117,6 +144,7 @@ def capture_failure_case(
         "top_matches": top_matches[:5],  # Top 5
         "query_results": query_results,
         "failure_reason": reason,
+        "daw_metadata": daw_metadata,  # Include DAW context
     }
     
     with open(case_dir / "failure_details.json", 'w') as f:
@@ -206,7 +234,8 @@ def capture_failures(
                 top_matches=top_matches,
                 reason=reason,
                 output_dir=output_dir,
-                index_metadata=index_metadata
+                index_metadata=index_metadata,
+                include_daw_context=True
             )
             
             captured_count += 1

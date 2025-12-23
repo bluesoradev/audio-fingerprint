@@ -14,7 +14,8 @@ def build_index(
     ids: List[str],
     index_path: Path,
     index_config: Dict,
-    save_metadata: bool = True
+    save_metadata: bool = True,
+    daw_metadata: Optional[Dict[str, Dict]] = None
 ) -> faiss.Index:
     """
     Build FAISS index from embeddings.
@@ -103,10 +104,13 @@ def build_index(
             "index_type": index_type,
             "metric": metric,
             "config": index_config,
+            "daw_metadata": daw_metadata or {},  # Store DAW metadata
         }
         with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(metadata, f, indent=2, default=str)
         logger.info(f"Saved metadata to {metadata_path}")
+        if daw_metadata:
+            logger.info(f"Included DAW metadata for {len(daw_metadata)} files")
     
     return index
 

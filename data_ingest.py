@@ -113,7 +113,8 @@ def ingest_manifest(
     csv_path: Path,
     output_dir: Path,
     normalize: bool = True,
-    sample_rate: int = 44100
+    sample_rate: int = 44100,
+    parse_daw_files: bool = True
 ) -> pd.DataFrame:
     """
     Ingest manifest CSV and download/normalize audio files.
@@ -123,6 +124,10 @@ def ingest_manifest(
     output_dir = Path(output_dir)
     originals_dir = output_dir / "originals"
     originals_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create DAW metadata directory
+    daw_metadata_dir = output_dir / "daw_metadata"
+    daw_metadata_dir.mkdir(parents=True, exist_ok=True)
     
     # Validate manifest file exists and is not empty
     csv_path = Path(csv_path)
@@ -216,6 +221,33 @@ def ingest_manifest(
                     }
                     checksum = compute_file_hash(output_file)
                     
+                    # Parse DAW file if enabled
+                    daw_file = None
+                    daw_metadata_path = None
+                    if parse_daw_files:
+                        try:
+                            from daw_parser.integration import find_daw_file_for_audio
+                            from daw_parser.utils import get_parser_for_file, save_metadata
+                            
+                            daw_file = find_daw_file_for_audio(output_file)
+                            if daw_file:
+                                try:
+                                    parser = get_parser_for_file(daw_file)
+                                    daw_metadata = parser.parse()
+                                    
+                                    # Save DAW metadata
+                                    metadata_file = daw_metadata_dir / f"{file_id}_daw.json"
+                                    save_metadata(daw_metadata, metadata_file)
+                                    daw_metadata_path = str(metadata_file)
+                                    
+                                    logger.info(f"Parsed DAW file for {file_id}: {daw_file.name}")
+                                except Exception as e:
+                                    logger.warning(f"Failed to parse DAW file {daw_file}: {e}")
+                        except ImportError:
+                            logger.debug("DAW parser not available, skipping DAW parsing")
+                        except Exception as e:
+                            logger.warning(f"Error during DAW file detection: {e}")
+                    
                     results.append({
                         "id": file_id,
                         "title": title,
@@ -227,6 +259,8 @@ def ingest_manifest(
                         "channels": audio_info["channels"],
                         "checksum": checksum,
                         "genre": row.get("genre", ""),
+                        "daw_file": str(daw_file) if daw_file else None,
+                        "daw_metadata_path": daw_metadata_path,
                     })
                     
                     # Clean up temp file if downloaded
@@ -250,6 +284,33 @@ def ingest_manifest(
                 # Compute checksum
                 checksum = compute_file_hash(output_file)
                 
+                # Parse DAW file if enabled
+                daw_file = None
+                daw_metadata_path = None
+                if parse_daw_files:
+                    try:
+                        from daw_parser.integration import find_daw_file_for_audio
+                        from daw_parser.utils import get_parser_for_file, save_metadata
+                        
+                        daw_file = find_daw_file_for_audio(output_file)
+                        if daw_file:
+                            try:
+                                parser = get_parser_for_file(daw_file)
+                                daw_metadata = parser.parse()
+                                
+                                # Save DAW metadata
+                                metadata_file = daw_metadata_dir / f"{file_id}_daw.json"
+                                save_metadata(daw_metadata, metadata_file)
+                                daw_metadata_path = str(metadata_file)
+                                
+                                logger.info(f"Parsed DAW file for {file_id}: {daw_file.name}")
+                            except Exception as e:
+                                logger.warning(f"Failed to parse DAW file {daw_file}: {e}")
+                    except ImportError:
+                        logger.debug("DAW parser not available, skipping DAW parsing")
+                    except Exception as e:
+                        logger.warning(f"Error during DAW file detection: {e}")
+                
                 results.append({
                     "id": file_id,
                     "title": title,
@@ -261,6 +322,8 @@ def ingest_manifest(
                     "channels": audio_info["channels"],
                     "checksum": checksum,
                     "genre": row.get("genre", ""),
+                    "daw_file": str(daw_file) if daw_file else None,
+                    "daw_metadata_path": daw_metadata_path,
                 })
                 
                 # Clean up temp file if downloaded
@@ -281,6 +344,34 @@ def ingest_manifest(
             try:
                 info = sf.info(output_file)
                 checksum = compute_file_hash(output_file)
+                
+                # Parse DAW file if enabled
+                daw_file = None
+                daw_metadata_path = None
+                if parse_daw_files:
+                    try:
+                        from daw_parser.integration import find_daw_file_for_audio
+                        from daw_parser.utils import get_parser_for_file, save_metadata
+                        
+                        daw_file = find_daw_file_for_audio(output_file)
+                        if daw_file:
+                            try:
+                                parser = get_parser_for_file(daw_file)
+                                daw_metadata = parser.parse()
+                                
+                                # Save DAW metadata
+                                metadata_file = daw_metadata_dir / f"{file_id}_daw.json"
+                                save_metadata(daw_metadata, metadata_file)
+                                daw_metadata_path = str(metadata_file)
+                                
+                                logger.info(f"Parsed DAW file for {file_id}: {daw_file.name}")
+                            except Exception as e:
+                                logger.warning(f"Failed to parse DAW file {daw_file}: {e}")
+                    except ImportError:
+                        logger.debug("DAW parser not available, skipping DAW parsing")
+                    except Exception as e:
+                        logger.warning(f"Error during DAW file detection: {e}")
+                
                 results.append({
                     "id": file_id,
                     "title": title,
@@ -292,6 +383,8 @@ def ingest_manifest(
                     "channels": info.channels,
                     "checksum": checksum,
                     "genre": row.get("genre", ""),
+                    "daw_file": str(daw_file) if daw_file else None,
+                    "daw_metadata_path": daw_metadata_path,
                 })
             except Exception as e:
                 logger.error(f"Failed to get info for {file_id}: {e}")
@@ -325,6 +418,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, default=Path("data"), help="Output directory")
     parser.add_argument("--no-normalize", action="store_true", help="Skip normalization")
     parser.add_argument("--sample-rate", type=int, default=44100, help="Target sample rate")
+    parser.add_argument("--no-daw-parse", action="store_true", help="Skip DAW file parsing")
     
     args = parser.parse_args()
     
@@ -332,5 +426,6 @@ if __name__ == "__main__":
         args.manifest,
         args.output,
         normalize=not args.no_normalize,
-        sample_rate=args.sample_rate
+        sample_rate=args.sample_rate,
+        parse_daw_files=not args.no_daw_parse
     )

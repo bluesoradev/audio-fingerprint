@@ -10,6 +10,7 @@ from data_ingest import ingest_manifest
 from transforms.generate_transforms import generate_transforms
 from fingerprint.embed import segment_audio, extract_embeddings, normalize_embeddings
 from fingerprint.query_index import build_index, load_index
+from daw_parser.integration import load_daw_metadata_from_manifest
 from fingerprint.run_queries import run_queries
 from evaluation.analyze import analyze_results
 
@@ -361,7 +362,17 @@ def run_full_experiment(
             with open(index_config_path, 'r') as f:
                 index_config = json.load(f)
             
-            build_index(embeddings_array, all_ids, index_path, index_config)
+            # Load DAW metadata from manifest
+            daw_metadata = {}
+            try:
+                files_manifest_path = manifests_dir / "files_manifest.csv"
+                if files_manifest_path.exists():
+                    daw_metadata = load_daw_metadata_from_manifest(files_manifest_path)
+                    logger.info(f"Loaded DAW metadata for {len(daw_metadata)} files")
+            except Exception as e:
+                logger.warning(f"Failed to load DAW metadata: {e}")
+            
+            build_index(embeddings_array, all_ids, index_path, index_config, daw_metadata=daw_metadata)
             logger.info(f"✓ Built new index with {len(all_ids)} vectors")
     else:
         index_path = indexes_dir / "faiss_index.bin"
@@ -468,7 +479,14 @@ def run_full_experiment(
                 
                 # Generate HTML
                 html_path = final_report_dir / "report.html"
-                render_html_report(metrics_path, summary_path, html_path, config_path)
+                render_html_report(
+                    metrics_path, 
+                    summary_path, 
+                    html_path, 
+                    config_path,
+                    files_manifest_path=files_manifest_path,
+                    include_daw_stats=True
+                )
                 
                 # Copy proofs if they exist
                 proofs_dir = reports_dir / "proofs"

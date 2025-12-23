@@ -3,7 +3,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 import pandas as pd
 import yaml
 from datetime import datetime
@@ -313,11 +313,121 @@ def generate_plots(metrics_path: Path, output_dir: Path, test_matrix_path: Path 
         raise  # Re-raise so run_experiment.py can catch it
 
 
+def calculate_daw_statistics(files_manifest_path: Optional[Path] = None) -> Dict:
+    """
+    Calculate DAW-related statistics from manifest.
+    
+    Args:
+        files_manifest_path: Path to files manifest CSV
+        
+    Returns:
+        Dictionary with DAW statistics
+    """
+    stats = {
+        "total_with_daw": 0,
+        "daw_types": {},
+        "avg_notes_per_track": 0.0,
+        "avg_tempo": 0.0,
+        "total_files": 0
+    }
+    
+    if not files_manifest_path or not files_manifest_path.exists():
+        return stats
+    
+    try:
+        from daw_parser.integration import load_daw_metadata_from_manifest
+        
+        df = pd.read_csv(files_manifest_path)
+        stats["total_files"] = len(df)
+        
+        daw_metadata = load_daw_metadata_from_manifest(files_manifest_path)
+        stats["total_with_daw"] = len(daw_metadata)
+        
+        if daw_metadata:
+            total_notes = 0
+            total_tracks = 0
+            total_tempo = 0
+            tempo_count = 0
+            
+            for file_id, metadata in daw_metadata.items():
+                # Count DAW types
+                daw_type = metadata.get("daw_type", "unknown")
+                stats["daw_types"][daw_type] = stats["daw_types"].get(daw_type, 0) + 1
+                
+                # Calculate averages
+                total_notes += metadata.get("total_notes", 0)
+                total_tracks += metadata.get("midi_tracks", 0)
+                
+                # Get tempo (if available in metadata)
+                # Note: This would need to be stored in metadata for accurate calculation
+            
+            if total_tracks > 0:
+                stats["avg_notes_per_track"] = total_notes / total_tracks
+        
+    except Exception as e:
+        logger.warning(f"Failed to calculate DAW statistics: {e}")
+    
+    return stats
+
+
+def render_daw_statistics_section(stats: Dict) -> str:
+    """
+    Render DAW statistics HTML section.
+    
+    Args:
+        stats: DAW statistics dictionary
+        
+    Returns:
+        HTML string for DAW statistics section
+    """
+    if stats["total_with_daw"] == 0:
+        return ""
+    
+    html = """
+    <div class='metric-card'>
+        <h3 class='card-title'>DAW Metadata Statistics</h3>
+        <div class='stats-grid'>
+            <div class='stat-item'>
+                <div class='stat-label'>Files with DAW Data</div>
+                <div class='stat-value'>{total_with_daw} / {total_files}</div>
+            </div>
+    """.format(
+        total_with_daw=stats["total_with_daw"],
+        total_files=stats["total_files"]
+    )
+    
+    # DAW types breakdown
+    if stats["daw_types"]:
+        html += "<div class='stat-item'><div class='stat-label'>DAW Types</div><div class='stat-value'>"
+        type_list = []
+        for daw_type, count in stats["daw_types"].items():
+            type_list.append(f"{daw_type}: {count}")
+        html += ", ".join(type_list)
+        html += "</div></div>"
+    
+    if stats["avg_notes_per_track"] > 0:
+        html += """
+            <div class='stat-item'>
+                <div class='stat-label'>Avg Notes per Track</div>
+                <div class='stat-value'>{:.1f}</div>
+            </div>
+        """.format(stats["avg_notes_per_track"])
+    
+    html += """
+        </div>
+    </div>
+    """
+    
+    return html
+
+
 def render_html_report(
     metrics_path: Path,
     summary_csv_path: Path,
     output_path: Path,
-    test_matrix_path: Path = None
+    test_matrix_path: Path = None,
+    files_manifest_path: Optional[Path] = None,
+    include_daw_stats: bool = True
 ):
     """Generate HTML report."""
     with open(metrics_path, 'r') as f:
@@ -887,6 +997,32 @@ def render_html_report(
                 border: 1px solid #e5e7eb;
             }}
             
+            .stats-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 16px;
+                margin-top: 16px;
+            }}
+            
+            .stat-item {{
+                background: #f9fafb;
+                padding: 16px;
+                border-radius: 8px;
+                border: 1px solid #e5e7eb;
+            }}
+            
+            .stat-label {{
+                font-size: 0.9em;
+                color: #6b7280;
+                margin-bottom: 8px;
+            }}
+            
+            .stat-value {{
+                font-size: 1.5em;
+                font-weight: 600;
+                color: #1f2937;
+            }}
+            
             @media (max-width: 768px) {{
                 .report-header h1 {{
                     font-size: 1.8em;
@@ -991,6 +1127,8 @@ def render_html_report(
                 </div>
                 
                 {summary_table_html}
+                
+                {render_daw_statistics_section(calculate_daw_statistics(files_manifest_path)) if include_daw_stats and files_manifest_path else ""}
                 
                 
                 

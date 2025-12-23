@@ -3579,6 +3579,141 @@ async def update_test_matrix(config: dict = Body(...)):
     return JSONResponse({"status": "success", "message": "Configuration updated"})
 
 
+# DAW Parser API Endpoints
+@app.post("/api/daw/parse")
+async def parse_daw_file(file_path: str = Form(...)):
+    """Parse a DAW project file and extract metadata."""
+    try:
+        from daw_parser.utils import get_parser_for_file
+        
+        daw_file = Path(file_path)
+        if not daw_file.exists():
+            return JSONResponse({"error": "DAW file not found"}, status_code=404)
+        
+        parser = get_parser_for_file(daw_file)
+        metadata = parser.parse()
+        
+        return JSONResponse({
+            "status": "success",
+            "metadata": metadata.to_dict()
+        })
+    except Exception as e:
+        logger.error(f"Error parsing DAW file: {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/daw/upload")
+async def upload_daw_file(file: UploadFile = File(...), audio_file_id: str = Form(None)):
+    """Upload a DAW project file."""
+    try:
+        # Save to data/daw_files directory
+        daw_files_dir = DATA_DIR / "daw_files"
+        daw_files_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_path = daw_files_dir / file.filename
+        with open(file_path, 'wb') as f:
+            shutil.copyfileobj(file.file, f)
+        
+        # If audio_file_id provided, link the DAW file
+        link_info = None
+        if audio_file_id:
+            try:
+                from daw_parser.integration import link_daw_to_audio
+                from daw_parser.utils import get_parser_for_file
+                
+                # Find corresponding audio file
+                manifest_path = DATA_DIR / "manifests" / "files_manifest.csv"
+                if manifest_path.exists():
+                    df = pd.read_csv(manifest_path)
+                    audio_row = df[df['id'] == audio_file_id]
+                    if not audio_row.empty:
+                        audio_file = Path(audio_row.iloc[0]['file_path'])
+                        if audio_file.exists():
+                            output_dir = DATA_DIR / "daw_metadata"
+                            link_info = link_daw_to_audio(file_path, audio_file, output_dir)
+            except Exception as e:
+                logger.warning(f"Failed to link DAW file to audio: {e}")
+        
+        return JSONResponse({
+            "status": "success",
+            "file_path": str(file_path),
+            "link_info": link_info
+        })
+    except Exception as e:
+        logger.error(f"Error uploading DAW file: {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/daw/metadata")
+async def get_daw_metadata(file_id: str = None):
+    """Get DAW metadata for a file or list all DAW metadata."""
+    try:
+        from daw_parser.integration import load_daw_metadata_from_manifest
+        
+        manifest_path = DATA_DIR / "manifests" / "files_manifest.csv"
+        if not manifest_path.exists():
+            return JSONResponse({"metadata": {}})
+        
+        daw_metadata = load_daw_metadata_from_manifest(manifest_path)
+        
+        if file_id:
+            return JSONResponse({
+                "file_id": file_id,
+                "metadata": daw_metadata.get(file_id)
+            })
+        else:
+            return JSONResponse({"metadata": daw_metadata})
+    except Exception as e:
+        logger.error(f"Error getting DAW metadata: {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/daw/files")
+async def list_daw_files():
+    """List all DAW project files."""
+    try:
+        daw_files_dir = DATA_DIR / "daw_files"
+        daw_metadata_dir = DATA_DIR / "daw_metadata"
+        
+        files = []
+        
+        # List DAW files
+        if daw_files_dir.exists():
+            for ext in ['.als', '.flp', '.logicx', '.logic']:
+                for file_path in daw_files_dir.glob(f"*{ext}"):
+                    files.append({
+                        "name": file_path.name,
+                        "path": str(file_path),
+                        "type": ext[1:],
+                        "size": file_path.stat().st_size,
+                        "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+                    })
+        
+        # List parsed metadata
+        metadata_files = []
+        if daw_metadata_dir.exists():
+            for json_file in daw_metadata_dir.glob("*.json"):
+                try:
+                    with open(json_file, 'r') as f:
+                        metadata = json.load(f)
+                    metadata_files.append({
+                        "file": json_file.name,
+                        "daw_type": metadata.get("daw_type"),
+                        "total_notes": metadata.get("total_notes", 0),
+                        "midi_tracks": metadata.get("midi_tracks", 0)
+                    })
+                except Exception:
+                    continue
+        
+        return JSONResponse({
+            "daw_files": files,
+            "metadata_files": metadata_files
+        })
+    except Exception as e:
+        logger.error(f"Error listing DAW files: {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # Legacy endpoints for backward compatibility
 @app.get("/runs")
 async def list_runs_legacy():

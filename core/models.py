@@ -139,6 +139,8 @@ class IndexMetadata:
     embedding_dim: Optional[int] = None
     index_type: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    # DAW metadata can be stored in metadata dict with key "daw_metadata"
+    # Format: {"daw_metadata": {"file_id": {...daw_metadata_dict...}}}
 
 
 @dataclass

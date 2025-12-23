@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
             embeddedTransformParamsGroup.style.display = this.value !== 'None' ? 'block' : 'none';
         });
     }
-    
+
     const songAApplyTransform = document.getElementById('songAApplyTransform');
     const songATransformParamsGroup = document.getElementById('songATransformParamsGroup');
     if (songAApplyTransform && songATransformParamsGroup) {
@@ -26,20 +26,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const originalDisplay = document.getElementById('originalTestDisplay');
     const transformedDisplay = document.getElementById('transformedTestDisplay');
     const testBtn = document.getElementById('testBtn');
-    
+
     if (testBtn && originalDisplay && transformedDisplay) {
         // Check initial state and update button
         const hasOriginal = originalDisplay.value && originalDisplay.value.trim() !== '';
         const hasTransformed = transformedDisplay.value && transformedDisplay.value.trim() !== '';
         testBtn.disabled = !(hasOriginal && hasTransformed);
     }
-    
+
     // Initialize progress indicators
     const radius = 54;
     const circumference = 2 * Math.PI * radius;
     const overallCircle = document.querySelector('.progress-circle-fill.overall');
     const stepCircle = document.querySelector('.progress-circle-fill.step');
-    
+
     if (overallCircle) {
         overallCircle.style.strokeDasharray = `${circumference} ${circumference}`;
         overallCircle.style.strokeDashoffset = circumference;
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stepCircle.style.strokeDashoffset = circumference;
         stepCircle.classList.add('pending');
     }
-    
+
     checkStatus();
     loadDashboard();
     loadDeliverablesAudioFiles(); // Load deliverables audio files on page load
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function showSection(sectionId, eventElement) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.getElementById(sectionId).classList.add('active');
-    
+
     // Update active nav item
     document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
     if (eventElement) {
@@ -83,6 +83,8 @@ function showSection(sectionId, eventElement) {
     } else if (sectionId === 'deliverables') {
         loadDeliverables();
         loadDeliverablesAudioFiles();
+    } else if (sectionId === 'daw') {
+        loadDAWFiles();
     }
 }
 
@@ -91,11 +93,11 @@ async function checkStatus() {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/status`);
         const status = await response.json();
-        
+
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         const sidebarStatusText = document.getElementById('sidebarStatusText');
-        
+
         if (status.running_processes && status.running_processes.length > 0) {
             statusDot.className = 'status-dot warning';
             statusText.textContent = `${status.running_processes.length} process(es) running`;
@@ -129,10 +131,10 @@ async function loadDashboard() {
             fetch(`http://78.46.37.169:8080/api/status`),
             fetch(`http://78.46.37.169:8080/api/runs`)
         ]);
-        
+
         const status = await statusRes.json();
         const runs = await runsRes.json();
-        
+
         // Display stats
         const statsGrid = document.getElementById('dashboardStats');
         statsGrid.innerHTML = `
@@ -149,7 +151,7 @@ async function loadDashboard() {
                 <p>System Status</p>
             </div>
         `;
-        
+
         // Recent runs
         const recentRunsDiv = document.getElementById('recentRuns');
         if (runs.runs && runs.runs.length > 0) {
@@ -181,28 +183,28 @@ async function createTestAudio() {
     const numFiles = document.getElementById('numFiles').value;
     const duration = document.getElementById('duration').value;
     const outputDir = document.getElementById('audioOutputDir').value;
-    
+
     if (!numFiles || !duration || !outputDir) {
         showError('Please fill in all fields');
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('num_files', numFiles);
         formData.append('duration', duration);
         formData.append('output_dir', outputDir);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/process/create-test-audio`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const result = await response.json();
         if (result.command_id) {
             startProcessMonitoring(result.command_id, 'Creating test audio files...', 'Create Test Audio');
@@ -219,17 +221,17 @@ async function createTestAudio() {
 async function createManifest() {
     const audioDir = document.getElementById('audioDir').value;
     const output = document.getElementById('manifestOutput').value;
-    
+
     try {
         const formData = new FormData();
         formData.append('audio_dir', audioDir);
         formData.append('output', output);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/process/create-manifest`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.command_id) {
             startProcessMonitoring(result.command_id, 'Creating manifest...', 'Create Manifest');
@@ -243,23 +245,23 @@ async function createManifest() {
 async function ingestFiles() {
     const manifestPath = document.getElementById('ingestManifest').value;
     const sampleRate = document.getElementById('sampleRate').value;
-    
+
     if (!manifestPath) {
         showError('Please select a manifest file');
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('manifest_path', manifestPath);
         formData.append('output_dir', 'data');
         formData.append('sample_rate', sampleRate);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/process/ingest`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.command_id) {
             startProcessMonitoring(result.command_id, 'Ingesting files...', 'Ingest Files');
@@ -272,23 +274,23 @@ async function ingestFiles() {
 
 async function generateTransforms() {
     const manifestPath = document.getElementById('transformManifest').value;
-    
+
     if (!manifestPath) {
         showError('Please select a manifest file');
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('manifest_path', manifestPath);
         formData.append('test_matrix_path', 'config/test_matrix.yaml');
         formData.append('output_dir', 'data');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/process/generate-transforms`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.command_id) {
             startProcessMonitoring(result.command_id, 'Generating transforms...', 'Generate Transforms');
@@ -301,26 +303,26 @@ async function generateTransforms() {
 
 async function runExperiment() {
     const manifestPath = document.getElementById('experimentManifest').value;
-    
+
     if (!manifestPath) {
         showError('Please select a manifest file');
         return;
     }
-    
+
     if (!confirm('This will run the full experiment pipeline. Continue?')) {
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('config_path', 'config/test_matrix.yaml');
         formData.append('originals_path', manifestPath);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/process/run-experiment`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.command_id) {
             startProcessMonitoring(result.command_id, 'Running full experiment...', 'Run Experiment');
@@ -335,28 +337,28 @@ async function runExperiment() {
 function startProcessMonitoring(commandId, message, processName = 'Process') {
     currentProcessId = commandId;
     showSection('logs', null);
-    
+
     const logsDiv = document.getElementById('systemLogs');
     if (logsDiv) {
-    logsDiv.innerHTML = `<div class="log-line">${message}</div>`;
+        logsDiv.innerHTML = `<div class="log-line">${message}</div>`;
     }
-    
+
     // Store process name for alerts
     if (!window.processNames) {
         window.processNames = {};
     }
     window.processNames[commandId] = processName;
-    
+
     // Start polling for logs
     if (logPollInterval) {
         clearInterval(logPollInterval);
     }
-    
+
     logPollInterval = setInterval(async () => {
         await pollLogs(commandId);
         await checkProcessStatus(commandId);
     }, 1000);
-    
+
     // Also add to system logs
     addSystemLog(message, 'info');
 }
@@ -365,7 +367,7 @@ async function pollLogs(commandId) {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/process/${commandId}/logs`);
         const result = await response.json();
-        
+
         if (result.logs && result.logs.length > 0) {
             const logsDiv = document.getElementById('systemLogs');
             result.logs.forEach(log => {
@@ -385,7 +387,7 @@ async function checkProcessStatus(commandId) {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/process/${commandId}/status`);
         const status = await response.json();
-        
+
         // Handle different status values
         if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
             if (logPollInterval) {
@@ -393,12 +395,12 @@ async function checkProcessStatus(commandId) {
                 logPollInterval = null;
             }
             currentProcessId = null;
-            
+
             // Get process name for alert
             const processName = window.processNames && window.processNames[commandId] ? window.processNames[commandId] : 'Process';
-            
+
             addSystemLog(`Process ${status.status}: ${commandId}`, status.status === 'completed' ? 'success' : 'error');
-            
+
             // Show completion alert
             if (status.status === 'completed') {
                 showCompletionAlert(processName + ' completed successfully!');
@@ -407,12 +409,12 @@ async function checkProcessStatus(commandId) {
             } else if (status.status === 'cancelled') {
                 showCompletionAlert(processName + ' was cancelled.', 'warning');
             }
-            
+
             // Clean up process name
             if (window.processNames && window.processNames[commandId]) {
                 delete window.processNames[commandId];
             }
-            
+
             // Refresh dashboard and reload manifests
             loadDashboard();
             loadManifests();
@@ -438,39 +440,39 @@ async function loadManifests() {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/files/manifests`);
         const result = await response.json();
-        
+
         const manifestList = document.getElementById('manifestList');
         const ingestSelect = document.getElementById('ingestManifest');
         const transformSelect = document.getElementById('transformManifest');
         const experimentSelect = document.getElementById('experimentManifest');
-        
+
         if (manifestList) {
-        manifestList.innerHTML = '';
+            manifestList.innerHTML = '';
         }
-        
+
         [ingestSelect, transformSelect, experimentSelect].forEach(select => {
             if (select) {
-            select.innerHTML = '<option value="">-- Select Manifest --</option>';
+                select.innerHTML = '<option value="">-- Select Manifest --</option>';
             }
         });
-        
+
         if (result.manifests && result.manifests.length > 0) {
             result.manifests.forEach(manifest => {
                 if (manifestList) {
-                const li = document.createElement('li');
-                li.innerHTML = `
+                    const li = document.createElement('li');
+                    li.innerHTML = `
                     <span>${manifest.name}</span>
                     <span>${formatBytes(manifest.size)}</span>
                 `;
-                manifestList.appendChild(li);
+                    manifestList.appendChild(li);
                 }
-                
+
                 [ingestSelect, transformSelect, experimentSelect].forEach(select => {
                     if (select) {
-                    const option = document.createElement('option');
-                    option.value = manifest.path;
-                    option.textContent = manifest.name;
-                    select.appendChild(option);
+                        const option = document.createElement('option');
+                        option.value = manifest.path;
+                        option.textContent = manifest.name;
+                        select.appendChild(option);
                     }
                 });
             });
@@ -482,14 +484,14 @@ async function loadManifests() {
 
 async function loadAudioFiles() {
     const directory = document.getElementById('audioDirectory').value;
-    
+
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=${directory}`);
         const result = await response.json();
-        
+
         const fileList = document.getElementById('audioFileList');
         fileList.innerHTML = '';
-        
+
         if (result.files && result.files.length > 0) {
             result.files.forEach(file => {
                 const li = document.createElement('li');
@@ -512,7 +514,7 @@ function handleDrop(event) {
     event.preventDefault();
     event.stopPropagation();
     document.getElementById('uploadArea').classList.remove('dragover');
-    
+
     const files = event.dataTransfer.files;
     uploadFiles(files);
 }
@@ -534,23 +536,23 @@ function handleFileSelect(event) {
 
 async function uploadFiles(files) {
     const directory = 'originals';
-    
+
     for (let file of files) {
         if (!file.type.startsWith('audio/')) {
             showError(`${file.name} is not an audio file`);
             continue;
         }
-        
+
         try {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('directory', directory);
-            
+
             const response = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
                 method: 'POST',
                 body: formData
             });
-            
+
             const result = await response.json();
             if (result.status === 'success') {
                 addSystemLog(`Uploaded: ${file.name}`, 'success');
@@ -567,13 +569,13 @@ async function loadRuns() {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/runs`);
         const result = await response.json();
-        
+
         const runsListDiv = document.getElementById('runsList');
-        
+
         if (result.runs && result.runs.length > 0) {
             runsListDiv.innerHTML = '<table class="table"><thead><tr><th>Run ID</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>';
             const tbody = runsListDiv.querySelector('tbody');
-            
+
             result.runs.forEach(run => {
                 const date = new Date(run.timestamp * 1000).toLocaleString();
                 tbody.innerHTML += `
@@ -609,7 +611,7 @@ async function loadTestMatrix() {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/config/test-matrix`);
         const config = await response.json();
-        
+
         document.getElementById('testMatrixConfig').value = JSON.stringify(config, null, 2);
     } catch (error) {
         console.error('Failed to load test matrix:', error);
@@ -620,7 +622,7 @@ async function saveTestMatrix() {
     try {
         const configText = document.getElementById('testMatrixConfig').value;
         const config = JSON.parse(configText);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/config/test-matrix`, {
             method: 'POST',
             headers: {
@@ -628,7 +630,7 @@ async function saveTestMatrix() {
             },
             body: JSON.stringify(config)
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             addSystemLog('Configuration saved successfully', 'success');
@@ -670,14 +672,14 @@ function showCompletionAlert(message, type = 'success') {
         max-width: 400px;
         animation: slideIn 0.3s ease-out;
     `;
-    
+
     alertDiv.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 24px;">${type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠'}</span>
             <span>${message}</span>
         </div>
     `;
-    
+
     // Add animation style if not already added
     if (!document.getElementById('alertAnimationStyle')) {
         const style = document.createElement('style');
@@ -706,9 +708,9 @@ function showCompletionAlert(message, type = 'success') {
         `;
         document.head.appendChild(style);
     }
-    
+
     document.body.appendChild(alertDiv);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
         alertDiv.style.animation = 'slideOut 0.3s ease-out';
@@ -718,7 +720,7 @@ function showCompletionAlert(message, type = 'success') {
             }
         }, 300);
     }, 5000);
-    
+
     // Also show browser alert for important notifications
     if (type === 'success') {
         alert(message); // Browser alert for completion
@@ -738,7 +740,7 @@ async function loadManipulateAudioFiles() {
     // Load audio files from all directories
     const directories = ['originals', 'transformed', 'test_audio', 'manipulated'];
     const allFiles = [];
-    
+
     for (const dir of directories) {
         try {
             const response = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=${dir}`);
@@ -750,22 +752,22 @@ async function loadManipulateAudioFiles() {
             console.error(`Failed to load files from ${dir}:`, error);
         }
     }
-    
+
     const select = document.getElementById('manipulateAudioFile');
     if (!select) return;
-    
+
     select.innerHTML = '<option value="">-- Select Audio File --</option>';
-    
+
     // Also populate embedded sample and song A in Song B selectors (Manipulate Audio section)
     const embeddedBackgroundSelect = document.getElementById('embeddedBackgroundFile');
     const songBBaseSelect = document.getElementById('songBBaseFile');
-    
+
     // Also populate Deliverables section selectors
     const deliverablesEmbeddedSampleSelect = document.getElementById('deliverablesEmbeddedSampleFile');
     const deliverablesEmbeddedBackgroundSelect = document.getElementById('deliverablesEmbeddedBackgroundFile');
     const deliverablesSongASelect = document.getElementById('deliverablesSongAFile');
     const deliverablesSongBBaseSelect = document.getElementById('deliverablesSongBBaseFile');
-    
+
     if (embeddedBackgroundSelect) {
         embeddedBackgroundSelect.innerHTML = '<option value="">-- Select Background File --</option>';
     }
@@ -784,13 +786,13 @@ async function loadManipulateAudioFiles() {
     if (deliverablesSongBBaseSelect) {
         deliverablesSongBBaseSelect.innerHTML = '<option value="">-- Generate Synthetic Background --</option>';
     }
-    
+
     allFiles.forEach(file => {
         const option = document.createElement('option');
         option.value = file.path;
         option.textContent = `${file.name} (${formatBytes(file.size)})`;
         select.appendChild(option);
-        
+
         // Also add to embedded sample and song B selectors (Manipulate Audio section)
         if (embeddedBackgroundSelect) {
             const opt1 = option.cloneNode(true);
@@ -800,7 +802,7 @@ async function loadManipulateAudioFiles() {
             const opt2 = option.cloneNode(true);
             songBBaseSelect.appendChild(opt2);
         }
-        
+
         // Also add to Deliverables section selectors
         if (deliverablesEmbeddedSampleSelect) {
             const sampleOption = option.cloneNode(true);
@@ -819,7 +821,7 @@ async function loadManipulateAudioFiles() {
             deliverablesSongBBaseSelect.appendChild(songBBaseDeliverablesOption);
         }
     });
-    
+
     // Update displays when selected file changes
     if (select) {
         select.addEventListener('change', function() {
@@ -845,10 +847,10 @@ function loadAudioInfo() {
         console.error('[loadAudioInfo] manipulateAudioFile select not found!');
         return;
     }
-    
+
     const filePath = select.value;
     console.log('[loadAudioInfo] Selected file path:', filePath);
-    
+
     if (!filePath) {
         const audioInfo = document.getElementById('audioInfo');
         if (audioInfo) audioInfo.style.display = 'none';
@@ -858,30 +860,30 @@ function loadAudioInfo() {
         console.log('[loadAudioInfo] No file selected, cleared displays');
         return;
     }
-    
+
     selectedAudioFile = filePath;
-    const fileName = select.options[select.selectedIndex]?.textContent || filePath.split('/').pop();
-    
+    const fileName = select.options[select.selectedIndex] ? .textContent || filePath.split('/').pop();
+
     const selectedFileName = document.getElementById('selectedFileName');
     const selectedFilePath = document.getElementById('selectedFilePath');
     const audioInfo = document.getElementById('audioInfo');
-    
+
     if (selectedFileName) selectedFileName.textContent = fileName;
     if (selectedFilePath) selectedFilePath.textContent = filePath;
     if (audioInfo) audioInfo.style.display = 'block';
-    
+
     console.log('[loadAudioInfo] Updated audio info display with:', fileName);
-    
+
     // Update original audio player
     updateOriginalPlayer(filePath);
-    
+
     // Update original test display in "Test Fingerprint Robustness" section
     // Preserve existing transformed path if it exists
     const transformedDisplay = document.getElementById('transformedTestDisplay');
-    const existingTransformed = transformedDisplay?.value?.trim() || null;
+    const existingTransformed = transformedDisplay ? .value ? .trim() || null;
     console.log('[loadAudioInfo] Updating test displays - Original:', filePath, 'Transformed (preserved):', existingTransformed);
     updateTestDisplays(filePath, existingTransformed);
-    
+
     console.log('[loadAudioInfo] ✅ Original audio set in Test Fingerprint Robustness section');
 }
 
@@ -920,7 +922,7 @@ function updateDeliverablesOverlayFileName() {
 function generateWaveform(container, filePath) {
     // Simple waveform visualization - can be enhanced later
     if (!container) return;
-    
+
     const bars = [];
     for (let i = 0; i < 50; i++) {
         const height = Math.random() * 60 + 20;
@@ -935,7 +937,7 @@ function updateOriginalPlayer(filePath) {
     const infoDiv = document.getElementById('originalPlayerInfo');
     const waveformDiv = document.getElementById('originalWaveform');
     const testStatus = document.getElementById('originalTestStatus');
-    
+
     if (!filePath) {
         if (player) {
             player.src = '';
@@ -959,7 +961,7 @@ function updateOriginalPlayer(filePath) {
         originalAudioPlaying = false;
         return;
     }
-    
+
     if (player) {
         player.src = `http://78.46.37.169:8080/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
         player.load();
@@ -991,13 +993,13 @@ function updateOriginalPlayer(filePath) {
 
 function updateTransformedPlayer(filePath) {
     console.log('[updateTransformedPlayer] Called with filePath:', filePath);
-    
+
     const player = document.getElementById('transformedAudioPlayer');
     const playBtn = document.getElementById('transformedPlayBtn');
     const infoDiv = document.getElementById('transformedPlayerInfo');
     const waveformDiv = document.getElementById('transformedWaveform');
     const testStatus = document.getElementById('transformedTestStatus');
-    
+
     if (!filePath) {
         console.log('[updateTransformedPlayer] No filePath provided, clearing player');
         if (player) {
@@ -1022,17 +1024,17 @@ function updateTransformedPlayer(filePath) {
         transformedAudioPlaying = false;
         return;
     }
-    
+
     if (!player) {
         console.error('[updateTransformedPlayer] Player element not found!');
         return;
     }
-    
+
     const audioUrl = `http://78.46.37.169:8080/api/files/audio-file?path=${encodeURIComponent(filePath)}`;
     console.log('[updateTransformedPlayer] Setting audio src to:', audioUrl);
-    
+
     player.src = audioUrl;
-    
+
     // Add error handler to catch loading issues
     player.onerror = (e) => {
         console.error('[updateTransformedPlayer] Audio loading error:', e);
@@ -1041,20 +1043,20 @@ function updateTransformedPlayer(filePath) {
             infoDiv.innerHTML = `<p style="color: #f87171; font-size: 12px; margin: 0;">Error loading: ${filePath.split('/').pop()}</p>`;
         }
     };
-    
+
     player.onloadeddata = () => {
         console.log('[updateTransformedPlayer] Audio loaded successfully:', audioUrl);
         console.log('[updateTransformedPlayer] Audio duration:', player.duration);
     };
-    
+
     player.oncanplay = () => {
         console.log('[updateTransformedPlayer] Audio can play:', audioUrl);
     };
-    
+
     player.onloadstart = () => {
         console.log('[updateTransformedPlayer] Audio loading started:', audioUrl);
     };
-    
+
     player.load();
     player.onpause = () => {
         if (playBtn) playBtn.textContent = '▶';
@@ -1064,7 +1066,7 @@ function updateTransformedPlayer(filePath) {
         if (playBtn) playBtn.textContent = '▶';
         transformedAudioPlaying = false;
     };
-    
+
     if (playBtn) {
         playBtn.disabled = false;
         playBtn.textContent = '▶';
@@ -1086,9 +1088,9 @@ function updateTransformedPlayer(filePath) {
 function toggleOriginalPlayback() {
     const player = document.getElementById('originalAudioPlayer');
     const playBtn = document.getElementById('originalPlayBtn');
-    
+
     if (!player || !playBtn || !player.src) return;
-    
+
     if (originalAudioPlaying) {
         player.pause();
         playBtn.textContent = '▶';
@@ -1114,9 +1116,9 @@ function toggleOriginalPlayback() {
 function toggleTransformedPlayback() {
     const player = document.getElementById('transformedAudioPlayer');
     const playBtn = document.getElementById('transformedPlayBtn');
-    
+
     if (!player || !playBtn || !player.src) return;
-    
+
     if (transformedAudioPlaying) {
         player.pause();
         playBtn.textContent = '▶';
@@ -1143,14 +1145,14 @@ function updateOriginalTime() {
     const player = document.getElementById('originalAudioPlayer');
     const label = document.getElementById('originalTimeLabel');
     const playBtn = document.getElementById('originalPlayBtn');
-    
+
     if (!player || !label) return;
-    
+
     if (player.ended) {
         if (playBtn) playBtn.textContent = '▶';
         originalAudioPlaying = false;
     }
-    
+
     const current = formatTime(player.currentTime);
     const duration = formatTime(player.duration || 0);
     label.textContent = `${current} / ${duration}`;
@@ -1160,14 +1162,14 @@ function updateTransformedTime() {
     const player = document.getElementById('transformedAudioPlayer');
     const label = document.getElementById('transformedTimeLabel');
     const playBtn = document.getElementById('transformedPlayBtn');
-    
+
     if (!player || !label) return;
-    
+
     if (player.ended) {
         if (playBtn) playBtn.textContent = '▶';
         transformedAudioPlaying = false;
     }
-    
+
     const current = formatTime(player.currentTime);
     const duration = formatTime(player.duration || 0);
     label.textContent = `${current} / ${duration}`;
@@ -1194,7 +1196,7 @@ function handleManipulateDrop(event) {
     event.stopPropagation();
     const uploadArea = document.getElementById('manipulateUploadArea');
     if (uploadArea) uploadArea.classList.remove('dragover');
-    
+
     const files = event.dataTransfer.files;
     if (files.length > 0) {
         handleManipulateFileUpload(files[0]);
@@ -1213,22 +1215,22 @@ async function handleManipulateFileUpload(file) {
         showError('Please select an audio file');
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('directory', 'data/originals');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(`File uploaded: ${result.path}`);
             addSystemLog(`Audio file uploaded: ${result.path}`, 'success');
-            
+
             // Reload file list and select the uploaded file
             await loadManipulateAudioFiles();
             const select = document.getElementById('manipulateAudioFile');
@@ -1249,17 +1251,17 @@ async function applySpeedTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const speedSlider = document.getElementById('speedSlider');
     if (!speedSlider) {
         showError('Speed slider not found');
         return;
     }
     const speedRatio = parseFloat(speedSlider.value) / 100.0; // Convert from 50-200 to 0.5-2.0
-    const preservePitch = document.getElementById('preservePitch')?.checked || false;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+    const preservePitch = document.getElementById('preservePitch') ? .checked || false;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
@@ -1267,12 +1269,12 @@ async function applySpeedTransform() {
         formData.append('preserve_pitch', preservePitch);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/speed`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             // Try to parse error response
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -1286,7 +1288,7 @@ async function applySpeedTransform() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1296,7 +1298,7 @@ async function applySpeedTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1313,7 +1315,7 @@ async function applyPitchTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const pitchSlider = document.getElementById('pitchSlider');
     if (!pitchSlider) {
         showError('Pitch slider not found');
@@ -1322,29 +1324,29 @@ async function applyPitchTransform() {
     const semitones = parseInt(pitchSlider.value);
     console.log('[Pitch Transform] Slider value:', pitchSlider.value, 'Parsed semitones:', semitones);
     addSystemLog(`Applying pitch shift: ${semitones} semitones`, 'info');
-    
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('semitones', semitones);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         console.log('[Pitch Transform] Sending request:', {
             input_path: selectedAudioFile,
             semitones: semitones,
             output_dir: outputDir,
             output_name: outputName
         });
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/pitch`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
             try {
@@ -1356,10 +1358,10 @@ async function applyPitchTransform() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
         console.log('[Pitch Transform] Response:', result);
-        
+
         if (result.status === 'success') {
             showCompletionAlert(result.message);
             addSystemLog(`Pitch transform applied: ${result.output_path} (${semitones} semitones)`, 'success');
@@ -1369,7 +1371,7 @@ async function applyPitchTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1389,28 +1391,28 @@ async function applyReverbTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const reverbSlider = document.getElementById('reverbSlider');
     if (!reverbSlider) {
         showError('Reverb slider not found');
         return;
     }
     const delayMs = parseInt(reverbSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('delay_ms', delayMs);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/reverb`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1420,7 +1422,7 @@ async function applyReverbTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1437,7 +1439,7 @@ async function applyNoiseReductionTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const noiseSlider = document.getElementById('noiseSlider');
     if (!noiseSlider) {
         showError('Noise slider not found');
@@ -1445,21 +1447,21 @@ async function applyNoiseReductionTransform() {
     }
     const reductionPercent = parseInt(noiseSlider.value);
     const reductionStrength = reductionPercent / 100.0;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('reduction_strength', reductionStrength);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/noise-reduction`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
             try {
@@ -1471,25 +1473,25 @@ async function applyNoiseReductionTransform() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
         console.log('[Noise Reduction] Full response:', JSON.stringify(result, null, 2));
-        
+
         if (result.status === 'success') {
             showCompletionAlert(result.message);
             addSystemLog(`Noise reduction applied: ${result.output_path}`, 'success');
             console.log('[Noise Reduction] Success! Output file:', result.output_path);
             console.log('[Noise Reduction] Output path type:', typeof result.output_path);
-            
+
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            
+
             // Update transformed test display and player
             if (result.output_path) {
                 console.log('[Noise Reduction] Calling updateTestDisplays with:', result.output_path);
                 console.log('[Noise Reduction] Calling updateTransformedPlayer with:', result.output_path);
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
@@ -1512,28 +1514,28 @@ async function applyEQTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const eqSlider = document.getElementById('eqSlider');
     if (!eqSlider) {
         showError('EQ slider not found');
         return;
     }
     const gainDb = parseInt(eqSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('gain_db', gainDb);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
             try {
@@ -1545,25 +1547,25 @@ async function applyEQTransform() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
         console.log('[EQ Transform] Full response:', JSON.stringify(result, null, 2));
-        
+
         if (result.status === 'success') {
             showCompletionAlert(result.message);
             addSystemLog(`EQ transform applied: ${result.output_path}`, 'success');
             console.log('[EQ Transform] Success! Output file:', result.output_path);
             console.log('[EQ Transform] Output path type:', typeof result.output_path);
-            
+
             loadManipulateAudioFiles();
             loadTestFileSelects();
-            
+
             // Update transformed test display and player
             if (result.output_path) {
                 console.log('[EQ Transform] Calling updateTestDisplays with:', result.output_path);
                 console.log('[EQ Transform] Calling updateTransformedPlayer with:', result.output_path);
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
@@ -1586,7 +1588,7 @@ async function applyCompressionTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const codecSelect = document.getElementById('codecSelect');
     if (!codecSelect) {
         showError('Codec select not found');
@@ -1597,16 +1599,16 @@ async function applyCompressionTransform() {
         showError('Please select a codec');
         return;
     }
-    
+
     const bitrateSelect = document.getElementById('bitrateSelect');
     if (!bitrateSelect) {
         showError('Bitrate select not found');
         return;
     }
     const bitrate = bitrateSelect.value;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
@@ -1614,12 +1616,12 @@ async function applyCompressionTransform() {
         formData.append('bitrate', bitrate);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/encode`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1629,7 +1631,7 @@ async function applyCompressionTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1646,50 +1648,50 @@ async function applyOverlayTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const overlayFileInput = document.getElementById('overlayFile');
-    const overlayFile = overlayFileInput?.files?.[0] || null;
-    
+    const overlayFile = overlayFileInput ? .files ? . [0] || null;
+
     const overlayGainSlider = document.getElementById('overlayGainSlider');
     if (!overlayGainSlider) {
         showError('Overlay gain slider not found');
         return;
     }
     const gainDb = parseInt(overlayGainSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('gain_db', gainDb);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         // Upload overlay file if provided
         let overlayPath = null;
         if (overlayFile) {
             const uploadFormData = new FormData();
             uploadFormData.append('file', overlayFile);
             uploadFormData.append('directory', 'data/manipulated');
-            
+
             const uploadResponse = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
                 method: 'POST',
                 body: uploadFormData
             });
-            
+
             const uploadResult = await uploadResponse.json();
             if (uploadResult.status === 'success') {
                 overlayPath = uploadResult.path;
                 formData.append('overlay_path', overlayPath);
             }
         }
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/overlay`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1699,7 +1701,7 @@ async function applyOverlayTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1716,13 +1718,13 @@ async function applyNoiseTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     // This is for adding noise, not reducing it
     const snrDb = 20; // Default SNR
     const noiseType = 'white';
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
@@ -1730,12 +1732,12 @@ async function applyNoiseTransform() {
         formData.append('noise_type', noiseType);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/noise`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1755,12 +1757,12 @@ async function applyEncodeTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const codec = document.getElementById('encodeCodec').value;
     const bitrate = document.getElementById('encodeBitrate').value;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
-    
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
@@ -1768,12 +1770,12 @@ async function applyEncodeTransform() {
         formData.append('bitrate', bitrate);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/encode`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1793,12 +1795,12 @@ async function applyChopTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const removeStart = parseFloat(document.getElementById('chopStart').value);
     const removeEnd = parseFloat(document.getElementById('chopEnd').value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
-    
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
@@ -1806,12 +1808,12 @@ async function applyChopTransform() {
         formData.append('remove_end', removeEnd);
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/chop`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1831,11 +1833,11 @@ function addToChain() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     // Get current transform settings from sliders
     const speedSlider = document.getElementById('speedSlider');
     const speedRatio = parseFloat(speedSlider.value) / 100.0;
-            const preservePitch = document.getElementById('preservePitch').checked;
+    const preservePitch = document.getElementById('preservePitch').checked;
     const pitchSemitones = parseInt(document.getElementById('pitchSlider').value);
     const reverbMs = parseInt(document.getElementById('reverbSlider').value);
     const noisePercent = parseInt(document.getElementById('noiseSlider').value);
@@ -1843,55 +1845,55 @@ function addToChain() {
     const codec = document.getElementById('codecSelect').value;
     const bitrate = document.getElementById('bitrateSelect').value;
     const overlayGain = parseInt(document.getElementById('overlayGainSlider').value);
-    
+
     let transformDesc = [];
     let transformParams = {};
-    
+
     if (speedRatio !== 1.0) {
         transformDesc.push(`Speed: ${speedRatio.toFixed(2)}x`);
         transformParams.speed = speedRatio;
         transformParams.preserve_pitch = preservePitch;
     }
-    
+
     if (pitchSemitones !== 0) {
         transformDesc.push(`Pitch: ${pitchSemitones > 0 ? '+' : ''}${pitchSemitones} semitones`);
         transformParams.semitones = pitchSemitones;
     }
-    
+
     if (reverbMs > 0) {
         transformDesc.push(`Reverb: ${reverbMs}ms`);
         transformParams.delay_ms = reverbMs;
     }
-    
+
     if (noisePercent > 0) {
         transformDesc.push(`Noise Reduction: ${noisePercent}%`);
         transformParams.reduction_strength = noisePercent / 100.0;
     }
-    
+
     if (eqDb !== 0) {
         transformDesc.push(`EQ: ${eqDb > 0 ? '+' : ''}${eqDb} dB`);
         transformParams.gain_db = eqDb;
     }
-    
+
     if (codec !== 'None') {
         transformDesc.push(`Compression: ${codec} @ ${bitrate}`);
         transformParams.codec = codec.toLowerCase();
         transformParams.bitrate = bitrate;
     }
-    
+
     if (transformDesc.length === 0) {
         showError('Please configure at least one transform before adding to chain');
         return;
     }
-    
+
     const transform = {
         type: 'combined',
         params: transformParams,
         description: transformDesc.join(', ')
     };
-    
-        transformChain.push(transform);
-        updateChainDisplay();
+
+    transformChain.push(transform);
+    updateChainDisplay();
     addSystemLog(`Added transform to chain: ${transform.description}`, 'info');
 }
 
@@ -1904,17 +1906,17 @@ function clearChain() {
 function updateChainDisplay() {
     const chainTextarea = document.getElementById('chainList');
     if (!chainTextarea) return;
-    
+
     if (transformChain.length === 0) {
         chainTextarea.value = 'No transforms in chain yet.';
         return;
     }
-    
+
     let chainText = '';
     transformChain.forEach((t, i) => {
         chainText += `${i + 1}. ${t.description || t.type} (${JSON.stringify(t.params)})\n`;
     });
-    
+
     chainTextarea.value = chainText;
 }
 
@@ -1928,27 +1930,27 @@ async function applyChainTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     if (transformChain.length === 0) {
         showError('Please add transforms to the chain first');
         return;
     }
-    
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
-    
+
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('transforms', JSON.stringify(transformChain));
         formData.append('output_dir', outputDir);
         if (outputName) formData.append('output_name', outputName);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/chain`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
             try {
@@ -1960,7 +1962,7 @@ async function applyChainTransform() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -1971,7 +1973,7 @@ async function applyChainTransform() {
             // Update transformed test display - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1994,37 +1996,37 @@ async function testFingerprintRobustness() {
     const transformedDisplay = document.getElementById('transformedTestDisplay');
     const originalFile = originalDisplay.value;
     const manipulatedFile = transformedDisplay.value;
-    
+
     if (!originalFile || !manipulatedFile) {
         showError('Please load both original and transformed audio files first');
         return;
     }
-    
+
     if (originalFile === manipulatedFile) {
         showError('Original and transformed files must be different');
         return;
     }
-    
+
     const resultDiv = document.getElementById('testResults');
     const detailsDiv = document.getElementById('testResultsContent');
     const testBtn = document.getElementById('testBtn');
-    
+
     // Show loading state
     resultDiv.style.display = 'block';
     resultDiv.className = 'test-results';
     testBtn.disabled = true;
     detailsDiv.innerHTML = '<p>🔄 Testing fingerprint match... This may take a moment.</p>';
-    
+
     try {
         const formData = new FormData();
         formData.append('original_path', originalFile);
         formData.append('manipulated_path', manipulatedFile);
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/test/fingerprint`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
             try {
@@ -2036,20 +2038,20 @@ async function testFingerprintRobustness() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
-        
+
         testBtn.disabled = false;
-        
+
         if (result.status === 'success') {
             const matchStatus = result.matched ? '' : '';
             const matchClass = result.matched ? 'success' : 'error';
             const similarityPercent = (result.similarity * 100).toFixed(1);
             const directSim = result.direct_similarity ? (result.direct_similarity * 100).toFixed(1) : null;
-            
+
             resultDiv.className = `test-results ${matchClass}`;
             resultDiv.style.display = 'block';
-            
+
             let interpretation = '';
             if (result.similarity > 0.9) {
                 interpretation = 'Strong match - fingerprint is very robust to this transformation.';
@@ -2060,7 +2062,7 @@ async function testFingerprintRobustness() {
             } else {
                 interpretation = 'Fingerprint could not match transformed audio to original. This transformation may break fingerprint identification.';
             }
-            
+
             detailsDiv.innerHTML = `
                 <div style="margin-bottom: 15px;">
                     <h4 style="color: ${result.matched ? '#10b981' : '#f87171'}; margin: 0 0 10px 0;">${matchStatus}</h4>
@@ -2093,7 +2095,7 @@ async function testFingerprintRobustness() {
                     </p>
                 </div>
             `;
-            
+
             addSystemLog(`Fingerprint test: ${matchStatus} (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
         } else {
             resultDiv.className = 'test-results error';
@@ -2112,8 +2114,8 @@ async function applyTransform(type) {
         showError('Please select an audio file first');
         return;
     }
-    
-    switch(type) {
+
+    switch (type) {
         case 'speed':
             await applySpeedTransform();
             break;
@@ -2176,9 +2178,9 @@ async function applyTransform(type) {
 // Update slider display values
 function updateSliderDisplay(type, value) {
     let displayElement;
-    
+
     // Map type to actual element ID
-    switch(type) {
+    switch (type) {
         case 'highpass':
             displayElement = document.getElementById('highpassDisplay');
             if (displayElement) displayElement.textContent = value + ' Hz';
@@ -2231,20 +2233,20 @@ async function applyHighpassTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
-    const freqHz = parseFloat(document.getElementById('highpassSlider')?.value || 150);
-    
+
+    const freqHz = parseFloat(document.getElementById('highpassSlider') ? .value || 150);
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('freq_hz', freqHz);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/highpass`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2265,20 +2267,20 @@ async function applyLowpassTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
-    const freqHz = parseFloat(document.getElementById('lowpassSlider')?.value || 6000);
-    
+
+    const freqHz = parseFloat(document.getElementById('lowpassSlider') ? .value || 6000);
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('freq_hz', freqHz);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/lowpass`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2299,20 +2301,20 @@ async function applyBoostHighsTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
-    const gainDb = parseFloat(document.getElementById('boostHighsSlider')?.value || 6);
-    
+
+    const gainDb = parseFloat(document.getElementById('boostHighsSlider') ? .value || 6);
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('gain_db', gainDb);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/boost-highs`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2333,20 +2335,20 @@ async function applyBoostLowsTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
-    const gainDb = parseFloat(document.getElementById('boostLowsSlider')?.value || 6);
-    
+
+    const gainDb = parseFloat(document.getElementById('boostLowsSlider') ? .value || 6);
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('gain_db', gainDb);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/boost-lows`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2367,17 +2369,17 @@ async function applyTelephoneTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/eq/telephone`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2398,20 +2400,20 @@ async function applyLimitingTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
-    const ceilingDb = parseFloat(document.getElementById('limitingSlider')?.value || -1);
-    
+
+    const ceilingDb = parseFloat(document.getElementById('limitingSlider') ? .value || -1);
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('ceiling_db', ceilingDb);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/dynamics/limiting`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2432,17 +2434,17 @@ async function applyMultibandTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/dynamics/multiband`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2463,22 +2465,22 @@ async function applyAddNoiseTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
-    const noiseType = document.getElementById('noiseTypeSelect')?.value || 'white';
-    const snrDb = parseFloat(document.getElementById('noiseSNRSlider')?.value || 20);
-    
+
+    const noiseType = document.getElementById('noiseTypeSelect') ? .value || 'white';
+    const snrDb = parseFloat(document.getElementById('noiseSNRSlider') ? .value || 20);
+
     try {
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('noise_type', noiseType);
         formData.append('snr_db', snrDb);
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/noise`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2499,16 +2501,16 @@ async function applyCropTransform() {
         showError('Please select an audio file first');
         return;
     }
-    
-    const cropType = document.getElementById('cropTypeSelect')?.value || '10s';
-    
+
+    const cropType = document.getElementById('cropTypeSelect') ? .value || '10s';
+
     try {
         let endpoint = '';
         const formData = new FormData();
         formData.append('input_path', selectedAudioFile);
         formData.append('output_dir', 'data/manipulated');
-        
-        switch(cropType) {
+
+        switch (cropType) {
             case '10s':
                 endpoint = '/manipulate/crop/10s';
                 break;
@@ -2526,12 +2528,12 @@ async function applyCropTransform() {
             default:
                 throw new Error('Invalid crop type');
         }
-        
+
         const response = await fetch(`${API_BASE}${endpoint}`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2552,19 +2554,19 @@ async function applyEmbeddedSampleTransform() {
         showError('Please select a sample audio file first');
         return;
     }
-    
-    const backgroundFile = document.getElementById('embeddedBackgroundFile')?.value;
+
+    const backgroundFile = document.getElementById('embeddedBackgroundFile') ? .value;
     if (!backgroundFile) {
         showError('Please select a background audio file');
         return;
     }
-    
-    const position = document.getElementById('embeddedPosition')?.value || 'start';
-    const sampleDuration = parseFloat(document.getElementById('embeddedSampleDuration')?.value || '1.5');
-    const volumeDb = parseFloat(document.getElementById('embeddedVolumeDb')?.value || '0.0');
-    const applyTransform = document.getElementById('embeddedApplyTransform')?.value || 'None';
-    const transformParams = document.getElementById('embeddedTransformParams')?.value || null;
-    
+
+    const position = document.getElementById('embeddedPosition') ? .value || 'start';
+    const sampleDuration = parseFloat(document.getElementById('embeddedSampleDuration') ? .value || '1.5');
+    const volumeDb = parseFloat(document.getElementById('embeddedVolumeDb') ? .value || '0.0');
+    const applyTransform = document.getElementById('embeddedApplyTransform') ? .value || 'None';
+    const transformParams = document.getElementById('embeddedTransformParams') ? .value || null;
+
     try {
         const formData = new FormData();
         formData.append('sample_path', selectedAudioFile);
@@ -2577,12 +2579,12 @@ async function applyEmbeddedSampleTransform() {
             formData.append('transform_params', transformParams);
         }
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/embedded-sample`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2607,15 +2609,15 @@ async function applySongAInSongBTransform() {
         showError('Please select Song A audio file first');
         return;
     }
-    
-    const songBBaseFile = document.getElementById('songBBaseFile')?.value || null;
-    const sampleStartTime = parseFloat(document.getElementById('songASampleStartTime')?.value || '0.0');
-    const sampleDuration = parseFloat(document.getElementById('songASampleDuration')?.value || '1.5');
-    const songBDuration = parseFloat(document.getElementById('songBDuration')?.value || '30.0');
-    const applyTransform = document.getElementById('songAApplyTransform')?.value || 'None';
-    const transformParams = document.getElementById('songATransformParams')?.value || null;
-    const mixVolumeDb = parseFloat(document.getElementById('songAMixVolumeDb')?.value || '0.0');
-    
+
+    const songBBaseFile = document.getElementById('songBBaseFile') ? .value || null;
+    const sampleStartTime = parseFloat(document.getElementById('songASampleStartTime') ? .value || '0.0');
+    const sampleDuration = parseFloat(document.getElementById('songASampleDuration') ? .value || '1.5');
+    const songBDuration = parseFloat(document.getElementById('songBDuration') ? .value || '30.0');
+    const applyTransform = document.getElementById('songAApplyTransform') ? .value || 'None';
+    const transformParams = document.getElementById('songATransformParams') ? .value || null;
+    const mixVolumeDb = parseFloat(document.getElementById('songAMixVolumeDb') ? .value || '0.0');
+
     try {
         const formData = new FormData();
         formData.append('song_a_path', selectedAudioFile);
@@ -2631,12 +2633,12 @@ async function applySongAInSongBTransform() {
         }
         formData.append('mix_volume_db', mixVolumeDb.toString());
         formData.append('output_dir', 'data/manipulated');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/song-a-in-song-b`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(result.message);
@@ -2657,15 +2659,18 @@ async function applySongAInSongBTransform() {
 
 // Update test displays when files are loaded
 function updateTestDisplays(originalPath, transformedPath) {
-    console.log('[updateTestDisplays] Called with:', { originalPath, transformedPath });
-    
+    console.log('[updateTestDisplays] Called with:', {
+        originalPath,
+        transformedPath
+    });
+
     // Try new IDs first (manipulate_section.html), fallback to old IDs (index.html)
     const originalDisplay = document.getElementById('testOriginalPath') || document.getElementById('originalTestDisplay');
     const transformedDisplay = document.getElementById('testTransformedPath') || document.getElementById('transformedTestDisplay');
     const originalStatus = document.getElementById('originalTestStatus');
     const transformedStatus = document.getElementById('transformedTestStatus');
     const testBtn = document.getElementById('testFingerprintBtn') || document.getElementById('testBtn');
-    
+
     if (!originalDisplay && !originalStatus) {
         console.error('[updateTestDisplays] originalTestDisplay/originalTestStatus element not found!');
     }
@@ -2675,7 +2680,7 @@ function updateTestDisplays(originalPath, transformedPath) {
     if (!testBtn) {
         console.error('[updateTestDisplays] testBtn element not found!');
     }
-    
+
     if (originalDisplay) {
         if (originalPath) {
             originalDisplay.value = originalPath;
@@ -2687,7 +2692,7 @@ function updateTestDisplays(originalPath, transformedPath) {
             console.log('[updateTestDisplays] Cleared original path');
         }
     }
-    
+
     if (originalStatus) {
         if (originalPath && originalPath.trim() !== '') {
             originalStatus.textContent = originalPath.split('/').pop();
@@ -2695,7 +2700,7 @@ function updateTestDisplays(originalPath, transformedPath) {
             originalStatus.textContent = 'No original audio selected.';
         }
     }
-    
+
     if (transformedDisplay) {
         if (transformedPath) {
             transformedDisplay.value = transformedPath;
@@ -2709,7 +2714,7 @@ function updateTestDisplays(originalPath, transformedPath) {
             }
         }
     }
-    
+
     if (transformedStatus) {
         if (transformedPath && transformedPath.trim() !== '') {
             transformedStatus.textContent = transformedPath.split('/').pop();
@@ -2717,19 +2722,19 @@ function updateTestDisplays(originalPath, transformedPath) {
             transformedStatus.textContent = 'No transformed audio available. Apply transforms first.';
         }
     }
-    
+
     // Enable test button if both files are available
     if (testBtn) {
         const hasOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim() !== '') || (originalStatus && originalStatus.textContent !== 'No original audio selected.');
         const hasTransformed = (transformedDisplay && transformedDisplay.value && transformedDisplay.value.trim() !== '') || (transformedStatus && transformedStatus.textContent !== 'No transformed audio available. Apply transforms first.');
-        
+
         console.log('[updateTestDisplays] Button state check:', {
             hasOriginal,
             hasTransformed,
-            originalValue: originalDisplay?.value,
-            transformedValue: transformedDisplay?.value
+            originalValue: originalDisplay ? .value,
+            transformedValue: transformedDisplay ? .value
         });
-        
+
         testBtn.disabled = !(hasOriginal && hasTransformed);
         console.log('[updateTestDisplays] Test button disabled:', testBtn.disabled);
     }
@@ -2740,27 +2745,27 @@ async function loadDeliverables() {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/runs`);
         const result = await response.json();
-        
+
         const deliverablesListDiv = document.getElementById('deliverablesList');
-        
+
         if (result.runs && result.runs.length > 0) {
             // Group runs by phase - check metrics.json for phase info if not in run object
             const phase1Runs = [];
             const phase2Runs = [];
             const otherRuns = [];
-            
+
             // First pass: check runs with phase info
             const runsToCheck = [];
             result.runs.forEach(run => {
                 const runPath = (run.path || '').toLowerCase();
                 const runId = (run.id || '').toLowerCase();
-                const runPhase = (run.phase || run.summary?.phase || '').toLowerCase();
-                
+                const runPhase = (run.phase || run.summary ? .phase || '').toLowerCase();
+
                 const isPhase1 = runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') ||
-                                 runPath.includes('phase_1') || runId.includes('phase_1') || (runId.includes('test_') && runId.includes('phase1'));
+                    runPath.includes('phase_1') || runId.includes('phase_1') || (runId.includes('test_') && runId.includes('phase1'));
                 const isPhase2 = runPhase === 'phase2' || runPath.includes('phase2') || runId.includes('phase2') ||
-                                 runPath.includes('phase_2') || runId.includes('phase_2') || (runId.includes('test_') && runId.includes('phase2'));
-                
+                    runPath.includes('phase_2') || runId.includes('phase_2') || (runId.includes('test_') && runId.includes('phase2'));
+
                 if (isPhase1 && !isPhase2) {
                     phase1Runs.push(run);
                 } else if (isPhase2 && !isPhase1) {
@@ -2772,7 +2777,7 @@ async function loadDeliverables() {
                     otherRuns.push(run);
                 }
             });
-            
+
             // Second pass: check metrics.json for runs without phase info
             for (const run of runsToCheck) {
                 try {
@@ -2780,8 +2785,8 @@ async function loadDeliverables() {
                     if (detailsResp.ok) {
                         const details = await detailsResp.json();
                         const metrics = details.metrics || {};
-                        const phase = (metrics.summary?.phase || metrics.test_details?.phase || '').toLowerCase();
-                        
+                        const phase = (metrics.summary ? .phase || metrics.test_details ? .phase || '').toLowerCase();
+
                         if (phase === 'phase1') {
                             run.phase = 'phase1';
                             phase1Runs.push(run);
@@ -2807,41 +2812,55 @@ async function loadDeliverables() {
                     otherRuns.push(run);
                 }
             }
-            
+
             // Sort each group by timestamp (most recent first)
             const sortByTime = (a, b) => (b.timestamp || 0) - (a.timestamp || 0);
             phase1Runs.sort(sortByTime);
             phase2Runs.sort(sortByTime);
-            
+
             // Only show the most recent Phase 1 and Phase 2 reports
             if (deliverablesListDiv) {
                 const latestReports = [];
-                
+
                 // Add most recent Phase 1 report if available
                 if (phase1Runs.length > 0) {
-                    latestReports.push({...phase1Runs[0], phaseLabel: 'Phase 1', isPhase1: true});
+                    latestReports.push({
+                        ...phase1Runs[0],
+                        phaseLabel: 'Phase 1',
+                        isPhase1: true
+                    });
                 }
-                
+
                 // Add most recent Phase 2 report if available
                 if (phase2Runs.length > 0) {
-                    latestReports.push({...phase2Runs[0], phaseLabel: 'Phase 2', isPhase2: true});
+                    latestReports.push({
+                        ...phase2Runs[0],
+                        phaseLabel: 'Phase 2',
+                        isPhase2: true
+                    });
                 }
-                
+
                 if (latestReports.length > 0) {
                     let html = '';
                     latestReports.forEach(run => {
                         const date = run.timestamp ? new Date(run.timestamp * 1000) : null;
-                        const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Pending';
+                        const dateStr = date ? date.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) : 'Pending';
                         const reportPath = `${run.path}/final_report/report.html`;
                         const hasReport = run.has_summary || run.has_metrics;
-                        
+
                         // Determine phase label and color
                         const phaseLabel = run.phaseLabel || (run.isPhase1 ? 'Phase 1' : (run.isPhase2 ? 'Phase 2' : 'Report'));
                         const phaseColor = run.isPhase1 ? '#427eea' : (run.isPhase2 ? '#10b981' : '#9ca3af');
-                        
+
                         // Calculate size (placeholder - would need actual file size)
                         const sizeStr = '1.2 MB'; // Placeholder
-                        
+
                         html += `
                             <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-bottom: 12px; background: #2d2d2d; border-radius: 8px; border: 1px solid #3d3d3d; transition: all 0.2s;">
                                 <div style="flex: 1;">
@@ -2886,10 +2905,10 @@ function viewReport(reportPath, runId) {
 async function downloadReportZip(runId) {
     try {
         showCompletionAlert(`Preparing download for ${runId}...`, 'info');
-        
+
         // Use direct window.location for large files to avoid memory issues
         const downloadUrl = `http://78.46.37.169:8080/api/runs/${runId}/download`;
-        
+
         // Create a temporary link and click it
         const a = document.createElement('a');
         a.href = downloadUrl;
@@ -2897,14 +2916,14 @@ async function downloadReportZip(runId) {
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
-        
+
         // Clean up after a delay
         setTimeout(() => {
             document.body.removeChild(a);
             showCompletionAlert(`Download started: ${runId}_report.zip`);
             addSystemLog(`Download started: ${runId}_report.zip`, 'success');
         }, 500);
-        
+
     } catch (error) {
         console.error('Failed to download report:', error);
         showError('Failed to download report: ' + error.message);
@@ -2916,14 +2935,14 @@ async function viewRunDetails(runId) {
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/runs/${runId}`);
         const result = await response.json();
-        
+
         const reportViewerDiv = document.getElementById('reportViewer');
-        
+
         if (!reportViewerDiv) {
             console.error('reportViewer element not found');
             return;
         }
-        
+
         const hasMetrics = !!result.metrics;
         const metrics = result.metrics || {};
         const testDetails = metrics.test_details || {};
@@ -2932,13 +2951,13 @@ async function viewRunDetails(runId) {
         const rank = overall.rank || {};
         const similarity = overall.similarity || {};
         const passFail = metrics.pass_fail || {};
-        const phase = testDetails.phase || metrics.summary?.phase || 'unknown';
-        
+        const phase = testDetails.phase || metrics.summary ? .phase || 'unknown';
+
         const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
         const statusColor = !hasMetrics ? '#f59e0b' : (matched ? '#10b981' : '#f87171');
         const statusText = !hasMetrics ? '⏳ PENDING' : (matched ? '' : '');
         const phaseColor = phase === 'phase1' ? '#427eea' : phase === 'phase2' ? '#10b981' : '#9ca3af';
-        
+
         let html = `
             <div style="background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%); padding: 25px; border-radius: 12px; border: 2px solid ${phaseColor};">
                 <div style="text-align: center; margin-bottom: 25px;">
@@ -2946,7 +2965,7 @@ async function viewRunDetails(runId) {
                     <h2 style="color: ${statusColor}; margin: 0; font-size: 2.5em; font-weight: bold;">${statusText}</h2>
                 </div>
         `;
-        
+
         if (!hasMetrics) {
             html += `
                 <p style="color:#9ca3af; text-align:center; margin-bottom:10px;">Report metrics not available yet. If a suite was just launched, it may still be running or may have failed.</p>
@@ -2955,7 +2974,7 @@ async function viewRunDetails(runId) {
             reportViewerDiv.innerHTML = html;
             return;
         }
-        
+
         html += `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
                     <div style="background: #2d2d2d; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #427eea;">
@@ -3002,7 +3021,7 @@ async function viewRunDetails(runId) {
                 </div>
             </div>
         `;
-        
+
         if (result.metrics) {
             const summary = result.metrics.summary || {};
             html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #3d3d3d;">';
@@ -3013,7 +3032,7 @@ async function viewRunDetails(runId) {
             html += `</div>`;
             html += '</div>';
         }
-        
+
         if (result.summary && result.summary.length > 0) {
             html += '<h5 style="color: #427eea; margin-top: 20px; margin-bottom: 10px; font-size: 14px;">📋 Per-Severity Summary</h5>';
             html += '<div style="overflow-x: auto;"><table class="table" style="width: 100%; margin-top: 10px; font-size: 12px;"><thead><tr style="background: #2d2d2d;"><th style="padding: 8px; text-align: left;">Severity</th><th style="padding: 8px; text-align: right;">Count</th><th style="padding: 8px; text-align: right;">Recall@1</th><th style="padding: 8px; text-align: right;">Recall@5</th><th style="padding: 8px; text-align: right;">Recall@10</th></tr></thead><tbody>';
@@ -3029,7 +3048,7 @@ async function viewRunDetails(runId) {
             });
             html += '</tbody></table></div>';
         }
-        
+
         // Add visualization diagrams section
         html += `
             <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
@@ -3074,7 +3093,7 @@ async function viewRunDetails(runId) {
                 </div>
             </div>
         `;
-        
+
         // Add Detailed Test Results table
         if (result.summary && result.summary.length > 0) {
             html += `
@@ -3118,13 +3137,13 @@ async function viewRunDetails(runId) {
             </div>
             `;
         }
-        
+
         // Add Latency Metrics table
         if (result.metrics && result.metrics.pass_fail && result.metrics.pass_fail.overall && result.metrics.pass_fail.overall.latency) {
             const latencyData = result.metrics.pass_fail.overall.latency;
             const meanLatency = latencyData.mean_ms || {};
             const p95Latency = latencyData.p95_ms || {};
-            
+
             html += `
             <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
                 <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Latency Metrics</h5>
@@ -3157,7 +3176,7 @@ async function viewRunDetails(runId) {
             </div>
             `;
         }
-        
+
         // Add Per-Transform Analysis table
         if (result.metrics && result.metrics.per_transform) {
             const perTransform = result.metrics.per_transform;
@@ -3190,7 +3209,7 @@ async function viewRunDetails(runId) {
                 const recall10 = (recall.recall_at_10 || 0).toFixed(3);
                 const meanSimilarity = (similarity.mean_similarity || similarity.mean_similarity_correct || 0).toFixed(3);
                 const meanLatency = (latency.mean_latency_ms || 0).toFixed(1);
-                
+
                 html += `
                             <tr style="border-bottom: 1px solid #3d3d3d;">
                                 <td style="padding: 10px; color: #ffffff; font-weight: 500;">${transformType}</td>
@@ -3210,7 +3229,7 @@ async function viewRunDetails(runId) {
             </div>
             `;
         }
-        
+
         // Add Overall Metrics JSON
         if (result.metrics && result.metrics.overall) {
             html += `
@@ -3222,7 +3241,7 @@ async function viewRunDetails(runId) {
             </div>
             `;
         }
-        
+
         html += '</div>';
         reportViewerDiv.innerHTML = html;
     } catch (error) {
@@ -3242,12 +3261,12 @@ async function deleteReport(runId) {
     if (!confirm(`Are you sure you want to delete report "${runId}"?\n\nThis action cannot be undone.`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`http://78.46.37.169:8080/api/runs/${runId}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
             const result = await response.json();
             if (result.status === 'success') {
@@ -3269,7 +3288,7 @@ async function deleteReport(runId) {
             }
             throw new Error(msg);
         }
-        
+
         // Reload deliverables list and dashboard
         setTimeout(() => {
             loadDeliverables();
@@ -3294,16 +3313,16 @@ async function loadDeliverablesAudioFiles() {
     try {
         const select = document.getElementById('deliverablesAudioSelect');
         if (!select) return;
-        
+
         // Get all the selectors that need to be populated
         const deliverablesEmbeddedSampleSelect = document.getElementById('deliverablesEmbeddedSampleFile');
         const deliverablesEmbeddedBackgroundSelect = document.getElementById('deliverablesEmbeddedBackgroundFile');
         const deliverablesSongASelect = document.getElementById('deliverablesSongAFile');
         const deliverablesSongBBaseSelect = document.getElementById('deliverablesSongBBaseFile');
-        
+
         // Initialize all selectors with default options
         select.innerHTML = '<option value="">-- Select Audio File --</option>';
-        
+
         if (deliverablesEmbeddedSampleSelect) {
             deliverablesEmbeddedSampleSelect.innerHTML = '<option value="">-- Select Sample File --</option>';
         }
@@ -3316,10 +3335,10 @@ async function loadDeliverablesAudioFiles() {
         if (deliverablesSongBBaseSelect) {
             deliverablesSongBBaseSelect.innerHTML = '<option value="">-- Generate Synthetic Background --</option>';
         }
-        
+
         // Collect all files from both directories
         const allFiles = [];
-        
+
         // Load from test_audio directory
         try {
             const response = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=test_audio`);
@@ -3336,7 +3355,7 @@ async function loadDeliverablesAudioFiles() {
         } catch (error) {
             console.error('Failed to load test_audio files:', error);
         }
-        
+
         // Also load from originals directory
         try {
             const response2 = await fetch(`http://78.46.37.169:8080/api/files/audio?directory=originals`);
@@ -3353,7 +3372,7 @@ async function loadDeliverablesAudioFiles() {
         } catch (error) {
             // Ignore errors loading originals
         }
-        
+
         // Populate all selectors with the collected files
         allFiles.forEach(file => {
             // Main deliverables audio select
@@ -3361,7 +3380,7 @@ async function loadDeliverablesAudioFiles() {
             option.value = file.path;
             option.textContent = `${file.name} (${formatBytes(file.size)})`;
             select.appendChild(option);
-            
+
             // Embedded Sample selectors
             if (deliverablesEmbeddedSampleSelect) {
                 const sampleOption = option.cloneNode(true);
@@ -3371,7 +3390,7 @@ async function loadDeliverablesAudioFiles() {
                 const bgOption = option.cloneNode(true);
                 deliverablesEmbeddedBackgroundSelect.appendChild(bgOption);
             }
-            
+
             // Song A in Song B selectors
             if (deliverablesSongASelect) {
                 const songAOption = option.cloneNode(true);
@@ -3391,7 +3410,7 @@ function loadDeliverablesAudioInfo(filePath) {
     const infoDiv = document.getElementById('deliverablesAudioInfo');
     const fileNameSpan = document.getElementById('deliverablesSelectedFileName');
     const filePathSpan = document.getElementById('deliverablesSelectedFilePath');
-    
+
     if (!filePath) {
         deliverablesSelectedAudioFile = null;
         if (fileNameSpan) fileNameSpan.textContent = '';
@@ -3400,16 +3419,16 @@ function loadDeliverablesAudioInfo(filePath) {
         updateDeliverablesTransformState();
         return;
     }
-    
+
     deliverablesSelectedAudioFile = filePath;
-    
+
     if (infoDiv && fileNameSpan && filePathSpan) {
         const fileName = filePath.split('/').pop();
         fileNameSpan.textContent = fileName;
         filePathSpan.textContent = filePath;
         infoDiv.style.display = 'block';
     }
-    
+
     updateDeliverablesTransformState();
 }
 
@@ -3419,7 +3438,7 @@ function handleDeliverablesDrop(event) {
     event.stopPropagation();
     const uploadArea = document.getElementById('deliverablesUploadArea');
     if (uploadArea) uploadArea.classList.remove('dragover');
-    
+
     const files = event.dataTransfer.files;
     if (files.length > 0) {
         handleDeliverablesFileUpload(files[0]);
@@ -3438,22 +3457,22 @@ async function handleDeliverablesFileUpload(file) {
         showError('Please select an audio file');
         return;
     }
-    
+
     try {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('directory', 'test_audio');
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/upload/audio`, {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
         if (result.status === 'success') {
             showCompletionAlert(`File uploaded: ${result.path}`);
             addSystemLog(`Audio file uploaded: ${result.path}`, 'success');
-            
+
             // Reload file list and select the uploaded file
             await loadDeliverablesAudioFiles();
             const select = document.getElementById('deliverablesAudioSelect');
@@ -3522,16 +3541,56 @@ function updateDeliverablesOverlayGainValue(value) {
 
 function updateDeliverablesSliderDisplay(type, value) {
     const displayMap = {
-        'highpass': { id: 'deliverablesHighpassDisplay', suffix: 'Hz', decimals: 1 },
-        'lowpass': { id: 'deliverablesLowpassDisplay', suffix: 'Hz', decimals: 1 },
-        'embeddedVolumeDb': { id: 'deliverablesEmbeddedVolumeDbDisplay', suffix: 'dB', decimals: 1 },
-        'songAMixVolumeDb': { id: 'deliverablesSongAMixVolumeDbDisplay', suffix: 'dB', decimals: 1 },
-        'boostHighs': { id: 'deliverablesBoostHighsDisplay', suffix: 'dB', decimals: 1 },
-        'boostLows': { id: 'deliverablesBoostLowsDisplay', suffix: 'dB', decimals: 1 },
-        'limiting': { id: 'deliverablesLimitingDisplay', suffix: 'dB', decimals: 1 },
-        'noiseSNR': { id: 'deliverablesNoiseSNRDisplay', suffix: 'dB', decimals: 1 },
-        'telephoneLow': { id: 'deliverablesTelephoneLowDisplay', suffix: 'Hz', decimals: 1 },
-        'telephoneHigh': { id: 'deliverablesTelephoneHighDisplay', suffix: 'Hz', decimals: 1 }
+        'highpass': {
+            id: 'deliverablesHighpassDisplay',
+            suffix: 'Hz',
+            decimals: 1
+        },
+        'lowpass': {
+            id: 'deliverablesLowpassDisplay',
+            suffix: 'Hz',
+            decimals: 1
+        },
+        'embeddedVolumeDb': {
+            id: 'deliverablesEmbeddedVolumeDbDisplay',
+            suffix: 'dB',
+            decimals: 1
+        },
+        'songAMixVolumeDb': {
+            id: 'deliverablesSongAMixVolumeDbDisplay',
+            suffix: 'dB',
+            decimals: 1
+        },
+        'boostHighs': {
+            id: 'deliverablesBoostHighsDisplay',
+            suffix: 'dB',
+            decimals: 1
+        },
+        'boostLows': {
+            id: 'deliverablesBoostLowsDisplay',
+            suffix: 'dB',
+            decimals: 1
+        },
+        'limiting': {
+            id: 'deliverablesLimitingDisplay',
+            suffix: 'dB',
+            decimals: 1
+        },
+        'noiseSNR': {
+            id: 'deliverablesNoiseSNRDisplay',
+            suffix: 'dB',
+            decimals: 1
+        },
+        'telephoneLow': {
+            id: 'deliverablesTelephoneLowDisplay',
+            suffix: 'Hz',
+            decimals: 1
+        },
+        'telephoneHigh': {
+            id: 'deliverablesTelephoneHighDisplay',
+            suffix: 'Hz',
+            decimals: 1
+        }
     };
     const mapping = displayMap[type];
     if (mapping) {
@@ -3583,27 +3642,27 @@ function toggleDeliverablesSongATransformParams() {
 function updateDeliverablesTransformState() {
     // Count enabled transformations
     const enabledTransforms = [];
-    
-    if (document.getElementById('deliverablesSpeedEnabled')?.checked) enabledTransforms.push('Speed');
-    if (document.getElementById('deliverablesPitchEnabled')?.checked) enabledTransforms.push('Pitch');
-    if (document.getElementById('deliverablesReverbEnabled')?.checked) enabledTransforms.push('Reverb');
-    if (document.getElementById('deliverablesNoiseEnabled')?.checked) enabledTransforms.push('Noise Reduction');
-    if (document.getElementById('deliverablesEQEnabled')?.checked) enabledTransforms.push('EQ');
-    if (document.getElementById('deliverablesCompressionEnabled')?.checked && 
-        document.getElementById('deliverablesCodecSelect')?.value !== 'None') enabledTransforms.push('Compression');
-    if (document.getElementById('deliverablesOverlayEnabled')?.checked) enabledTransforms.push('Overlay');
-    if (document.getElementById('deliverablesHighpassEnabled')?.checked) enabledTransforms.push('High-Pass');
-    if (document.getElementById('deliverablesLowpassEnabled')?.checked) enabledTransforms.push('Low-Pass');
-    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) enabledTransforms.push('Boost Highs');
-    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) enabledTransforms.push('Boost Lows');
-    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) enabledTransforms.push('Telephone');
-    if (document.getElementById('deliverablesLimitingEnabled')?.checked) enabledTransforms.push('Limiting');
-    if (document.getElementById('deliverablesMultibandEnabled')?.checked) enabledTransforms.push('Multiband');
-    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) enabledTransforms.push('Add Noise');
-    if (document.getElementById('deliverablesCropEnabled')?.checked) enabledTransforms.push('Crop');
-    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) enabledTransforms.push('Embedded Sample');
-    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) enabledTransforms.push('Song A in Song B');
-    
+
+    if (document.getElementById('deliverablesSpeedEnabled') ? .checked) enabledTransforms.push('Speed');
+    if (document.getElementById('deliverablesPitchEnabled') ? .checked) enabledTransforms.push('Pitch');
+    if (document.getElementById('deliverablesReverbEnabled') ? .checked) enabledTransforms.push('Reverb');
+    if (document.getElementById('deliverablesNoiseEnabled') ? .checked) enabledTransforms.push('Noise Reduction');
+    if (document.getElementById('deliverablesEQEnabled') ? .checked) enabledTransforms.push('EQ');
+    if (document.getElementById('deliverablesCompressionEnabled') ? .checked &&
+        document.getElementById('deliverablesCodecSelect') ? .value !== 'None') enabledTransforms.push('Compression');
+    if (document.getElementById('deliverablesOverlayEnabled') ? .checked) enabledTransforms.push('Overlay');
+    if (document.getElementById('deliverablesHighpassEnabled') ? .checked) enabledTransforms.push('High-Pass');
+    if (document.getElementById('deliverablesLowpassEnabled') ? .checked) enabledTransforms.push('Low-Pass');
+    if (document.getElementById('deliverablesBoostHighsEnabled') ? .checked) enabledTransforms.push('Boost Highs');
+    if (document.getElementById('deliverablesBoostLowsEnabled') ? .checked) enabledTransforms.push('Boost Lows');
+    if (document.getElementById('deliverablesTelephoneEnabled') ? .checked) enabledTransforms.push('Telephone');
+    if (document.getElementById('deliverablesLimitingEnabled') ? .checked) enabledTransforms.push('Limiting');
+    if (document.getElementById('deliverablesMultibandEnabled') ? .checked) enabledTransforms.push('Multiband');
+    if (document.getElementById('deliverablesAddNoiseEnabled') ? .checked) enabledTransforms.push('Add Noise');
+    if (document.getElementById('deliverablesCropEnabled') ? .checked) enabledTransforms.push('Crop');
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled') ? .checked) enabledTransforms.push('Embedded Sample');
+    if (document.getElementById('deliverablesSongAInSongBEnabled') ? .checked) enabledTransforms.push('Song A in Song B');
+
     const count = enabledTransforms.length;
     // Transform count and apply button removed - no longer needed
 }
@@ -3614,198 +3673,198 @@ async function applyAllDeliverablesTransforms() {
         showError('Please select an audio file first');
         return;
     }
-    
+
     const enabledTransforms = [];
-    
+
     // Collect all enabled transformations
-    if (document.getElementById('deliverablesSpeedEnabled')?.checked) {
+    if (document.getElementById('deliverablesSpeedEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'speed',
             speed: parseFloat(document.getElementById('deliverablesSpeedSlider').value) / 100,
-            preserve_pitch: document.getElementById('deliverablesPreservePitch')?.checked || false
+            preserve_pitch: document.getElementById('deliverablesPreservePitch') ? .checked || false
         });
     }
-    
-    if (document.getElementById('deliverablesPitchEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesPitchEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'pitch',
             semitones: parseInt(document.getElementById('deliverablesPitchSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesReverbEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesReverbEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'reverb',
             delay_ms: parseFloat(document.getElementById('deliverablesReverbSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesNoiseEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesNoiseEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'noise_reduction',
             strength: parseFloat(document.getElementById('deliverablesNoiseSlider').value) / 100
         });
     }
-    
-    if (document.getElementById('deliverablesEQEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesEQEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'eq',
             gain_db: parseFloat(document.getElementById('deliverablesEQSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesCompressionEnabled')?.checked) {
-        const codec = document.getElementById('deliverablesCodecSelect')?.value;
+
+    if (document.getElementById('deliverablesCompressionEnabled') ? .checked) {
+        const codec = document.getElementById('deliverablesCodecSelect') ? .value;
         if (codec !== 'None') {
             enabledTransforms.push({
                 type: 'compression',
                 codec: codec.toLowerCase(),
-                bitrate: document.getElementById('deliverablesBitrateSelect')?.value
+                bitrate: document.getElementById('deliverablesBitrateSelect') ? .value
             });
         }
     }
-    
-    if (document.getElementById('deliverablesOverlayEnabled')?.checked) {
-        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
+
+    if (document.getElementById('deliverablesOverlayEnabled') ? .checked) {
+        const overlayFile = document.getElementById('deliverablesOverlayFile') ? .files[0];
         enabledTransforms.push({
             type: 'overlay',
-            gain_db: parseFloat(document.getElementById('deliverablesOverlayGainSlider')?.value || -6),
+            gain_db: parseFloat(document.getElementById('deliverablesOverlayGainSlider') ? .value || -6),
             overlay_file: overlayFile ? overlayFile.name : null
         });
     }
-    
-    if (document.getElementById('deliverablesHighpassEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesHighpassEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'highpass',
             freq_hz: parseFloat(document.getElementById('deliverablesHighpassSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesLowpassEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesLowpassEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'lowpass',
             freq_hz: parseFloat(document.getElementById('deliverablesLowpassSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesBoostHighsEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'boost_highs',
             gain_db: parseFloat(document.getElementById('deliverablesBoostHighsSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesBoostLowsEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'boost_lows',
             gain_db: parseFloat(document.getElementById('deliverablesBoostLowsSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesTelephoneEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'telephone',
-            low_freq: parseFloat(document.getElementById('deliverablesTelephoneLow')?.value || 300),
-            high_freq: parseFloat(document.getElementById('deliverablesTelephoneHigh')?.value || 3000)
+            low_freq: parseFloat(document.getElementById('deliverablesTelephoneLow') ? .value || 300),
+            high_freq: parseFloat(document.getElementById('deliverablesTelephoneHigh') ? .value || 3000)
         });
     }
-    
-    if (document.getElementById('deliverablesLimitingEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesLimitingEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'limiting',
             ceiling_db: parseFloat(document.getElementById('deliverablesLimitingSlider').value)
         });
     }
-    
-    if (document.getElementById('deliverablesMultibandEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesMultibandEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'multiband'
         });
     }
-    
-    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) {
+
+    if (document.getElementById('deliverablesAddNoiseEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'add_noise',
-            noise_type: document.getElementById('deliverablesNoiseTypeSelect')?.value || 'white',
-            snr_db: parseFloat(document.getElementById('deliverablesNoiseSNRSlider')?.value || 20)
+            noise_type: document.getElementById('deliverablesNoiseTypeSelect') ? .value || 'white',
+            snr_db: parseFloat(document.getElementById('deliverablesNoiseSNRSlider') ? .value || 20)
         });
     }
-    
-    if (document.getElementById('deliverablesCropEnabled')?.checked) {
-        const cropType = document.getElementById('deliverablesCropTypeSelect')?.value;
+
+    if (document.getElementById('deliverablesCropEnabled') ? .checked) {
+        const cropType = document.getElementById('deliverablesCropTypeSelect') ? .value;
         enabledTransforms.push({
             type: 'crop',
             crop_type: cropType,
-            duration: (cropType === 'middle' || cropType === 'end') ? 
-                parseFloat(document.getElementById('deliverablesCropDuration')?.value || 10) : null
+            duration: (cropType === 'middle' || cropType === 'end') ?
+                parseFloat(document.getElementById('deliverablesCropDuration') ? .value || 10) : null
         });
     }
-    
-    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) {
-        const samplePath = document.getElementById('deliverablesEmbeddedSampleFile')?.value;
+
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled') ? .checked) {
+        const samplePath = document.getElementById('deliverablesEmbeddedSampleFile') ? .value;
         if (!samplePath || !samplePath.trim()) {
             showError('Embedded Sample requires a sample file to be selected');
             return;
         }
-        
-        const backgroundPath = document.getElementById('deliverablesEmbeddedBackgroundFile')?.value || '';
-        const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform')?.value || 'None';
-        const transformParams = document.getElementById('deliverablesEmbeddedTransformParams')?.value || '';
-        
+
+        const backgroundPath = document.getElementById('deliverablesEmbeddedBackgroundFile') ? .value || '';
+        const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform') ? .value || 'None';
+        const transformParams = document.getElementById('deliverablesEmbeddedTransformParams') ? .value || '';
+
         enabledTransforms.push({
             type: 'embedded_sample',
             sample_path: samplePath,
             background_path: backgroundPath.trim() || null, // null = use chain output
-            position: document.getElementById('deliverablesEmbeddedPosition')?.value || 'start',
-            sample_duration: parseFloat(document.getElementById('deliverablesEmbeddedSampleDuration')?.value || 1.5),
-            volume_db: parseFloat(document.getElementById('deliverablesEmbeddedVolumeDb')?.value || 0),
+            position: document.getElementById('deliverablesEmbeddedPosition') ? .value || 'start',
+            sample_duration: parseFloat(document.getElementById('deliverablesEmbeddedSampleDuration') ? .value || 1.5),
+            volume_db: parseFloat(document.getElementById('deliverablesEmbeddedVolumeDb') ? .value || 0),
             apply_transform: applyTransform !== 'None' ? applyTransform : null,
             transform_params: transformParams.trim() ? transformParams : null
         });
     }
-    
-    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) {
-        const songAPath = document.getElementById('deliverablesSongAFile')?.value || '';
-        const songBBasePath = document.getElementById('deliverablesSongBBaseFile')?.value || '';
-        const applyTransform = document.getElementById('deliverablesSongAApplyTransform')?.value || 'None';
-        const transformParams = document.getElementById('deliverablesSongATransformParams')?.value || '';
-        
+
+    if (document.getElementById('deliverablesSongAInSongBEnabled') ? .checked) {
+        const songAPath = document.getElementById('deliverablesSongAFile') ? .value || '';
+        const songBBasePath = document.getElementById('deliverablesSongBBaseFile') ? .value || '';
+        const applyTransform = document.getElementById('deliverablesSongAApplyTransform') ? .value || 'None';
+        const transformParams = document.getElementById('deliverablesSongATransformParams') ? .value || '';
+
         enabledTransforms.push({
             type: 'song_a_in_song_b',
             song_a_path: songAPath.trim() || null, // null = use original input
             song_b_base_path: songBBasePath.trim() || null, // null = generate synthetic
-            sample_start_time: parseFloat(document.getElementById('deliverablesSongASampleStartTime')?.value || 0.0),
-            sample_duration: parseFloat(document.getElementById('deliverablesSongASampleDuration')?.value || 1.5),
-            song_b_duration: parseFloat(document.getElementById('deliverablesSongBDuration')?.value || 30.0),
-            mix_volume_db: parseFloat(document.getElementById('deliverablesSongAMixVolumeDb')?.value || 0),
+            sample_start_time: parseFloat(document.getElementById('deliverablesSongASampleStartTime') ? .value || 0.0),
+            sample_duration: parseFloat(document.getElementById('deliverablesSongASampleDuration') ? .value || 1.5),
+            song_b_duration: parseFloat(document.getElementById('deliverablesSongBDuration') ? .value || 30.0),
+            mix_volume_db: parseFloat(document.getElementById('deliverablesSongAMixVolumeDb') ? .value || 0),
             apply_transform: applyTransform !== 'None' ? applyTransform : null,
             transform_params: transformParams.trim() ? transformParams : null
         });
     }
-    
+
     if (enabledTransforms.length === 0) {
         showError('Please enable at least one transformation');
         return;
     }
-    
+
     try {
         // Call backend endpoint to apply all transforms (no full reports)
         const formData = new FormData();
         formData.append('input_path', deliverablesSelectedAudioFile);
         formData.append('transforms', JSON.stringify(enabledTransforms));
         formData.append('generate_reports', 'false');
-        
+
         // Add overlay file if provided
-        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
+        const overlayFile = document.getElementById('deliverablesOverlayFile') ? .files[0];
         if (overlayFile) {
             formData.append('overlay_file', overlayFile);
         }
-        
+
         const response = await fetch(`http://78.46.37.169:8080/api/manipulate/deliverables-batch`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
             try {
@@ -3817,9 +3876,9 @@ async function applyAllDeliverablesTransforms() {
             }
             throw new Error(errorMessage);
         }
-        
+
         const result = await response.json();
-        
+
         if (result.status === 'success') {
             showCompletionAlert(`Quick apply succeeded: ${enabledTransforms.length} transformation(s). No full Phase 1/Phase 2 matrix reports generated.`, 'info');
             // Reload deliverables/dashboard to refresh lists
@@ -3864,7 +3923,7 @@ const STEP_MAPPING = {
 function showProgressModal(phase) {
     const modal = document.getElementById('progressModal');
     if (!modal) return;
-    
+
     progressModalState.phase = phase;
     progressModalState.startTime = Date.now();
     progressModalState.stepStartTime = Date.now();
@@ -3873,19 +3932,19 @@ function showProgressModal(phase) {
     progressModalState.currentStep = 'Initializing...';
     progressModalState.currentStepIndex = 0;
     progressModalState.isCancelled = false;
-    
+
     // Reset UI
     updateProgressIndicator('overall', 0, 'Waiting...');
     updateProgressIndicator('step', 0, 'Waiting...');
     updateCurrentStep('Initializing...');
     updateTimeInfo();
-    
+
     // Close button is enabled and will cancel the process if clicked
     const closeBtn = document.getElementById('progressModalClose');
     if (closeBtn) closeBtn.disabled = false;
-    
+
     modal.style.display = 'flex';
-    
+
     // Start time update interval
     if (progressModalState.timeInterval) {
         clearInterval(progressModalState.timeInterval);
@@ -3899,12 +3958,12 @@ function closeProgressModal() {
         cancelProgress();
         return;
     }
-    
+
     const modal = document.getElementById('progressModal');
     if (!modal) return;
-    
+
     modal.style.display = 'none';
-    
+
     // Clear intervals
     if (progressModalState.pollInterval) {
         clearInterval(progressModalState.pollInterval);
@@ -3920,28 +3979,28 @@ function updateProgressIndicator(type, percentage, status) {
     const percentageEl = document.getElementById(`${type}Percentage`);
     const statusEl = document.getElementById(`${type}Status`);
     const circleEl = document.querySelector(`.progress-circle-fill.${type}`);
-    
+
     // Clamp percentage to valid range
     const clampedPercentage = Math.max(0, Math.min(100, percentage));
-    
+
     if (percentageEl) percentageEl.textContent = `${Math.round(clampedPercentage)}%`;
     if (statusEl) {
         // Truncate long status text if needed
         const maxStatusLength = 30;
-        const displayStatus = status.length > maxStatusLength 
-            ? status.substring(0, maxStatusLength - 3) + '...' 
-            : status;
+        const displayStatus = status.length > maxStatusLength ?
+            status.substring(0, maxStatusLength - 3) + '...' :
+            status;
         statusEl.textContent = displayStatus;
         statusEl.title = status; // Show full text on hover
     }
-    
+
     if (circleEl) {
         const radius = 54;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - (clampedPercentage / 100) * circumference;
         circleEl.style.strokeDasharray = `${circumference} ${circumference}`;
         circleEl.style.strokeDashoffset = offset;
-        
+
         // Update color based on status
         circleEl.classList.remove('pending', 'error');
         if (clampedPercentage === 0) {
@@ -3950,7 +4009,7 @@ function updateProgressIndicator(type, percentage, status) {
             circleEl.classList.add('error');
         }
     }
-    
+
     // Update state
     if (type === 'overall') {
         progressModalState.overallProgress = clampedPercentage;
@@ -3969,16 +4028,16 @@ function updateCurrentStep(step) {
 
 function updateTimeInfo() {
     if (!progressModalState.startTime) return;
-    
+
     const elapsed = Date.now() - progressModalState.startTime;
     const seconds = Math.floor(elapsed / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     const h = String(hours).padStart(2, '0');
     const m = String(minutes % 60).padStart(2, '0');
     const s = String(seconds % 60).padStart(2, '0');
-    
+
     const timeEl = document.getElementById('timeInfo');
     if (timeEl) {
         timeEl.textContent = `Time elapsed: ${h}:${m}:${s}`;
@@ -3986,22 +4045,56 @@ function updateTimeInfo() {
 }
 
 // Step definitions with their order and step-level progress ranges
-const STEP_DEFINITIONS = [
-    { text: 'Step 1: Ingesting', keywords: ['ingest', 'ingesting'], stepIndex: 0, stepProgress: 0 },
-    { text: 'Step 2: Generating transforms', keywords: ['transform', 'generating transforms'], stepIndex: 1, stepProgress: 0 },
-    { text: 'Step 3: Building FAISS index', keywords: ['index', 'faiss', 'building'], stepIndex: 2, stepProgress: 0 },
-    { text: 'Step 4: Running queries', keywords: ['query', 'queries', 'running queries'], stepIndex: 3, stepProgress: 0 },
-    { text: 'Step 5: Analyzing results', keywords: ['analyze', 'analyzing', 'results'], stepIndex: 4, stepProgress: 0 },
-    { text: 'Step 6: Capturing failures', keywords: ['failure', 'failures', 'capturing'], stepIndex: 5, stepProgress: 0 },
-    { text: 'Step 7: Generating report', keywords: ['report', 'generating report'], stepIndex: 6, stepProgress: 0 }
+const STEP_DEFINITIONS = [{
+        text: 'Step 1: Ingesting',
+        keywords: ['ingest', 'ingesting'],
+        stepIndex: 0,
+        stepProgress: 0
+    },
+    {
+        text: 'Step 2: Generating transforms',
+        keywords: ['transform', 'generating transforms'],
+        stepIndex: 1,
+        stepProgress: 0
+    },
+    {
+        text: 'Step 3: Building FAISS index',
+        keywords: ['index', 'faiss', 'building'],
+        stepIndex: 2,
+        stepProgress: 0
+    },
+    {
+        text: 'Step 4: Running queries',
+        keywords: ['query', 'queries', 'running queries'],
+        stepIndex: 3,
+        stepProgress: 0
+    },
+    {
+        text: 'Step 5: Analyzing results',
+        keywords: ['analyze', 'analyzing', 'results'],
+        stepIndex: 4,
+        stepProgress: 0
+    },
+    {
+        text: 'Step 6: Capturing failures',
+        keywords: ['failure', 'failures', 'capturing'],
+        stepIndex: 5,
+        stepProgress: 0
+    },
+    {
+        text: 'Step 7: Generating report',
+        keywords: ['report', 'generating report'],
+        stepIndex: 6,
+        stepProgress: 0
+    }
 ];
 
 function parseLogForProgress(logMessage, currentActivePhase) {
     if (!logMessage) return null;
-    
+
     const message = logMessage.toLowerCase();
     const originalMessage = logMessage; // Keep original for parsing
-    
+
     // Detect which phase is running
     let detectedPhase = null;
     if (message.includes('phase1') || message.includes('phase_1') || message.includes('test_matrix_phase1')) {
@@ -4011,15 +4104,15 @@ function parseLogForProgress(logMessage, currentActivePhase) {
     } else {
         detectedPhase = currentActivePhase;
     }
-    
+
     // Parse tqdm progress bar format: "desc: 45%|████▌     | 23/50 [00:30<00:35, 1.23s/it]"
     // Or simpler: "desc: 45%|████▌     | 23/50"
     const tqdmPattern = /(\d+)%\s*\|\s*[█▌▎▏\s]+\|\s*(\d+)\/(\d+)/;
     const tqdmMatch = originalMessage.match(tqdmPattern);
-    
+
     let extractedProgress = null;
     let progressText = '';
-    
+
     if (tqdmMatch) {
         const percentage = parseInt(tqdmMatch[1]);
         const current = parseInt(tqdmMatch[2]);
@@ -4037,7 +4130,7 @@ function parseLogForProgress(logMessage, currentActivePhase) {
             extractedProgress = Math.round((current / total) * 100);
             progressText = `${current}/${total}`;
         }
-        
+
         // Pattern: "X%" standalone
         const percentPattern = /(\d+)%/;
         const percentMatch = originalMessage.match(percentPattern);
@@ -4045,15 +4138,15 @@ function parseLogForProgress(logMessage, currentActivePhase) {
             extractedProgress = parseInt(percentMatch[1]);
         }
     }
-    
+
     // Check for step markers
     let matchedStep = null;
     for (let i = 0; i < STEP_DEFINITIONS.length; i++) {
         const stepDef = STEP_DEFINITIONS[i];
         const stepLower = stepDef.text.toLowerCase();
-        
+
         // Check if this step is mentioned in the log
-        if (message.includes(stepLower) || 
+        if (message.includes(stepLower) ||
             stepDef.keywords.some(keyword => message.includes(keyword))) {
             matchedStep = {
                 phase: detectedPhase,
@@ -4065,12 +4158,12 @@ function parseLogForProgress(logMessage, currentActivePhase) {
             break;
         }
     }
-    
+
     // If we found a step match, return it with progress
     if (matchedStep) {
         return matchedStep;
     }
-    
+
     // If we extracted progress but didn't match a step, try to infer step from context
     if (extractedProgress !== null) {
         // Try to infer step from log content
@@ -4090,7 +4183,7 @@ function parseLogForProgress(logMessage, currentActivePhase) {
         } else if (message.includes('report') || message.includes('generating report')) {
             inferredStep = STEP_DEFINITIONS[6]; // Step 7: Generating report
         }
-        
+
         if (inferredStep) {
             return {
                 phase: detectedPhase,
@@ -4101,9 +4194,9 @@ function parseLogForProgress(logMessage, currentActivePhase) {
             };
         }
     }
-    
+
     // Check for completion
-    if (message.includes('completed') || message.includes('finished') || 
+    if (message.includes('completed') || message.includes('finished') ||
         message.includes('experiment run:') || message.includes('report generated')) {
         return {
             phase: detectedPhase,
@@ -4114,9 +4207,9 @@ function parseLogForProgress(logMessage, currentActivePhase) {
             progressText: '100%'
         };
     }
-    
+
     // Check for errors
-    if (message.includes('error') || message.includes('failed') || 
+    if (message.includes('error') || message.includes('failed') ||
         message.includes('exception') || message.includes('traceback')) {
         return {
             phase: detectedPhase,
@@ -4124,7 +4217,7 @@ function parseLogForProgress(logMessage, currentActivePhase) {
             error: true
         };
     }
-    
+
     return null;
 }
 
@@ -4132,7 +4225,7 @@ function calculateOverallProgress(currentPhase, stepIndex, stepProgress) {
     // Calculate overall progress based on phase and step
     const totalSteps = STEP_DEFINITIONS.length;
     const stepWeight = 100 / totalSteps; // Each step is worth ~14.3%
-    
+
     if (progressModalState.phase === 'both') {
         // Phase 1: steps 0-6 (0-50%), Phase 2: steps 0-6 (50-100%)
         if (currentPhase === 'phase1') {
@@ -4157,7 +4250,7 @@ function calculateOverallProgress(currentPhase, stepIndex, stepProgress) {
         const stepContribution = (stepProgress / 100) * stepWeight;
         return Math.min(baseProgress + stepContribution, 100);
     }
-    
+
     return 0;
 }
 
@@ -4167,28 +4260,28 @@ async function cancelProgress() {
         closeProgressModal();
         return;
     }
-    
+
     if (!confirm('Are you sure you want to cancel the report generation?')) {
         return;
     }
-    
+
     try {
         const resp = await fetch(`http://78.46.37.169:8080/api/process/${progressModalState.commandId}/cancel`, {
             method: 'POST'
         });
-        
+
         if (resp.ok) {
             progressModalState.isCancelled = true;
             updateCurrentStep('Cancelling...');
             updateProgressIndicator('overall', progressModalState.overallProgress, 'Cancelled');
             updateProgressIndicator('step', progressModalState.stepProgress, 'Cancelled');
-            
+
             // Stop polling
             if (progressModalState.pollInterval) {
                 clearInterval(progressModalState.pollInterval);
                 progressModalState.pollInterval = null;
             }
-            
+
             showCompletionAlert('Report generation cancelled', 'info');
             setTimeout(() => {
                 closeProgressModal();
@@ -4210,14 +4303,16 @@ async function runPhaseSuite(phase = 'both') {
             both: 'Generating Phase 1 & 2…',
             phase1: 'Generating Phase 1…',
             phase2: 'Generating Phase 2…'
-        }[phase] || 'Generating…';
+        } [phase] || 'Generating…';
 
         // Show progress modal
         showProgressModal(phase);
 
         const resp = await fetch(`http://78.46.37.169:8080/api/process/generate-deliverables`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
             body: new URLSearchParams({
                 // Use the manifest that contains local file paths
                 manifest_path: 'data/manifests/files_manifest.csv',
@@ -4245,12 +4340,12 @@ async function runPhaseSuite(phase = 'both') {
         // Poll for logs and show progress
         let lastLogCount = 0;
         let currentActivePhase = phase === 'both' ? 'phase1' : phase;
-        
+
         const pollLogs = async () => {
             if (progressModalState.isCancelled) {
                 return;
             }
-            
+
             try {
                 const logResp = await fetch(`http://78.46.37.169:8080/api/process/${commandId}/logs`);
                 if (logResp.ok) {
@@ -4261,11 +4356,11 @@ async function runPhaseSuite(phase = 'both') {
                         if (newLogs.length > 0) {
                             // Track progress even if no step marker found (for continuous updates)
                             let foundProgressInBatch = false;
-                            
+
                             newLogs.forEach(log => {
                                 if (log.type === 'stdout' || log.type === 'stderr') {
                                     console.log(`[${commandId}] ${log.message}`);
-                                    
+
                                     // Parse log for progress
                                     const progressInfo = parseLogForProgress(log.message, currentActivePhase);
                                     if (progressInfo) {
@@ -4276,38 +4371,38 @@ async function runPhaseSuite(phase = 'both') {
                                             updateCurrentStep('Error occurred');
                                         } else if (progressInfo.stepText) {
                                             // Check if this is a new step
-                                            const isNewStep = progressInfo.stepIndex !== undefined && 
-                                                             progressInfo.stepIndex !== progressModalState.currentStepIndex;
-                                            
+                                            const isNewStep = progressInfo.stepIndex !== undefined &&
+                                                progressInfo.stepIndex !== progressModalState.currentStepIndex;
+
                                             if (isNewStep) {
                                                 // New step started - reset step progress
                                                 progressModalState.currentStepIndex = progressInfo.stepIndex;
                                                 progressModalState.stepProgress = 0;
                                                 progressModalState.stepStartTime = Date.now();
                                             }
-                                            
+
                                             // Use extracted progress from logs if available, otherwise estimate based on time
                                             let stepProgress = progressInfo.stepProgress !== undefined ? progressInfo.stepProgress : 0;
-                                            
+
                                             // If no progress extracted from log, use time-based estimation as fallback
                                             if (stepProgress === 0 && progressModalState.stepStartTime) {
                                                 // Estimate step duration based on step type
                                                 const stepDurations = {
-                                                    0: 60000,  // Ingesting: ~60s
+                                                    0: 60000, // Ingesting: ~60s
                                                     1: 120000, // Generating transforms: ~120s
                                                     2: 180000, // Building index: ~180s
                                                     3: 150000, // Running queries: ~150s
-                                                    4: 30000,  // Analyzing: ~30s
-                                                    5: 20000,  // Capturing failures: ~20s
-                                                    6: 15000   // Generating report: ~15s
+                                                    4: 30000, // Analyzing: ~30s
+                                                    5: 20000, // Capturing failures: ~20s
+                                                    6: 15000 // Generating report: ~15s
                                                 };
                                                 const estimatedStepDuration = stepDurations[progressModalState.currentStepIndex] || 60000;
                                                 const timeInStep = Date.now() - progressModalState.stepStartTime;
                                                 stepProgress = Math.min((timeInStep / estimatedStepDuration) * 100, 95); // Cap at 95% until completion
                                             }
-                                            
+
                                             progressModalState.stepProgress = stepProgress;
-                                            
+
                                             // Calculate overall progress
                                             const overallProgress = calculateOverallProgress(
                                                 progressInfo.phase || currentActivePhase,
@@ -4315,7 +4410,7 @@ async function runPhaseSuite(phase = 'both') {
                                                 stepProgress
                                             );
                                             progressModalState.overallProgress = overallProgress;
-                                            
+
                                             // Build step display text with progress details
                                             let stepDisplayText = progressInfo.stepText;
                                             if (progressInfo.progressText) {
@@ -4323,12 +4418,12 @@ async function runPhaseSuite(phase = 'both') {
                                             } else if (stepProgress > 0) {
                                                 stepDisplayText = `${progressInfo.stepText}: ${Math.round(stepProgress)}%`;
                                             }
-                                            
+
                                             // Update UI
                                             updateProgressIndicator('overall', overallProgress, progressInfo.completed ? 'Complete' : `${Math.round(overallProgress)}%`);
                                             updateProgressIndicator('step', stepProgress, stepDisplayText);
                                             updateCurrentStep(stepDisplayText);
-                                            
+
                                             // If phase1 completes and we're running both, switch to phase2
                                             if (phase === 'both' && progressInfo.phase === 'phase1' && progressInfo.completed) {
                                                 currentActivePhase = 'phase2';
@@ -4337,7 +4432,7 @@ async function runPhaseSuite(phase = 'both') {
                                                 progressModalState.stepStartTime = Date.now();
                                                 updateProgressIndicator('step', 0, 'Starting Phase 2...');
                                             }
-                                            
+
                                             // If step completed, set to 100%
                                             if (progressInfo.completed) {
                                                 progressModalState.stepProgress = 100;
@@ -4347,7 +4442,7 @@ async function runPhaseSuite(phase = 'both') {
                                     }
                                 }
                             });
-                            
+
                             // If we found progress in this batch, update UI even if step didn't change
                             if (foundProgressInBatch && progressModalState.currentStepIndex !== undefined) {
                                 // Recalculate overall progress based on current step progress
@@ -4357,66 +4452,66 @@ async function runPhaseSuite(phase = 'both') {
                                     progressModalState.stepProgress
                                 );
                                 progressModalState.overallProgress = overallProgress;
-                                
+
                                 // Update overall progress indicator
                                 updateProgressIndicator('overall', overallProgress, `${Math.round(overallProgress)}%`);
                             }
-                            
+
                             lastLogCount = logData.logs.length;
                         }
-                        
+
                         // Check if completed
                         const completed = logData.logs.some(l => l.type === 'status' && l.message === 'completed');
                         const failed = logData.logs.some(l => l.type === 'status' && l.message === 'failed');
-                        
+
                         if (completed || failed) {
                             const exitCodeLog = logData.logs.find(l => l.type === 'exit_code');
                             const exitCodeNum = exitCodeLog ? Number(exitCodeLog.message) : -1;
-                            
+
                             if (failed || exitCodeNum !== 0) {
-                                const errorLogs = logData.logs.filter(l => 
-                                    l.type === 'error' || 
+                                const errorLogs = logData.logs.filter(l =>
+                                    l.type === 'error' ||
                                     (l.type === 'stderr' && l.message.toLowerCase().includes('error'))
                                 );
-                                const errorMsg = errorLogs.length > 0 
-                                    ? errorLogs.map(l => l.message).join('; ')
-                                    : `Process exited with code ${exitCodeNum}`;
-                                
+                                const errorMsg = errorLogs.length > 0 ?
+                                    errorLogs.map(l => l.message).join('; ') :
+                                    `Process exited with code ${exitCodeNum}`;
+
                                 // Update progress to show error
                                 updateProgressIndicator('overall', progressModalState.overallProgress, 'Failed');
                                 updateProgressIndicator('step', progressModalState.stepProgress, 'Failed');
                                 updateCurrentStep('Process failed');
-                                
+
                                 // Clear commandId so closeProgressModal doesn't try to cancel
                                 progressModalState.commandId = null;
-                                
+
                                 // Stop polling
                                 if (progressModalState.pollInterval) {
                                     clearTimeout(progressModalState.pollInterval);
                                     progressModalState.pollInterval = null;
                                 }
-                                
+
                                 setTimeout(() => {
                                     closeProgressModal();
                                     showError('Failed to run suite: ' + errorMsg);
                                 }, 3000);
                                 return;
                             }
-                            
+
                             // Success - update progress to 100%
                             updateProgressIndicator('overall', 100, 'Complete ✓');
                             updateProgressIndicator('step', 100, 'Complete ✓');
                             updateCurrentStep('Reports generated successfully!');
-                            
+
                             // Clear commandId so closeProgressModal doesn't try to cancel
                             progressModalState.commandId = null;
-                            
+
                             // Stop polling
                             if (progressModalState.pollInterval) {
                                 clearTimeout(progressModalState.pollInterval);
                                 progressModalState.pollInterval = null;
                             }
-                            
+
                             setTimeout(() => {
                                 closeProgressModal();
                                 showCompletionAlert(`${btnText} completed successfully!`, 'success');
@@ -4427,7 +4522,7 @@ async function runPhaseSuite(phase = 'both') {
                         }
                     }
                 }
-                
+
                 // Continue polling every 1-2 seconds
                 progressModalState.pollInterval = setTimeout(pollLogs, 1500);
             } catch (error) {
@@ -4441,7 +4536,7 @@ async function runPhaseSuite(phase = 'both') {
                 }
             }
         };
-        
+
         // Start polling after 1 second
         progressModalState.pollInterval = setTimeout(pollLogs, 1000);
 
@@ -4450,4 +4545,187 @@ async function runPhaseSuite(phase = 'both') {
         showError(`Failed to run suite: ${e.message}`);
         console.error('Suite run error:', e);
     }
+}
+
+// DAW Parser Functions
+async function loadDAWFiles() {
+    try {
+        const response = await fetch(`${API_BASE}/daw/files`);
+        const data = await response.json();
+
+        const fileList = document.getElementById('dawFileList');
+        if (!fileList) return;
+
+        if (data.daw_files && data.daw_files.length > 0) {
+            fileList.innerHTML = '';
+            data.daw_files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'daw-file-item';
+                item.innerHTML = `
+                    <div class="daw-file-info">
+                        <div class="daw-file-name">${file.name}</div>
+                        <div class="daw-file-meta">${file.type.toUpperCase()} • ${formatFileSize(file.size)} • ${new Date(file.modified).toLocaleDateString()}</div>
+                    </div>
+                    <div>
+                        <button class="btn" onclick="parseDAWFile('${file.path}')" style="margin-right: 10px;">Parse</button>
+                        <button class="btn" onclick="viewDAWMetadata('${file.path}')">View Metadata</button>
+                    </div>
+                `;
+                fileList.appendChild(item);
+            });
+        } else {
+            fileList.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 20px;">No DAW files uploaded yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading DAW files:', error);
+    }
+}
+
+function handleDAWDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const uploadArea = document.getElementById('dawUploadArea');
+    uploadArea.classList.remove('dragover');
+
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        uploadDAWFile(files[0]);
+    }
+}
+
+function handleDAWFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        uploadDAWFile(file);
+    }
+}
+
+async function uploadDAWFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        showNotification('Uploading DAW file...', 'info');
+        const response = await fetch(`${API_BASE}/daw/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            showNotification('DAW file uploaded successfully!', 'success');
+            loadDAWFiles();
+        } else {
+            showError('Failed to upload DAW file: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        showError('Error uploading DAW file: ' + error.message);
+    }
+}
+
+async function parseDAWFile(filePath) {
+    try {
+        showNotification('Parsing DAW file...', 'info');
+        const formData = new FormData();
+        formData.append('file_path', filePath);
+
+        const response = await fetch(`${API_BASE}/daw/parse`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            showNotification('DAW file parsed successfully!', 'success');
+            displayDAWMetadata(result.metadata);
+        } else {
+            showError('Failed to parse DAW file: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        showError('Error parsing DAW file: ' + error.message);
+    }
+}
+
+async function viewDAWMetadata(filePath) {
+    try {
+        const response = await fetch(`${API_BASE}/daw/metadata`);
+        const data = await response.json();
+
+        // Find metadata for this file
+        const fileName = filePath.split('/').pop().replace(/\.[^/.]+$/, '');
+        const metadata = Object.values(data.metadata || {}).find(m =>
+            m.project_path && m.project_path.includes(fileName)
+        );
+
+        if (metadata) {
+            displayDAWMetadata(metadata);
+        } else {
+            // Try parsing the file
+            await parseDAWFile(filePath);
+        }
+    } catch (error) {
+        showError('Error loading DAW metadata: ' + error.message);
+    }
+}
+
+function displayDAWMetadata(metadata) {
+    const metadataView = document.getElementById('dawMetadataView');
+    if (!metadataView) return;
+
+    if (!metadata) {
+        metadataView.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 20px;">No metadata available</p>';
+        return;
+    }
+
+    let html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">';
+
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">DAW Type:</span><span class="daw-stat-value">${metadata.daw_type || 'Unknown'}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">Version:</span><span class="daw-stat-value">${metadata.version || 'Unknown'}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">MIDI Tracks:</span><span class="daw-stat-value">${metadata.midi_tracks || 0}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">Total Notes:</span><span class="daw-stat-value">${metadata.total_notes || 0}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">Arrangement Clips:</span><span class="daw-stat-value">${metadata.arrangement_clips || 0}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">Tempo Changes:</span><span class="daw-stat-value">${metadata.tempo_changes || 0}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">Plugin Chains:</span><span class="daw-stat-value">${metadata.plugin_chains || 0}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">Sample Sources:</span><span class="daw-stat-value">${metadata.sample_sources || 0}</span></div>`;
+    html += `<div class="daw-stat-item"><span class="daw-stat-label">Automation Tracks:</span><span class="daw-stat-value">${metadata.automation_tracks || 0}</span></div>`;
+
+    if (metadata.extracted_at) {
+        html += `<div class="daw-stat-item"><span class="daw-stat-label">Extracted:</span><span class="daw-stat-value">${new Date(metadata.extracted_at).toLocaleString()}</span></div>`;
+    }
+
+    html += '</div>';
+
+    metadataView.innerHTML = html;
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+function showNotification(message, type = 'info') {
+    // Simple notification - you can enhance this
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#f87171' : '#427eea'};
+        color: white;
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }

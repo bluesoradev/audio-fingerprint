@@ -66,7 +66,8 @@ class QueryService(IQueryService):
         file_path: Path,
         transform_type: Optional[str] = None,
         expected_orig_id: Optional[str] = None,
-        query_config: Optional[QueryConfig] = None
+        query_config: Optional[QueryConfig] = None,
+        daw_filter: Optional[Dict[str, Any]] = None
     ) -> QueryResult:
         """
         Execute query on audio file.
@@ -201,6 +202,21 @@ class QueryService(IQueryService):
             expected_orig_id
         )
         
+        # Apply DAW metadata filtering if provided
+        if daw_filter and self._index_metadata:
+            try:
+                from daw_parser.integration import filter_by_daw_metadata
+                top_candidates = filter_by_daw_metadata(
+                    top_candidates,
+                    self._index_metadata,
+                    daw_filter
+                )
+                logger.debug(f"Applied DAW filter: {len(top_candidates)} candidates remaining")
+            except ImportError:
+                logger.debug("DAW parser not available, skipping DAW filtering")
+            except Exception as e:
+                logger.warning(f"Error applying DAW filter: {e}")
+        
         # Calculate latency
         latency_ms = (time.time() - start_time) * 1000
         
@@ -215,7 +231,8 @@ class QueryService(IQueryService):
                 "severity": severity,
                 "estimated_recall_5": estimated_recall_5,
                 "scales_used": len(set(s.scale_length for s in all_segment_results)),
-                "total_segments": len(all_segment_results)
+                "total_segments": len(all_segment_results),
+                "daw_filter_applied": daw_filter is not None
             }
         )
     
