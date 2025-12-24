@@ -1936,6 +1936,60 @@
                     </div>
                 </div>
 
+                <!-- DAW Parser Section -->
+                <div id="daw" class="section">
+                    <h2 style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <img src="/static/img/gear.png" alt="DAW Parser" style="width: 24px; height: 24px;">
+                        DAW Project File Parser
+                    </h2>
+                    <p style="color: #9ca3af; margin-bottom: 30px;">Upload and parse DAW project files (.als, .flp, .logicx) to extract compositional metadata including MIDI data, arrangement, tempo changes, plugin chains, and automation</p>
+
+                    <!-- Upload Area -->
+                    <div class="workflow-step" style="margin-bottom: 30px;">
+                        <h3>Upload DAW Project File</h3>
+                        <div class="daw-upload-area" id="dawUploadArea" ondrop="handleDAWDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('dawFileInput').click()">
+                            <div style="font-size: 48px; margin-bottom: 15px;">📁</div>
+                            <p style="margin: 0; color: #ffffff; font-weight: 500; margin-bottom: 8px;">Drag and drop DAW project file here</p>
+                            <p style="margin: 0; color: #9ca3af; font-size: 13px; margin-bottom: 15px;">Supports: .als (Ableton Live), .flp (FL Studio), .logicx (Logic Pro)</p>
+                            <button class="btn" style="margin-top: 10px; padding: 10px 24px; font-size: 14px;">Browse Files</button>
+                            <input type="file" id="dawFileInput" style="display: none;" accept=".als,.flp,.logicx,.logic" onchange="handleDAWFileSelect(event)">
+                        </div>
+                    </div>
+
+                    <!-- Content Grid: Files List and Metadata Side by Side -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <!-- DAW Files List -->
+                        <div class="workflow-step">
+                            <h3 style="display: flex; align-items: center; gap: 8px;">
+                                <span>📂</span>
+                                DAW Files
+                            </h3>
+                            <div class="daw-file-list" id="dawFileList" style="margin-top: 15px; min-height: 200px;">
+                                <div style="color: #9ca3af; text-align: center; padding: 40px 20px;">
+                                    <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">📄</div>
+                                    <p style="margin: 0;">No DAW files uploaded yet</p>
+                                    <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.7;">Upload a file to get started</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Metadata Viewer -->
+                        <div class="workflow-step">
+                            <h3 style="display: flex; align-items: center; gap: 8px;">
+                                <span>📊</span>
+                                DAW Metadata
+                            </h3>
+                            <div class="daw-metadata-view" id="dawMetadataView" style="margin-top: 15px; min-height: 200px;">
+                                <div style="color: #9ca3af; text-align: center; padding: 40px 20px;">
+                                    <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">🔍</div>
+                                    <p style="margin: 0;">Select a DAW file to view metadata</p>
+                                    <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.7;">Parse a file to see extracted data</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -2253,33 +2307,55 @@
         }
 
         /* DAW Parser Section Styles */
-        .daw-section {
-            padding: 30px;
-        }
-
         .daw-upload-area {
             border: 2px dashed #3d3d3d;
             border-radius: 8px;
-            padding: 40px;
+            padding: 50px 40px;
             text-align: center;
-            background: #1e1e1e;
-            margin: 20px 0;
+            background: linear-gradient(135deg, #1e1e1e 0%, #252525 100%);
+            margin: 0;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .daw-upload-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(66, 126, 234, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .daw-upload-area:hover::before {
+            left: 100%;
         }
 
         .daw-upload-area:hover {
             border-color: #427eea;
-            background: #252525;
+            background: linear-gradient(135deg, #252525 0%, #2a2a2a 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(66, 126, 234, 0.2);
         }
 
         .daw-upload-area.dragover {
             border-color: #427eea;
-            background: #2a2a2a;
+            background: linear-gradient(135deg, #2a2a2a 0%, #2d2d2d 100%);
+            transform: scale(1.02);
         }
 
         .daw-file-list {
-            margin-top: 20px;
+            margin-top: 0;
+        }
+
+        @media (max-width: 1200px) {
+            #daw > div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         .daw-file-item {
@@ -2309,13 +2385,12 @@
         }
 
         .daw-metadata-view {
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-            max-height: 400px;
-            overflow-y: auto;
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: 0;
+            max-height: none;
+            overflow-y: visible;
         }
 
         .daw-stat-item {
@@ -2335,41 +2410,6 @@
         }
     </style>
 
-    <!-- DAW Parser Section -->
-    <div id="daw" class="section">
-        <div class="daw-section">
-            <h2 style="color: #ffffff; margin-bottom: 10px;">DAW Project File Parser</h2>
-            <p style="color: #9ca3af; margin-bottom: 30px;">Upload and parse DAW project files (.als, .flp, .logicx) to extract compositional metadata</p>
-
-            <!-- Upload Area -->
-            <div class="workflow-step">
-                <h3>Upload DAW Project File</h3>
-                <div class="daw-upload-area" id="dawUploadArea" ondrop="handleDAWDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('dawFileInput').click()">
-                    <div style="font-size: 48px; margin-bottom: 15px;">📁</div>
-                    <p style="margin: 0; color: #9ca3af; margin-bottom: 10px;">Drag and drop DAW project file here</p>
-                    <p style="margin: 0; color: #6b7280; font-size: 12px;">Supports: .als (Ableton), .flp (FL Studio), .logicx (Logic Pro)</p>
-                    <button class="btn" style="margin-top: 15px; padding: 8px 20px;">Browse Files</button>
-                    <input type="file" id="dawFileInput" style="display: none;" accept=".als,.flp,.logicx,.logic" onchange="handleDAWFileSelect(event)">
-                </div>
-            </div>
-
-            <!-- DAW Files List -->
-            <div class="workflow-step" style="margin-top: 30px;">
-                <h3>DAW Files</h3>
-                <div class="daw-file-list" id="dawFileList">
-                    <p style="color: #9ca3af; text-align: center; padding: 20px;">No DAW files uploaded yet</p>
-                </div>
-            </div>
-
-            <!-- Metadata Viewer -->
-            <div class="workflow-step" style="margin-top: 30px;">
-                <h3>DAW Metadata</h3>
-                <div class="daw-metadata-view" id="dawMetadataView">
-                    <p style="color: #9ca3af; text-align: center; padding: 20px;">Select a DAW file to view metadata</p>
-                </div>
-            </div>
-        </div>
-    </div>
 </body>
 
 </html>
