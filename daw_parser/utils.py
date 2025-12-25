@@ -13,11 +13,6 @@ logger = logging.getLogger(__name__)
 def save_metadata(metadata: DAWMetadata, output_path: Path) -> Path:
     """
     Save DAW metadata to JSON file.
-    
-    Args:
-        metadata: DAWMetadata object to save
-        output_path: Path to save JSON file
-        
     Returns:
         Path to saved file
     """
@@ -36,10 +31,6 @@ def save_metadata(metadata: DAWMetadata, output_path: Path) -> Path:
 def load_metadata(json_path: Path) -> Dict[str, Any]:
     """
     Load DAW metadata from JSON file.
-    
-    Args:
-        json_path: Path to JSON file
-        
     Returns:
         Dictionary with metadata
     """
@@ -50,10 +41,6 @@ def load_metadata(json_path: Path) -> Dict[str, Any]:
 def detect_daw_type(file_path: Path) -> Optional[str]:
     """
     Detect DAW type from file extension.
-    
-    Args:
-        file_path: Path to DAW project file
-        
     Returns:
         DAW type string or None if unknown
     """
@@ -72,11 +59,6 @@ def detect_daw_type(file_path: Path) -> Optional[str]:
 def find_daw_files(directory: Path, extensions: list = None) -> list:
     """
     Find all DAW project files in a directory.
-    
-    Args:
-        directory: Directory to search
-        extensions: List of extensions to search for (default: ['.als', '.flp', '.logicx'])
-        
     Returns:
         List of Path objects for found DAW files
     """

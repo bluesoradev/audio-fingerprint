@@ -14,4 +14,16 @@ class DAWParseError(Exception):
             logger.error(f"DAW parse error in {file_path}: {message}")
 
 
+class UnsupportedDAWError(DAWParseError):
+    """Exception for unsupported DAW formats."""
+    pass
 
+
+class CorruptedFileError(DAWParseError):
+    """Exception for corrupted or invalid DAW files."""
+    pass
+
+
+class MissingDataError(DAWParseError):
+    """Exception for missing required data in DAW file."""
+    pass
