@@ -305,7 +305,11 @@ def generate_transforms(
                         if transform_type == "pitch_shift":
                             pitch_shift(orig_path, **param_set, out_path=out_path)
                         elif transform_type == "time_stretch":
-                            time_stretch(orig_path, **param_set, out_path=out_path)
+                            # Convert 'ratio' parameter to 'rate' (config uses 'ratio', function expects 'rate')
+                            param_set_fixed = param_set.copy()
+                            if 'ratio' in param_set_fixed and 'rate' not in param_set_fixed:
+                                param_set_fixed['rate'] = param_set_fixed.pop('ratio')
+                            time_stretch(orig_path, **param_set_fixed, out_path=out_path)
                         elif transform_type == "re_encode":
                             re_encode(orig_path, **param_set, out_path=out_path)
                         elif transform_type == "slice_chop":

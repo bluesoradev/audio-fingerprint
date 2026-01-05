@@ -771,7 +771,7 @@ class ManipulatePage(QWidget):
         test_layout.addWidget(self.transformed_test_display)
         
         # Test button
-        self.test_btn = QPushButton("🔍 Test Fingerprint Match")
+        self.test_btn = QPushButton(" Test Fingerprint Match")
         self.test_btn.setStyleSheet("""
             QPushButton {
                 background-color: #10b981;

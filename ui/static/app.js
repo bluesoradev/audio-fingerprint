@@ -9,7 +9,7 @@ function showSection(sectionId, eventElement) {
     console.log('=== showSection called ===');
     console.log('Section ID:', sectionId);
     console.log('Event Element:', eventElement);
-    
+
     try {
         // Verify DOM is ready
         if (document.readyState === 'loading') {
@@ -17,7 +17,7 @@ function showSection(sectionId, eventElement) {
             document.addEventListener('DOMContentLoaded', () => showSection(sectionId, eventElement));
             return;
         }
-        
+
         // Hide all sections
         const allSections = document.querySelectorAll('.section');
         console.log('Found sections:', allSections.length);
@@ -25,7 +25,7 @@ function showSection(sectionId, eventElement) {
             s.classList.remove('active');
             console.log('Removed active from:', s.id);
         });
-        
+
         // Show selected section
         const targetSection = document.getElementById(sectionId);
         if (!targetSection) {
@@ -34,7 +34,7 @@ function showSection(sectionId, eventElement) {
             alert('Section not found: ' + sectionId + '\nAvailable: ' + Array.from(document.querySelectorAll('.section')).map(s => s.id).join(', '));
             return;
         }
-        
+
         console.log('Found target section:', targetSection.id);
         targetSection.classList.add('active');
         console.log('Added active class to:', sectionId);
@@ -44,7 +44,7 @@ function showSection(sectionId, eventElement) {
         const navLinks = document.querySelectorAll('.nav-menu a');
         console.log('Found nav links:', navLinks.length);
         navLinks.forEach(a => a.classList.remove('active'));
-        
+
         if (eventElement) {
             eventElement.classList.add('active');
             console.log('Activated nav link:', eventElement);
@@ -100,6 +100,49 @@ function showSection(sectionId, eventElement) {
         alert('Error switching section: ' + error.message);
     }
 }
+
+// Transform Tab Switching - MUST be defined at top level for onclick handlers
+function switchTransformTab(tabName, event) {
+    console.log('switchTransformTab called with:', tabName);
+
+    // Hide all tab contents
+    const allTabContents = document.querySelectorAll('.transform-tab-content');
+    allTabContents.forEach(tab => tab.classList.remove('active'));
+
+    // Remove active class from all tabs
+    const allTabs = document.querySelectorAll('.transform-tab');
+    allTabs.forEach(tab => tab.classList.remove('active'));
+
+    // Show selected tab content
+    const tabId = 'transformTab' + tabName.charAt(0).toUpperCase() + tabName.slice(1);
+    console.log('Looking for tab content:', tabId);
+    const targetTabContent = document.getElementById(tabId);
+    if (targetTabContent) {
+        targetTabContent.classList.add('active');
+        console.log('Activated tab content:', tabId);
+    } else {
+        console.error('Tab content not found:', tabId);
+        console.log('Available tab contents:', Array.from(document.querySelectorAll('.transform-tab-content')).map(t => t.id));
+    }
+
+    // Activate clicked tab button
+    if (event && event.target) {
+        event.target.classList.add('active');
+    } else {
+        // Fallback: find tab by onclick attribute
+        allTabs.forEach(tab => {
+            const onclick = tab.getAttribute('onclick');
+            if (onclick && onclick.includes("'" + tabName + "'")) {
+                tab.classList.add('active');
+            }
+        });
+    }
+
+    return false; // Prevent default behavior
+}
+
+// Make switchTransformTab globally accessible immediately
+window.switchTransformTab = switchTransformTab;
 
 // Make showSection globally accessible immediately
 window.showSection = showSection;
@@ -176,11 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-    
+
     // Verify showSection is accessible
     console.log('showSection function available:', typeof window.showSection);
     console.log('showSection function available:', typeof showSection);
-    
+
     setInterval(checkStatus, 5000); // Check status every 5 seconds
 });
 
@@ -190,9 +233,9 @@ async function checkStatus() {
     const statusText = document.getElementById('statusText');
     const sidebarStatusText = document.getElementById('sidebarStatusText');
     const currentProcess = document.getElementById('currentProcess');
-    
+
     console.log('Checking server status at:', API_BASE);
-    
+
     try {
         // Add timeout to fetch - 3 seconds (shorter for faster feedback)
         const controller = new AbortController();
@@ -200,7 +243,7 @@ async function checkStatus() {
             console.log('Status check timeout - server not responding');
             controller.abort();
         }, 3000);
-        
+
         const response = await fetch(`${API_BASE}/status`, {
             signal: controller.signal,
             method: 'GET',
@@ -209,15 +252,15 @@ async function checkStatus() {
             },
             cache: 'no-cache' // Prevent caching
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         console.log('Status response:', response.status, response.ok);
-        
+
         if (!response.ok) {
             throw new Error(`Server responded with status ${response.status}`);
         }
-        
+
         const status = await response.json();
         console.log('Status data:', status);
 
@@ -240,15 +283,15 @@ async function checkStatus() {
         console.error('Status check failed:', error);
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
-        
+
         // Show error status when server is down
         // Check if it's a network error or abort
-        const isNetworkError = error.name === 'TypeError' || 
-                               error.name === 'NetworkError' || 
-                               error.name === 'AbortError' ||
-                               error.message.includes('Failed to fetch') ||
-                               error.message.includes('NetworkError');
-        
+        const isNetworkError = error.name === 'TypeError' ||
+            error.name === 'NetworkError' ||
+            error.name === 'AbortError' ||
+            error.message.includes('Failed to fetch') ||
+            error.message.includes('NetworkError');
+
         if (statusDot) {
             statusDot.className = 'status-dot error';
             console.log('Set status dot to error class');
@@ -271,12 +314,12 @@ async function checkStatus() {
 async function loadDashboard() {
     const statsGrid = document.getElementById('dashboardStats');
     const recentRunsDiv = document.getElementById('recentRuns');
-    
+
     // Show loading state
     if (statsGrid) {
         statsGrid.innerHTML = '<p style="color: #9ca3af;">Loading dashboard data...</p>';
     }
-    
+
     try {
         const [statusRes, runsRes] = await Promise.all([
             fetch(`${API_BASE}/status`),
@@ -901,13 +944,13 @@ let selectedAudioFile = null;
 
 async function loadManipulateAudioFiles() {
     console.log('loadManipulateAudioFiles called');
-    
+
     // Show loading state
     const audioSelect = document.getElementById('manipulateAudioFile');
     if (audioSelect) {
         audioSelect.innerHTML = '<option value="">Loading audio files...</option>';
     }
-    
+
     // Load audio files from all directories
     const directories = ['originals', 'transformed', 'test_audio', 'manipulated'];
     const allFiles = [];
@@ -1033,7 +1076,7 @@ function loadAudioInfo() {
     }
 
     selectedAudioFile = filePath;
-    const fileName = select.options[select.selectedIndex]?.textContent || filePath.split('/').pop();
+    const fileName = select.options[select.selectedIndex] ? .textContent || filePath.split('/').pop();
 
     const selectedFileName = document.getElementById('selectedFileName');
     const selectedFilePath = document.getElementById('selectedFilePath');
@@ -1051,7 +1094,7 @@ function loadAudioInfo() {
     // Update original test display in "Test Fingerprint Robustness" section
     // Preserve existing transformed path if it exists
     const transformedDisplay = document.getElementById('transformedTestDisplay');
-    const existingTransformed = transformedDisplay?.value?.trim() || null;
+    const existingTransformed = transformedDisplay ? .value ? .trim() || null;
     console.log('[loadAudioInfo] Updating test displays - Original:', filePath, 'Transformed (preserved):', existingTransformed);
     updateTestDisplays(filePath, existingTransformed);
 
@@ -1266,6 +1309,7 @@ function toggleOriginalPlayback() {
         player.pause();
         playBtn.textContent = '▶';
         originalAudioPlaying = false;
+        stopFrequencyVisualization();
     } else {
         // Pause transformed if playing
         const transformedPlayer = document.getElementById('transformedAudioPlayer');
@@ -1281,6 +1325,7 @@ function toggleOriginalPlayback() {
         });
         playBtn.textContent = '⏸';
         originalAudioPlaying = true;
+        startFrequencyVisualization(player);
     }
 }
 
@@ -1294,6 +1339,7 @@ function toggleTransformedPlayback() {
         player.pause();
         playBtn.textContent = '▶';
         transformedAudioPlaying = false;
+        stopFrequencyVisualization();
     } else {
         // Pause original if playing
         const originalPlayer = document.getElementById('originalAudioPlayer');
@@ -1309,6 +1355,7 @@ function toggleTransformedPlayback() {
         });
         playBtn.textContent = '⏸';
         transformedAudioPlaying = true;
+        startFrequencyVisualization(player);
     }
 }
 
@@ -1322,11 +1369,18 @@ function updateOriginalTime() {
     if (player.ended) {
         if (playBtn) playBtn.textContent = '▶';
         originalAudioPlaying = false;
+        stopFrequencyVisualization();
     }
 
     const current = formatTime(player.currentTime);
     const duration = formatTime(player.duration || 0);
     label.textContent = `${current} / ${duration}`;
+
+    // Update playhead position
+    if (player.duration) {
+        const percentage = (player.currentTime / player.duration) * 100;
+        updatePlayheadPosition(percentage / 100);
+    }
 }
 
 function updateTransformedTime() {
@@ -1339,11 +1393,18 @@ function updateTransformedTime() {
     if (player.ended) {
         if (playBtn) playBtn.textContent = '▶';
         transformedAudioPlaying = false;
+        stopFrequencyVisualization();
     }
 
     const current = formatTime(player.currentTime);
     const duration = formatTime(player.duration || 0);
     label.textContent = `${current} / ${duration}`;
+
+    // Update playhead position
+    if (player.duration) {
+        const percentage = (player.currentTime / player.duration) * 100;
+        updatePlayheadPosition(percentage / 100);
+    }
 }
 
 function updateOriginalDuration() {
@@ -1429,9 +1490,9 @@ async function applySpeedTransform() {
         return;
     }
     const speedRatio = parseFloat(speedSlider.value) / 100.0; // Convert from 50-200 to 0.5-2.0
-    const preservePitch = document.getElementById('preservePitch')?.checked || false;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const preservePitch = document.getElementById('preservePitch') ? .checked || false;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1469,7 +1530,7 @@ async function applySpeedTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1496,8 +1557,8 @@ async function applyPitchTransform() {
     console.log('[Pitch Transform] Slider value:', pitchSlider.value, 'Parsed semitones:', semitones);
     addSystemLog(`Applying pitch shift: ${semitones} semitones`, 'info');
 
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1542,7 +1603,7 @@ async function applyPitchTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1569,8 +1630,8 @@ async function applyReverbTransform() {
         return;
     }
     const delayMs = parseInt(reverbSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1593,7 +1654,7 @@ async function applyReverbTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1618,8 +1679,8 @@ async function applyNoiseReductionTransform() {
     }
     const reductionPercent = parseInt(noiseSlider.value);
     const reductionStrength = reductionPercent / 100.0;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1662,7 +1723,7 @@ async function applyNoiseReductionTransform() {
                 console.log('[Noise Reduction] Calling updateTestDisplays with:', result.output_path);
                 console.log('[Noise Reduction] Calling updateTransformedPlayer with:', result.output_path);
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
@@ -1692,8 +1753,8 @@ async function applyEQTransform() {
         return;
     }
     const gainDb = parseInt(eqSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1736,7 +1797,7 @@ async function applyEQTransform() {
                 console.log('[EQ Transform] Calling updateTestDisplays with:', result.output_path);
                 console.log('[EQ Transform] Calling updateTransformedPlayer with:', result.output_path);
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             } else {
@@ -1777,8 +1838,8 @@ async function applyCompressionTransform() {
         return;
     }
     const bitrate = bitrateSelect.value;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1802,7 +1863,7 @@ async function applyCompressionTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1821,7 +1882,7 @@ async function applyOverlayTransform() {
     }
 
     const overlayFileInput = document.getElementById('overlayFile');
-    const overlayFile = overlayFileInput?.files?.[0] || null;
+    const overlayFile = overlayFileInput ? .files ? . [0] || null;
 
     const overlayGainSlider = document.getElementById('overlayGainSlider');
     if (!overlayGainSlider) {
@@ -1829,8 +1890,8 @@ async function applyOverlayTransform() {
         return;
     }
     const gainDb = parseInt(overlayGainSlider.value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1872,7 +1933,7 @@ async function applyOverlayTransform() {
             // Update transformed test display and player - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -1893,8 +1954,8 @@ async function applyNoiseTransform() {
     // This is for adding noise, not reducing it
     const snrDb = 20; // Default SNR
     const noiseType = 'white';
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -1931,7 +1992,7 @@ async function applyEncodeTransform() {
 
     const codec = document.getElementById('encodeCodec').value;
     const bitrate = document.getElementById('encodeBitrate').value;
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
 
     try {
@@ -1969,7 +2030,7 @@ async function applyChopTransform() {
 
     const removeStart = parseFloat(document.getElementById('chopStart').value);
     const removeEnd = parseFloat(document.getElementById('chopEnd').value);
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
     const outputName = document.getElementById('manipulateOutputName').value || null;
 
     try {
@@ -2107,8 +2168,8 @@ async function applyChainTransform() {
         return;
     }
 
-    const outputDir = document.getElementById('manipulateOutputDir')?.value || 'data/manipulated';
-    const outputName = document.getElementById('manipulateOutputName')?.value || null;
+    const outputDir = document.getElementById('manipulateOutputDir') ? .value || 'data/manipulated';
+    const outputName = document.getElementById('manipulateOutputName') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -2144,7 +2205,7 @@ async function applyChainTransform() {
             // Update transformed test display - preserve original path
             if (result.output_path) {
                 const originalDisplay = document.getElementById('originalTestDisplay');
-                const existingOriginal = originalDisplay?.value?.trim() || selectedAudioFile || null;
+                const existingOriginal = originalDisplay ? .value ? .trim() || selectedAudioFile || null;
                 updateTestDisplays(existingOriginal, result.output_path);
                 updateTransformedPlayer(result.output_path);
             }
@@ -2405,7 +2466,7 @@ async function applyHighpassTransform() {
         return;
     }
 
-    const freqHz = parseFloat(document.getElementById('highpassSlider')?.value || 150);
+    const freqHz = parseFloat(document.getElementById('highpassSlider') ? .value || 150);
 
     try {
         const formData = new FormData();
@@ -2439,7 +2500,7 @@ async function applyLowpassTransform() {
         return;
     }
 
-    const freqHz = parseFloat(document.getElementById('lowpassSlider')?.value || 6000);
+    const freqHz = parseFloat(document.getElementById('lowpassSlider') ? .value || 6000);
 
     try {
         const formData = new FormData();
@@ -2473,7 +2534,7 @@ async function applyBoostHighsTransform() {
         return;
     }
 
-    const gainDb = parseFloat(document.getElementById('boostHighsSlider')?.value || 6);
+    const gainDb = parseFloat(document.getElementById('boostHighsSlider') ? .value || 6);
 
     try {
         const formData = new FormData();
@@ -2507,7 +2568,7 @@ async function applyBoostLowsTransform() {
         return;
     }
 
-    const gainDb = parseFloat(document.getElementById('boostLowsSlider')?.value || 6);
+    const gainDb = parseFloat(document.getElementById('boostLowsSlider') ? .value || 6);
 
     try {
         const formData = new FormData();
@@ -2572,7 +2633,7 @@ async function applyLimitingTransform() {
         return;
     }
 
-    const ceilingDb = parseFloat(document.getElementById('limitingSlider')?.value || -1);
+    const ceilingDb = parseFloat(document.getElementById('limitingSlider') ? .value || -1);
 
     try {
         const formData = new FormData();
@@ -2637,8 +2698,8 @@ async function applyAddNoiseTransform() {
         return;
     }
 
-    const noiseType = document.getElementById('noiseTypeSelect')?.value || 'white';
-    const snrDb = parseFloat(document.getElementById('noiseSNRSlider')?.value || 20);
+    const noiseType = document.getElementById('noiseTypeSelect') ? .value || 'white';
+    const snrDb = parseFloat(document.getElementById('noiseSNRSlider') ? .value || 20);
 
     try {
         const formData = new FormData();
@@ -2673,7 +2734,7 @@ async function applyCropTransform() {
         return;
     }
 
-    const cropType = document.getElementById('cropTypeSelect')?.value || '10s';
+    const cropType = document.getElementById('cropTypeSelect') ? .value || '10s';
 
     try {
         let endpoint = '';
@@ -2726,17 +2787,17 @@ async function applyEmbeddedSampleTransform() {
         return;
     }
 
-    const backgroundFile = document.getElementById('embeddedBackgroundFile')?.value;
+    const backgroundFile = document.getElementById('embeddedBackgroundFile') ? .value;
     if (!backgroundFile) {
         showError('Please select a background audio file');
         return;
     }
 
-    const position = document.getElementById('embeddedPosition')?.value || 'start';
-    const sampleDuration = parseFloat(document.getElementById('embeddedSampleDuration')?.value || '1.5');
-    const volumeDb = parseFloat(document.getElementById('embeddedVolumeDb')?.value || '0.0');
-    const applyTransform = document.getElementById('embeddedApplyTransform')?.value || 'None';
-    const transformParams = document.getElementById('embeddedTransformParams')?.value || null;
+    const position = document.getElementById('embeddedPosition') ? .value || 'start';
+    const sampleDuration = parseFloat(document.getElementById('embeddedSampleDuration') ? .value || '1.5');
+    const volumeDb = parseFloat(document.getElementById('embeddedVolumeDb') ? .value || '0.0');
+    const applyTransform = document.getElementById('embeddedApplyTransform') ? .value || 'None';
+    const transformParams = document.getElementById('embeddedTransformParams') ? .value || null;
 
     try {
         const formData = new FormData();
@@ -2781,13 +2842,13 @@ async function applySongAInSongBTransform() {
         return;
     }
 
-    const songBBaseFile = document.getElementById('songBBaseFile')?.value || null;
-    const sampleStartTime = parseFloat(document.getElementById('songASampleStartTime')?.value || '0.0');
-    const sampleDuration = parseFloat(document.getElementById('songASampleDuration')?.value || '1.5');
-    const songBDuration = parseFloat(document.getElementById('songBDuration')?.value || '30.0');
-    const applyTransform = document.getElementById('songAApplyTransform')?.value || 'None';
-    const transformParams = document.getElementById('songATransformParams')?.value || null;
-    const mixVolumeDb = parseFloat(document.getElementById('songAMixVolumeDb')?.value || '0.0');
+    const songBBaseFile = document.getElementById('songBBaseFile') ? .value || null;
+    const sampleStartTime = parseFloat(document.getElementById('songASampleStartTime') ? .value || '0.0');
+    const sampleDuration = parseFloat(document.getElementById('songASampleDuration') ? .value || '1.5');
+    const songBDuration = parseFloat(document.getElementById('songBDuration') ? .value || '30.0');
+    const applyTransform = document.getElementById('songAApplyTransform') ? .value || 'None';
+    const transformParams = document.getElementById('songATransformParams') ? .value || null;
+    const mixVolumeDb = parseFloat(document.getElementById('songAMixVolumeDb') ? .value || '0.0');
 
     try {
         const formData = new FormData();
@@ -2902,8 +2963,8 @@ function updateTestDisplays(originalPath, transformedPath) {
         console.log('[updateTestDisplays] Button state check:', {
             hasOriginal,
             hasTransformed,
-            originalValue: originalDisplay?.value,
-            transformedValue: transformedDisplay?.value
+            originalValue: originalDisplay ? .value,
+            transformedValue: transformedDisplay ? .value
         });
 
         testBtn.disabled = !(hasOriginal && hasTransformed);
@@ -2930,7 +2991,7 @@ async function loadDeliverables() {
             result.runs.forEach(run => {
                 const runPath = (run.path || '').toLowerCase();
                 const runId = (run.id || '').toLowerCase();
-                const runPhase = (run.phase || run.summary?.phase || '').toLowerCase();
+                const runPhase = (run.phase || run.summary ? .phase || '').toLowerCase();
 
                 const isPhase1 = runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') ||
                     runPath.includes('phase_1') || runId.includes('phase_1') || (runId.includes('test_') && runId.includes('phase1'));
@@ -2956,7 +3017,7 @@ async function loadDeliverables() {
                     if (detailsResp.ok) {
                         const details = await detailsResp.json();
                         const metrics = details.metrics || {};
-                        const phase = (metrics.summary?.phase || metrics.test_details?.phase || '').toLowerCase();
+                        const phase = (metrics.summary ? .phase || metrics.test_details ? .phase || '').toLowerCase();
 
                         if (phase === 'phase1') {
                             run.phase = 'phase1';
@@ -3122,7 +3183,7 @@ async function viewRunDetails(runId) {
         const rank = overall.rank || {};
         const similarity = overall.similarity || {};
         const passFail = metrics.pass_fail || {};
-        const phase = testDetails.phase || metrics.summary?.phase || 'unknown';
+        const phase = testDetails.phase || metrics.summary ? .phase || 'unknown';
 
         const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
         const statusColor = !hasMetrics ? '#f59e0b' : (matched ? '#10b981' : '#f87171');
@@ -3814,25 +3875,25 @@ function updateDeliverablesTransformState() {
     // Count enabled transformations
     const enabledTransforms = [];
 
-    if (document.getElementById('deliverablesSpeedEnabled')?.checked) enabledTransforms.push('Speed');
-    if (document.getElementById('deliverablesPitchEnabled')?.checked) enabledTransforms.push('Pitch');
-    if (document.getElementById('deliverablesReverbEnabled')?.checked) enabledTransforms.push('Reverb');
-    if (document.getElementById('deliverablesNoiseEnabled')?.checked) enabledTransforms.push('Noise Reduction');
-    if (document.getElementById('deliverablesEQEnabled')?.checked) enabledTransforms.push('EQ');
-    if (document.getElementById('deliverablesCompressionEnabled')?.checked &&
-        document.getElementById('deliverablesCodecSelect')?.value !== 'None') enabledTransforms.push('Compression');
-    if (document.getElementById('deliverablesOverlayEnabled')?.checked) enabledTransforms.push('Overlay');
-    if (document.getElementById('deliverablesHighpassEnabled')?.checked) enabledTransforms.push('High-Pass');
-    if (document.getElementById('deliverablesLowpassEnabled')?.checked) enabledTransforms.push('Low-Pass');
-    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) enabledTransforms.push('Boost Highs');
-    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) enabledTransforms.push('Boost Lows');
-    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) enabledTransforms.push('Telephone');
-    if (document.getElementById('deliverablesLimitingEnabled')?.checked) enabledTransforms.push('Limiting');
-    if (document.getElementById('deliverablesMultibandEnabled')?.checked) enabledTransforms.push('Multiband');
-    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) enabledTransforms.push('Add Noise');
-    if (document.getElementById('deliverablesCropEnabled')?.checked) enabledTransforms.push('Crop');
-    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) enabledTransforms.push('Embedded Sample');
-    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) enabledTransforms.push('Song A in Song B');
+    if (document.getElementById('deliverablesSpeedEnabled') ? .checked) enabledTransforms.push('Speed');
+    if (document.getElementById('deliverablesPitchEnabled') ? .checked) enabledTransforms.push('Pitch');
+    if (document.getElementById('deliverablesReverbEnabled') ? .checked) enabledTransforms.push('Reverb');
+    if (document.getElementById('deliverablesNoiseEnabled') ? .checked) enabledTransforms.push('Noise Reduction');
+    if (document.getElementById('deliverablesEQEnabled') ? .checked) enabledTransforms.push('EQ');
+    if (document.getElementById('deliverablesCompressionEnabled') ? .checked &&
+        document.getElementById('deliverablesCodecSelect') ? .value !== 'None') enabledTransforms.push('Compression');
+    if (document.getElementById('deliverablesOverlayEnabled') ? .checked) enabledTransforms.push('Overlay');
+    if (document.getElementById('deliverablesHighpassEnabled') ? .checked) enabledTransforms.push('High-Pass');
+    if (document.getElementById('deliverablesLowpassEnabled') ? .checked) enabledTransforms.push('Low-Pass');
+    if (document.getElementById('deliverablesBoostHighsEnabled') ? .checked) enabledTransforms.push('Boost Highs');
+    if (document.getElementById('deliverablesBoostLowsEnabled') ? .checked) enabledTransforms.push('Boost Lows');
+    if (document.getElementById('deliverablesTelephoneEnabled') ? .checked) enabledTransforms.push('Telephone');
+    if (document.getElementById('deliverablesLimitingEnabled') ? .checked) enabledTransforms.push('Limiting');
+    if (document.getElementById('deliverablesMultibandEnabled') ? .checked) enabledTransforms.push('Multiband');
+    if (document.getElementById('deliverablesAddNoiseEnabled') ? .checked) enabledTransforms.push('Add Noise');
+    if (document.getElementById('deliverablesCropEnabled') ? .checked) enabledTransforms.push('Crop');
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled') ? .checked) enabledTransforms.push('Embedded Sample');
+    if (document.getElementById('deliverablesSongAInSongBEnabled') ? .checked) enabledTransforms.push('Song A in Song B');
 
     const count = enabledTransforms.length;
     // Transform count and apply button removed - no longer needed
@@ -3848,166 +3909,166 @@ async function applyAllDeliverablesTransforms() {
     const enabledTransforms = [];
 
     // Collect all enabled transformations
-    if (document.getElementById('deliverablesSpeedEnabled')?.checked) {
+    if (document.getElementById('deliverablesSpeedEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'speed',
             speed: parseFloat(document.getElementById('deliverablesSpeedSlider').value) / 100,
-            preserve_pitch: document.getElementById('deliverablesPreservePitch')?.checked || false
+            preserve_pitch: document.getElementById('deliverablesPreservePitch') ? .checked || false
         });
     }
 
-    if (document.getElementById('deliverablesPitchEnabled')?.checked) {
+    if (document.getElementById('deliverablesPitchEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'pitch',
             semitones: parseInt(document.getElementById('deliverablesPitchSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesReverbEnabled')?.checked) {
+    if (document.getElementById('deliverablesReverbEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'reverb',
             delay_ms: parseFloat(document.getElementById('deliverablesReverbSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesNoiseEnabled')?.checked) {
+    if (document.getElementById('deliverablesNoiseEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'noise_reduction',
             strength: parseFloat(document.getElementById('deliverablesNoiseSlider').value) / 100
         });
     }
 
-    if (document.getElementById('deliverablesEQEnabled')?.checked) {
+    if (document.getElementById('deliverablesEQEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'eq',
             gain_db: parseFloat(document.getElementById('deliverablesEQSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesCompressionEnabled')?.checked) {
-        const codec = document.getElementById('deliverablesCodecSelect')?.value;
+    if (document.getElementById('deliverablesCompressionEnabled') ? .checked) {
+        const codec = document.getElementById('deliverablesCodecSelect') ? .value;
         if (codec !== 'None') {
             enabledTransforms.push({
                 type: 'compression',
                 codec: codec.toLowerCase(),
-                bitrate: document.getElementById('deliverablesBitrateSelect')?.value
+                bitrate: document.getElementById('deliverablesBitrateSelect') ? .value
             });
         }
     }
 
-    if (document.getElementById('deliverablesOverlayEnabled')?.checked) {
-        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
+    if (document.getElementById('deliverablesOverlayEnabled') ? .checked) {
+        const overlayFile = document.getElementById('deliverablesOverlayFile') ? .files[0];
         enabledTransforms.push({
             type: 'overlay',
-            gain_db: parseFloat(document.getElementById('deliverablesOverlayGainSlider')?.value || -6),
+            gain_db: parseFloat(document.getElementById('deliverablesOverlayGainSlider') ? .value || -6),
             overlay_file: overlayFile ? overlayFile.name : null
         });
     }
 
-    if (document.getElementById('deliverablesHighpassEnabled')?.checked) {
+    if (document.getElementById('deliverablesHighpassEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'highpass',
             freq_hz: parseFloat(document.getElementById('deliverablesHighpassSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesLowpassEnabled')?.checked) {
+    if (document.getElementById('deliverablesLowpassEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'lowpass',
             freq_hz: parseFloat(document.getElementById('deliverablesLowpassSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesBoostHighsEnabled')?.checked) {
+    if (document.getElementById('deliverablesBoostHighsEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'boost_highs',
             gain_db: parseFloat(document.getElementById('deliverablesBoostHighsSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesBoostLowsEnabled')?.checked) {
+    if (document.getElementById('deliverablesBoostLowsEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'boost_lows',
             gain_db: parseFloat(document.getElementById('deliverablesBoostLowsSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesTelephoneEnabled')?.checked) {
+    if (document.getElementById('deliverablesTelephoneEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'telephone',
-            low_freq: parseFloat(document.getElementById('deliverablesTelephoneLow')?.value || 300),
-            high_freq: parseFloat(document.getElementById('deliverablesTelephoneHigh')?.value || 3000)
+            low_freq: parseFloat(document.getElementById('deliverablesTelephoneLow') ? .value || 300),
+            high_freq: parseFloat(document.getElementById('deliverablesTelephoneHigh') ? .value || 3000)
         });
     }
 
-    if (document.getElementById('deliverablesLimitingEnabled')?.checked) {
+    if (document.getElementById('deliverablesLimitingEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'limiting',
             ceiling_db: parseFloat(document.getElementById('deliverablesLimitingSlider').value)
         });
     }
 
-    if (document.getElementById('deliverablesMultibandEnabled')?.checked) {
+    if (document.getElementById('deliverablesMultibandEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'multiband'
         });
     }
 
-    if (document.getElementById('deliverablesAddNoiseEnabled')?.checked) {
+    if (document.getElementById('deliverablesAddNoiseEnabled') ? .checked) {
         enabledTransforms.push({
             type: 'add_noise',
-            noise_type: document.getElementById('deliverablesNoiseTypeSelect')?.value || 'white',
-            snr_db: parseFloat(document.getElementById('deliverablesNoiseSNRSlider')?.value || 20)
+            noise_type: document.getElementById('deliverablesNoiseTypeSelect') ? .value || 'white',
+            snr_db: parseFloat(document.getElementById('deliverablesNoiseSNRSlider') ? .value || 20)
         });
     }
 
-    if (document.getElementById('deliverablesCropEnabled')?.checked) {
-        const cropType = document.getElementById('deliverablesCropTypeSelect')?.value;
+    if (document.getElementById('deliverablesCropEnabled') ? .checked) {
+        const cropType = document.getElementById('deliverablesCropTypeSelect') ? .value;
         enabledTransforms.push({
             type: 'crop',
             crop_type: cropType,
             duration: (cropType === 'middle' || cropType === 'end') ?
-                parseFloat(document.getElementById('deliverablesCropDuration')?.value || 10) : null
+                parseFloat(document.getElementById('deliverablesCropDuration') ? .value || 10) : null
         });
     }
 
-    if (document.getElementById('deliverablesEmbeddedSampleEnabled')?.checked) {
-        const samplePath = document.getElementById('deliverablesEmbeddedSampleFile')?.value;
+    if (document.getElementById('deliverablesEmbeddedSampleEnabled') ? .checked) {
+        const samplePath = document.getElementById('deliverablesEmbeddedSampleFile') ? .value;
         if (!samplePath || !samplePath.trim()) {
             showError('Embedded Sample requires a sample file to be selected');
             return;
         }
 
-        const backgroundPath = document.getElementById('deliverablesEmbeddedBackgroundFile')?.value || '';
-        const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform')?.value || 'None';
-        const transformParams = document.getElementById('deliverablesEmbeddedTransformParams')?.value || '';
+        const backgroundPath = document.getElementById('deliverablesEmbeddedBackgroundFile') ? .value || '';
+        const applyTransform = document.getElementById('deliverablesEmbeddedApplyTransform') ? .value || 'None';
+        const transformParams = document.getElementById('deliverablesEmbeddedTransformParams') ? .value || '';
 
         enabledTransforms.push({
             type: 'embedded_sample',
             sample_path: samplePath,
             background_path: backgroundPath.trim() || null, // null = use chain output
-            position: document.getElementById('deliverablesEmbeddedPosition')?.value || 'start',
-            sample_duration: parseFloat(document.getElementById('deliverablesEmbeddedSampleDuration')?.value || 1.5),
-            volume_db: parseFloat(document.getElementById('deliverablesEmbeddedVolumeDb')?.value || 0),
+            position: document.getElementById('deliverablesEmbeddedPosition') ? .value || 'start',
+            sample_duration: parseFloat(document.getElementById('deliverablesEmbeddedSampleDuration') ? .value || 1.5),
+            volume_db: parseFloat(document.getElementById('deliverablesEmbeddedVolumeDb') ? .value || 0),
             apply_transform: applyTransform !== 'None' ? applyTransform : null,
             transform_params: transformParams.trim() ? transformParams : null
         });
     }
 
-    if (document.getElementById('deliverablesSongAInSongBEnabled')?.checked) {
-        const songAPath = document.getElementById('deliverablesSongAFile')?.value || '';
-        const songBBasePath = document.getElementById('deliverablesSongBBaseFile')?.value || '';
-        const applyTransform = document.getElementById('deliverablesSongAApplyTransform')?.value || 'None';
-        const transformParams = document.getElementById('deliverablesSongATransformParams')?.value || '';
+    if (document.getElementById('deliverablesSongAInSongBEnabled') ? .checked) {
+        const songAPath = document.getElementById('deliverablesSongAFile') ? .value || '';
+        const songBBasePath = document.getElementById('deliverablesSongBBaseFile') ? .value || '';
+        const applyTransform = document.getElementById('deliverablesSongAApplyTransform') ? .value || 'None';
+        const transformParams = document.getElementById('deliverablesSongATransformParams') ? .value || '';
 
         enabledTransforms.push({
             type: 'song_a_in_song_b',
             song_a_path: songAPath.trim() || null, // null = use original input
             song_b_base_path: songBBasePath.trim() || null, // null = generate synthetic
-            sample_start_time: parseFloat(document.getElementById('deliverablesSongASampleStartTime')?.value || 0.0),
-            sample_duration: parseFloat(document.getElementById('deliverablesSongASampleDuration')?.value || 1.5),
-            song_b_duration: parseFloat(document.getElementById('deliverablesSongBDuration')?.value || 30.0),
-            mix_volume_db: parseFloat(document.getElementById('deliverablesSongAMixVolumeDb')?.value || 0),
+            sample_start_time: parseFloat(document.getElementById('deliverablesSongASampleStartTime') ? .value || 0.0),
+            sample_duration: parseFloat(document.getElementById('deliverablesSongASampleDuration') ? .value || 1.5),
+            song_b_duration: parseFloat(document.getElementById('deliverablesSongBDuration') ? .value || 30.0),
+            mix_volume_db: parseFloat(document.getElementById('deliverablesSongAMixVolumeDb') ? .value || 0),
             apply_transform: applyTransform !== 'None' ? applyTransform : null,
             transform_params: transformParams.trim() ? transformParams : null
         });
@@ -4026,7 +4087,7 @@ async function applyAllDeliverablesTransforms() {
         formData.append('generate_reports', 'false');
 
         // Add overlay file if provided
-        const overlayFile = document.getElementById('deliverablesOverlayFile')?.files[0];
+        const overlayFile = document.getElementById('deliverablesOverlayFile') ? .files[0];
         if (overlayFile) {
             formData.append('overlay_file', overlayFile);
         }
@@ -4721,19 +4782,19 @@ async function runPhaseSuite(phase = 'both') {
 // DAW Parser Functions
 async function loadDAWFiles() {
     const fileList = document.getElementById('dawFileList');
-    
+
     // Show loading state
     if (fileList) {
         fileList.innerHTML = '<p style="color: #9ca3af; text-align: center; padding: 20px;">Loading DAW files...</p>';
     }
-    
+
     try {
         const response = await fetch(`${API_BASE}/daw/files`);
-        
+
         if (!response.ok) {
             throw new Error(`Failed to fetch DAW files: ${response.status} ${response.statusText}`);
         }
-        
+
         const data = await response.json();
 
         if (data.daw_files && data.daw_files.length > 0) {
@@ -4914,3 +4975,279 @@ function showNotification(message, type = 'info') {
         notification.remove();
     }, 3000);
 }
+
+// ============================================
+// Audio Playback & Visualization Functions
+// ============================================
+
+// Audio context for frequency analysis
+let audioContext = null;
+let analyserNode = null;
+let frequencyData = null;
+let animationFrameId = null;
+let transportAudioPlaying = false;
+let transportLoopEnabled = false;
+let waveformZoomLevel = 1.0;
+let waveformStartTime = 0;
+
+// Initialize Web Audio API
+function initAudioContext() {
+    if (!audioContext) {
+        audioContext = new(window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+// Transport Controls
+function toggleTransportPlayback() {
+    const originalPlayer = document.getElementById('originalAudioPlayer');
+    const transformedPlayer = document.getElementById('transformedAudioPlayer');
+    const playBtn = document.getElementById('transportPlayBtn');
+
+    if (!playBtn) return;
+
+    // Determine which player to use (prefer original if available)
+    const activePlayer = originalPlayer && originalPlayer.src ? originalPlayer : transformedPlayer;
+
+    if (!activePlayer || !activePlayer.src) {
+        showNotification('No audio loaded');
+        return;
+    }
+
+    if (transportAudioPlaying) {
+        activePlayer.pause();
+        playBtn.textContent = '▶';
+        transportAudioPlaying = false;
+        stopFrequencyVisualization();
+    } else {
+        // Pause other players
+        if (originalPlayer !== activePlayer && originalAudioPlaying) {
+            originalPlayer.pause();
+            const origBtn = document.getElementById('originalPlayBtn');
+            if (origBtn) origBtn.textContent = '▶';
+            originalAudioPlaying = false;
+        }
+        if (transformedPlayer !== activePlayer && transformedAudioPlaying) {
+            transformedPlayer.pause();
+            const transBtn = document.getElementById('transformedPlayBtn');
+            if (transBtn) transBtn.textContent = '▶';
+            transformedAudioPlaying = false;
+        }
+
+        activePlayer.play().then(() => {
+            playBtn.textContent = '⏸';
+            transportAudioPlaying = true;
+            startFrequencyVisualization(activePlayer);
+        }).catch(err => {
+            console.error('Error playing audio:', err);
+            showNotification('Error playing audio: ' + err.message);
+        });
+    }
+}
+
+function transportHopOff() {
+    // Hop off functionality - can be customized
+    showNotification('Hop Off activated');
+}
+
+function transportCheck() {
+    // Check functionality - can be customized
+    showNotification('Check activated');
+}
+
+function toggleTransportLoop() {
+    const loopBtn = document.getElementById('transportLoopBtn');
+    if (!loopBtn) return;
+
+    transportLoopEnabled = !transportLoopEnabled;
+    loopBtn.classList.toggle('active', transportLoopEnabled);
+
+    const originalPlayer = document.getElementById('originalAudioPlayer');
+    const transformedPlayer = document.getElementById('transformedAudioPlayer');
+    const activePlayer = originalPlayer && originalPlayer.src ? originalPlayer : transformedPlayer;
+
+    if (activePlayer) {
+        activePlayer.loop = transportLoopEnabled;
+    }
+}
+
+function updateTransportVolume(value) {
+    const volumeDisplay = document.getElementById('transportVolumeValue');
+    if (volumeDisplay) {
+        volumeDisplay.textContent = value + '%';
+    }
+
+    const originalPlayer = document.getElementById('originalAudioPlayer');
+    const transformedPlayer = document.getElementById('transformedAudioPlayer');
+    const volume = value / 100;
+
+    if (originalPlayer) originalPlayer.volume = volume;
+    if (transformedPlayer) transformedPlayer.volume = volume;
+}
+
+function updateTransportTempo(value) {
+    // Tempo change would require audio processing - placeholder for now
+    console.log('Tempo changed to:', value, 'BPM');
+}
+
+// Frequency Visualization
+function startFrequencyVisualization(audioElement) {
+    if (!audioElement) return;
+
+    try {
+        const ctx = initAudioContext();
+        if (!analyserNode) {
+            analyserNode = ctx.createAnalyser();
+            analyserNode.fftSize = 256;
+            frequencyData = new Uint8Array(analyserNode.frequencyBinCount);
+        }
+
+        const source = ctx.createMediaElementSource(audioElement);
+        source.connect(analyserNode);
+        analyserNode.connect(ctx.destination);
+
+        animateFrequency();
+    } catch (error) {
+        console.error('Error initializing frequency visualization:', error);
+    }
+}
+
+function stopFrequencyVisualization() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+}
+
+function animateFrequency() {
+    if (!analyserNode) return;
+
+    analyserNode.getByteFrequencyData(frequencyData);
+
+    // Update frequency canvas
+    const canvas = document.getElementById('frequencySpectrumCanvas');
+    if (canvas) {
+        drawFrequencySpectrum(canvas, frequencyData);
+    }
+
+    // Update individual player frequency displays
+    const originalCanvas = document.getElementById('originalFrequencyCanvas');
+    const transformedCanvas = document.getElementById('transformedFrequencyCanvas');
+
+    if (originalAudioPlaying && originalCanvas) {
+        drawFrequencySpectrum(originalCanvas, frequencyData);
+    }
+    if (transformedAudioPlaying && transformedCanvas) {
+        drawFrequencySpectrum(transformedCanvas, frequencyData);
+    }
+
+    if (transportAudioPlaying || originalAudioPlaying || transformedAudioPlaying) {
+        animationFrameId = requestAnimationFrame(animateFrequency);
+    }
+}
+
+function drawFrequencySpectrum(canvas, data) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width || canvas.offsetWidth;
+    const height = canvas.height || canvas.offsetHeight;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.fillStyle = '#1e1e1e';
+    ctx.fillRect(0, 0, width, height);
+
+    const barWidth = width / data.length;
+    let x = 0;
+
+    for (let i = 0; i < data.length; i++) {
+        const barHeight = (data[i] / 255) * height;
+        const hue = (i / data.length) * 360;
+
+        ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+        x += barWidth;
+    }
+}
+
+// Waveform Editor Functions
+function waveformZoomIn() {
+    waveformZoomLevel = Math.min(waveformZoomLevel * 1.5, 10);
+    updateWaveformDisplay();
+}
+
+function waveformZoomOut() {
+    waveformZoomLevel = Math.max(waveformZoomLevel / 1.5, 0.1);
+    updateWaveformDisplay();
+}
+
+function updateWaveformDisplay() {
+    const timeRangeDisplay = document.getElementById('waveformTimeRange');
+    if (timeRangeDisplay) {
+        const duration = 5.123; // This should come from actual audio duration
+        const visibleDuration = duration / waveformZoomLevel;
+        timeRangeDisplay.textContent = `00:00:00.000 - ${formatTimeWithMs(visibleDuration)}`;
+    }
+}
+
+function formatTimeWithMs(seconds) {
+    if (!seconds || isNaN(seconds)) return '00:00:00.000';
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
+
+// Free audio playback - click on waveform to seek
+function setupWaveformScrubbing() {
+    const waveformAreas = document.querySelectorAll('.track-waveform-area, .audio-player-waveform');
+    waveformAreas.forEach(area => {
+        area.addEventListener('click', (e) => {
+            const rect = area.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percentage = clickX / rect.width;
+
+            const originalPlayer = document.getElementById('originalAudioPlayer');
+            const transformedPlayer = document.getElementById('transformedAudioPlayer');
+
+            // Determine which player to seek
+            let targetPlayer = null;
+            if (area.closest('.audio-player-panel')) {
+                const panel = area.closest('.audio-player-panel');
+                if (panel.querySelector('#originalAudioPlayer')) {
+                    targetPlayer = originalPlayer;
+                } else if (panel.querySelector('#transformedAudioPlayer')) {
+                    targetPlayer = transformedPlayer;
+                }
+            } else {
+                // Waveform editor - use transport player
+                targetPlayer = originalPlayer && originalPlayer.src ? originalPlayer : transformedPlayer;
+            }
+
+            if (targetPlayer && targetPlayer.duration) {
+                const seekTime = percentage * targetPlayer.duration;
+                targetPlayer.currentTime = seekTime;
+                updatePlayheadPosition(percentage);
+            }
+        });
+    });
+}
+
+function updatePlayheadPosition(percentage) {
+    const playhead = document.getElementById('waveformPlayhead');
+    if (playhead) {
+        playhead.style.left = (percentage * 100) + '%';
+    }
+}
+
+// Enhanced audio playback - update existing functions to include frequency visualization
+// Note: The existing toggleOriginalPlayback and toggleTransformedPlayback functions
+// will be enhanced to call startFrequencyVisualization when audio starts playing
+
+// Initialize waveform scrubbing when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    setupWaveformScrubbing();
+});

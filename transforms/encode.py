@@ -25,9 +25,28 @@ def re_encode(
         **kwargs: Additional ffmpeg parameters
         
     Returns:
-        Path to output file
+        Path to output file (with correct extension based on codec)
     """
     try:
+        # Map codec names to file extensions
+        extension_map = {
+            "mp3": ".mp3",
+            "aac": ".m4a",  # AAC typically uses .m4a container
+            "ogg": ".ogg",
+            "opus": ".opus",
+            "flac": ".flac",
+            "wav": ".wav"
+        }
+        
+        # Get correct extension for the codec
+        codec_lower = codec.lower()
+        correct_ext = extension_map.get(codec_lower, ".mp3")  # Default to .mp3 if unknown
+        
+        # Update output path extension if it doesn't match the codec
+        if out_path.suffix.lower() != correct_ext:
+            out_path = out_path.with_suffix(correct_ext)
+            logger.info(f"[Re-encode] Adjusted output extension to {correct_ext} for codec {codec}")
+        
         out_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Map codec names to ffmpeg codec names
@@ -39,7 +58,7 @@ def re_encode(
             "flac": "flac"
         }
         
-        ffmpeg_codec = codec_map.get(codec.lower(), codec.lower())
+        ffmpeg_codec = codec_map.get(codec_lower, codec_lower)
         
         logger.info(f"[Re-encode] Encoding {input_path} -> {out_path} using codec={codec} (ffmpeg: {ffmpeg_codec}) @ {bitrate}")
         
