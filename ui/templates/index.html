@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Fingerprint Robustness Lab</title>
+    <link rel="icon" type="image/png" href="/static/img/home.png">
     <style>
         * {
             margin: 0;
@@ -1345,6 +1346,51 @@
         </div>
 
         <div class="main-content">
+            <script>
+                // Define showSection immediately before navigation menu to ensure it's available
+                function showSection(sectionId, eventElement) {
+                    try { // Hide all sections
+                        const allSections = document.querySelectorAll('.section');
+                        allSections.forEach(function(s) {
+                            s.classList.remove('active');
+                        });
+
+                        // Show selected section
+                        const targetSection = document.getElementById(sectionId);
+                        if (!targetSection) {
+                            console.error('Section not found:', sectionId);
+                            return;
+                        }
+                        targetSection.classList.add('active');
+
+                        // Update active nav item
+                        const navLinks = document.querySelectorAll('.nav-menu a');
+                        navLinks.forEach(function(a) {
+                            a.classList.remove('active');
+                        });
+
+                        if (eventElement) {
+                            eventElement.classList.add('active');
+                        } else {
+                            navLinks.forEach(function(a) {
+                                const onclick = a.getAttribute('onclick');
+                                if (onclick && onclick.indexOf(sectionId) !== -1) {
+                                    a.classList.add('active');
+                                }
+                            });
+                        }
+
+                        // Load section-specific data (will be handled by app.js when it loads)
+                        if (typeof window.loadSectionData === 'function') {
+                            window.loadSectionData(sectionId);
+                        }
+                    } catch (error) {
+                        console.error('Error in showSection:', error);
+                    }
+                }
+                // Make globally accessible
+                window.showSection = showSection;
+            </script>
             <div class="sidebar">
                 <div class="sidebar-logo">
                     <img src="/static/img/home.png" alt="AudioLab" style="width: 24px; height: 24px; margin-right: 8px;">
@@ -2717,17 +2763,22 @@
                 }
             });
         }
-        document.addEventListener("DOMContentLoaded", hideSectionsInManipulate);
-        setTimeout(() => {
+        document.addEventListener("DOMContentLoaded", function() {
+            hideSectionsInManipulate();
+            // Ensure default section (deliverables) is shown on page load
+            const defaultSection = document.getElementById('deliverables');
+            if (defaultSection && defaultSection.classList.contains('active')) { // Section is already marked as active, ensure it's visible
+                defaultSection.style.display = 'block';
+            }
+        });
+        setTimeout(function() {
             if (typeof window.showSection === "function") {
                 const original = window.showSection;
                 window.showSection = function(sectionId, eventElement) {
                     original(sectionId, eventElement);
-                    if (sectionId === "manipulate")
+                    if (sectionId === "manipulate") {
                         setTimeout(hideSectionsInManipulate, 100);
-
-
-
+                    }
                 };
             }
         }, 500);

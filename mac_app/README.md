@@ -5,7 +5,7 @@ This is a macOS desktop application that provides the same interface and functio
 ## Features
 
 - **Exact Web Design**: The app uses the same HTML/CSS/JS as the web version, ensuring pixel-perfect design matching
-- **VPS Connection**: Connects to VPS server at `78.46.37.169:8080` for all API operations
+- **VPS Connection**: Connects to VPS server at `148.251.88.48:8080` for all API operations
 - **Native macOS App**: Runs as a native macOS application with proper window management
 - **Offline UI**: UI files are bundled with the app, only API calls go to the VPS
 
@@ -18,6 +18,7 @@ This is a macOS desktop application that provides the same interface and functio
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 cd mac_app
 pip install -r requirements.txt
@@ -31,6 +32,7 @@ pip install -r requirements.txt
 ### Development Mode
 
 Run directly from source:
+
 ```bash
 python main.py
 ```
@@ -38,11 +40,13 @@ python main.py
 ### Building the App Bundle
 
 Build a `.app` bundle:
+
 ```bash
 python build_app.py
 ```
 
 This will:
+
 1. Install build dependencies (PyInstaller)
 2. Copy and modify UI files
 3. Create `Audiolab.app` in the `dist/` directory
@@ -51,10 +55,12 @@ This will:
 ### Distribution
 
 After building, you'll have:
+
 - `dist/Audiolab.app` - The macOS application bundle
 - `dist/Audiolab.dmg` - Disk image for easy distribution
 
 Users can:
+
 1. Double-click the `.dmg` file
 2. Drag `Audiolab.app` to their Applications folder
 3. Launch the app from Applications
@@ -62,9 +68,10 @@ Users can:
 ## Architecture
 
 The app uses:
+
 - **pywebview**: Creates a native macOS window that displays HTML content
 - **Local HTTP Server**: Serves UI files (HTML/CSS/JS/images) locally
-- **VPS API**: All API calls are routed to the VPS server at `78.46.37.169:8080`
+- **VPS API**: All API calls are routed to the VPS server at `148.251.88.48:8080`
 
 ## File Structure
 
@@ -86,16 +93,18 @@ mac_app/
 1. Check that the VPS server is running and accessible
 2. Verify the IP address and port in `main.py`
 3. Check firewall settings on your Mac
-4. Test the connection: `curl http://78.46.37.169:8080/api/status`
+4. Test the connection: `curl http://148.251.88.48:8080/api/status`
 
 ### Build fails
 
 1. Make sure you have Xcode Command Line Tools installed:
+
    ```bash
    xcode-select --install
    ```
 
 2. Ensure PyInstaller is installed:
+
    ```bash
    pip install pyinstaller
    ```
@@ -115,6 +124,7 @@ mac_app/
 ### Change VPS Server
 
 Edit `main.py`:
+
 ```python
 VPS_HOST = "your-server-ip"
 VPS_PORT = "your-port"
@@ -134,4 +144,3 @@ VPS_PORT = "your-port"
 - All audio processing happens on the VPS server
 - The app UI is served locally for fast, responsive interface
 - API calls are made directly to the VPS server
-
