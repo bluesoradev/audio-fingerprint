@@ -455,7 +455,6 @@ class AudioManipulationManager {
             playBtn.textContent = '⏸';
             this.transformedAudioPlaying = true;
             if (window.startFrequencyVisualization) window.startFrequencyVisualization(player);
-            if (window.startFrequencyVisualization) window.startFrequencyVisualization(player);
         }
     }
 

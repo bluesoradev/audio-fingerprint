@@ -24,7 +24,7 @@ class AudioPlayerManager {
         this.waveformData = null;
         this.waveformCanvas = null;
         this.waveformCtx = null;
-        this.currentAudioSource = null;
+        this.audioSourceMap = new Map(); // Map audio elements to their MediaElementSourceNodes
     }
 
     initAudioContext() {
@@ -125,12 +125,38 @@ class AudioPlayerManager {
 
         try {
             const ctx = this.initAudioContext();
+
+            // Check if this audio element already has a source
+            let audioSource = this.audioSourceMap.get(audioElement);
             
-            // Disconnect previous source if exists
-            if (this.currentAudioSource) {
+            if (!audioSource) {
+                // Create new source only if it doesn't exist
                 try {
-                    this.currentAudioSource.disconnect();
-                } catch (e) {}
+                    audioSource = ctx.createMediaElementSource(audioElement);
+                    this.audioSourceMap.set(audioElement, audioSource);
+                } catch (error) {
+                    // If creation fails, the element is already connected to another source
+                    // This happens when the same audio element is reused or page is refreshed
+                    console.warn('Audio element already connected to MediaElementSource. Frequency visualization will be limited.');
+                    
+                    // Still try to load waveform
+                    if (!this.waveformData) {
+                        this.loadWaveformData(audioElement);
+                    }
+                    
+                    // Create analyser if needed (won't have frequency data but won't crash)
+                    if (!this.analyserNode) {
+                        this.analyserNode = ctx.createAnalyser();
+                        this.analyserNode.fftSize = 2048;
+                        this.frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
+                    }
+                    
+                    // Start animation loop (will show empty/static spectrum but won't error)
+                    if (!this.animationFrameId) {
+                        this.animateFrequency();
+                    }
+                    return;
+                }
             }
 
             if (!this.analyserNode) {
@@ -139,17 +165,51 @@ class AudioPlayerManager {
                 this.frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
             }
 
-            this.currentAudioSource = ctx.createMediaElementSource(audioElement);
-            this.currentAudioSource.connect(this.analyserNode);
-            this.analyserNode.connect(ctx.destination);
+            // Connect source to analyser (disconnect first to avoid connection errors)
+            try {
+                // Disconnect from any previous connections to avoid "already connected" errors
+                try {
+                    audioSource.disconnect();
+                } catch (e) {
+                    // Not connected, that's fine - continue
+                }
+                try {
+                    this.analyserNode.disconnect();
+                } catch (e) {
+                    // Not connected, that's fine - continue
+                }
+                
+                // Now connect fresh
+                audioSource.connect(this.analyserNode);
+                this.analyserNode.connect(ctx.destination);
+            } catch (e) {
+                // Connection issue - log but continue
+                console.warn('Connection issue during frequency visualization setup:', e);
+            }
 
-            // Load and draw waveform
-            this.loadWaveformData(audioElement);
+            // Load and draw waveform if not already loaded
+            if (!this.waveformData) {
+                this.loadWaveformData(audioElement);
+            }
             
             // Start frequency visualization
             this.animateFrequency();
         } catch (error) {
+            // If it's the "already connected" error, that's expected - handle gracefully
+            if (error.message && error.message.includes('already connected')) {
+                console.log('Audio element already connected - skipping frequency visualization setup');
+                // Still try to load waveform
+                if (!this.waveformData && audioElement) {
+                    this.loadWaveformData(audioElement);
+                }
+                // Don't log as error, just return
+                return;
+            }
             console.error('Error initializing frequency visualization:', error);
+            // Try to continue anyway - start animation even if setup failed
+            if (this.analyserNode && !this.animationFrameId) {
+                this.animateFrequency();
+            }
         }
     }
 
