@@ -2766,9 +2766,11 @@
         document.addEventListener("DOMContentLoaded", function() {
             hideSectionsInManipulate();
             // Ensure default section (deliverables) is shown on page load
+            // Note: CSS .section.active handles visibility, don't set inline styles
             const defaultSection = document.getElementById('deliverables');
-            if (defaultSection && defaultSection.classList.contains('active')) { // Section is already marked as active, ensure it's visible
-                defaultSection.style.display = 'block';
+            if (defaultSection && defaultSection.classList.contains('active')) {
+                // CSS will handle display via .active class, no need for inline style
+                // defaultSection.style.display = 'block'; // Removed - causes overlap issues
             }
         });
         setTimeout(function() {

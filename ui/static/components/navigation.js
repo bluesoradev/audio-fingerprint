@@ -45,9 +45,13 @@ class NavigationManager {
      */
     showSection(sectionId, eventElement) {
         try {
-            // Hide all sections
+            // Hide all sections - remove both class and inline styles
             const allSections = querySelectorAll('.section');
-            allSections.forEach(s => s.classList.remove('active'));
+            allSections.forEach(s => {
+                s.classList.remove('active');
+                // Remove inline display style that might override CSS
+                s.style.display = '';
+            });
 
             // Show selected section
             const targetSection = getElement(sectionId);
@@ -56,6 +60,8 @@ class NavigationManager {
                 return;
             }
             targetSection.classList.add('active');
+            // Ensure inline style doesn't override (CSS will handle display via .active class)
+            targetSection.style.display = '';
             this.currentSection = sectionId;
 
             // Update active nav item
