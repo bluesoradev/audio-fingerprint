@@ -386,6 +386,9 @@
 
         // Initialize navigation
         navigationManager.init();
+        
+        // Register section loaders
+        navigationManager.registerLoader('manipulate', loadManipulateAudioFiles);
 
         // Set up DOMContentLoaded handler
         if (document.readyState === 'loading') {
@@ -401,6 +404,10 @@
 
             // Load initial data
             loadDashboard();
+            
+            // Load audio files for Manipulate Audio section on page load
+            // This ensures files are available even if user hasn't navigated to the section yet
+            loadManipulateAudioFiles();
         }
 
     } catch (error) {
