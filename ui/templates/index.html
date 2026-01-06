@@ -245,6 +245,15 @@
             overflow: visible;
         }
 
+        /* Remove scrollbars from "1. Load Audio File" and "3. Test Fingerprint Robustness" workflow steps */
+        .manipulate-right-panel .workflow-step:first-child,
+        .manipulate-right-panel .workflow-step:nth-of-type(2) {
+            overflow: visible !important;
+            overflow-y: visible !important;
+            overflow-x: visible !important;
+            max-height: none !important;
+        }
+
         .workflow-step h3 {
             margin-bottom: 15px;
             color: #ffffff;
