@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 try:
     import torch
     HAS_TORCH = True
-except ImportError:
+except (ImportError, OSError) as e:
     HAS_TORCH = False
-    logger.warning("PyTorch not available, GPU memory management disabled")
+    logger.warning(f"PyTorch not available (error: {type(e).__name__}: {e}), GPU memory management disabled")
 
 
 class MemoryManager:
