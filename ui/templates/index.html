@@ -13,17 +13,26 @@
             box-sizing: border-box;
         }
 
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #1e1e1e;
             color: #ffffff;
             min-height: 100vh;
+            overflow-x: hidden;
+            width: 100%;
         }
 
         .container {
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         header {
@@ -1322,22 +1331,363 @@
             height: 100%;
         }
 
+        /* Mobile Responsive Styles */
         @media(max-width: 968px) {
+            * {
+                max-width: 100%;
+            }
+
+            html, body {
+                overflow-x: hidden;
+                width: 100%;
+            }
+
+            .container {
+                padding: 10px;
+                width: 100%;
+                max-width: 100%;
+            }
+
             .main-content {
                 grid-template-columns: 1fr;
+                gap: 15px;
             }
 
             .sidebar {
                 position: static;
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+
+            .sidebar h2, .sidebar h3 {
+                font-size: 14px;
+            }
+
+            .nav-menu a {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            .nav-menu a img {
+                width: 18px;
+                height: 18px;
+            }
+
+            .content-area {
+                padding: 15px;
             }
 
             .manipulate-container {
                 grid-template-columns: 1fr;
                 height: auto;
+                min-height: auto;
+                gap: 15px;
             }
 
             .manipulate-left-panel {
-                max-height: 400px;
+                max-height: none;
+                padding: 15px;
+            }
+
+            .transform-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            header {
+                padding: 15px;
+            }
+
+            header h1 {
+                font-size: 1.5em;
+            }
+
+            .workflow-step {
+                padding: 15px;
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+            }
+
+            .btn {
+                padding: 10px 15px;
+                font-size: 13px;
+            }
+
+            .upload-area {
+                padding: 30px 15px;
+            }
+
+            .transform-card {
+                padding: 12px;
+            }
+
+            .transform-card h4 {
+                font-size: 14px;
+            }
+
+            .slider-container {
+                margin: 10px 0;
+            }
+
+            select, input[type="text"], input[type="number"] {
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+        }
+
+        @media(max-width: 640px) {
+            html, body {
+                overflow-x: hidden;
+                width: 100%;
+            }
+
+            .container {
+                padding: 8px;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .sidebar {
+                padding: 12px;
+            }
+
+            .content-area {
+                padding: 12px;
+            }
+
+            header {
+                padding: 12px;
+            }
+
+            header h1 {
+                font-size: 1.3em;
+            }
+
+            .nav-menu a {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+
+            .nav-menu a img {
+                width: 16px;
+                height: 16px;
+            }
+
+            .manipulate-left-panel {
+                padding: 12px;
+            }
+
+            .transform-card {
+                padding: 10px;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                width: 100%;
+            }
+
+            .upload-area {
+                padding: 20px 10px;
+            }
+
+            .upload-area-cloud img {
+                width: 48px;
+                height: 48px;
+            }
+
+            .workflow-step h3 {
+                font-size: 16px;
+            }
+
+            .form-group label {
+                font-size: 13px;
+            }
+
+            select, input[type="text"], input[type="number"] {
+                padding: 6px 8px;
+                font-size: 12px;
+                width: 100%;
+            }
+
+            .slider {
+                width: 100%;
+            }
+
+            .progress-indicators {
+                flex-direction: column;
+                gap: 24px;
+            }
+
+            .file-select-container {
+                flex-direction: column;
+            }
+
+            .file-select-container select {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+
+            .clear-btn {
+                width: 100%;
+            }
+
+            .audio-players-container {
+                flex-direction: column;
+            }
+
+            .audio-player-panel {
+                width: 100%;
+            }
+
+            .test-results-log {
+                font-size: 11px;
+                padding: 10px;
+            }
+
+            .content-area-full,
+            .content-area-manipulate,
+            .content-area-manipulate-with-results {
+                min-height: auto !important;
+            }
+
+            .manipulate-right-panel {
+                padding: 12px;
+            }
+
+            .transform-subsection {
+                margin-bottom: 15px;
+            }
+
+            .transform-subsection h4 {
+                font-size: 13px;
+            }
+
+            .transform-card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .transform-card-header h4 {
+                font-size: 13px;
+            }
+
+            .workflow-step {
+                padding: 12px;
+            }
+
+            .workflow-step h3 {
+                font-size: 15px;
+            }
+
+            .slider-wrapper {
+                width: 100%;
+            }
+
+            .slider-value {
+                font-size: 11px;
+            }
+
+            .test-results-log {
+                max-height: 200px;
+            }
+
+            h2 {
+                font-size: 1.3em;
+            }
+
+            h3 {
+                font-size: 1.1em;
+            }
+
+            h4 {
+                font-size: 0.95em;
+            }
+
+            table {
+                font-size: 11px;
+                width: 100%;
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table th,
+            table td {
+                padding: 6px;
+                white-space: nowrap;
+            }
+
+            .table {
+                width: 100%;
+                display: block;
+                overflow-x: auto;
+            }
+
+            .daw-upload-area {
+                padding: 30px 15px;
+            }
+        }
+
+        @media(max-width: 480px) {
+            html, body {
+                overflow-x: hidden;
+                width: 100%;
+            }
+
+            .container {
+                padding: 5px;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .sidebar {
+                padding: 10px;
+            }
+
+            .content-area {
+                padding: 10px;
+            }
+
+            header {
+                padding: 10px;
+            }
+
+            header h1 {
+                font-size: 1.2em;
+            }
+
+            .nav-menu a {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+
+            .btn {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+
+            .upload-area {
+                padding: 15px 8px;
+            }
+
+            .transform-card {
+                padding: 8px;
+            }
+
+            .workflow-step {
+                padding: 10px;
+            }
+
+            select, input[type="text"], input[type="number"] {
+                padding: 5px 6px;
+                font-size: 11px;
             }
         }
     </style>
