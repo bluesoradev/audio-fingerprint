@@ -241,9 +241,6 @@ class FLStudioParser(BaseDAWParser):
         chains = []
         
         try:
-            # FL Studio Channel Rack contains tracks with plugins
-            # This is a placeholder implementation
-            # TODO: Research actual .flp format structure and implement proper parsing
             
             logger.warning("FL Studio plugin extraction requires format research - returning empty")
             
@@ -257,9 +254,6 @@ class FLStudioParser(BaseDAWParser):
         samples = []
         
         try:
-            # FL Studio stores sample paths
-            # This is a placeholder implementation
-            # TODO: Research actual .flp format structure and implement proper parsing
             
             logger.warning("FL Studio sample extraction requires format research - returning empty")
             
