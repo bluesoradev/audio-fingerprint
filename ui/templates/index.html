@@ -1177,10 +1177,10 @@
             background: #1e1e1e;
             border-radius: 4px;
             padding: 10px;
-            min-height: 300px;
+            min-height: 400px;
+            height: calc(100% - 60px);
             position: relative;
-            overflow-x: auto;
-            overflow-y: auto;
+            overflow: hidden;
         }
 
         .waveform-track {
@@ -1901,29 +1901,14 @@
                                 <h4>Waveform Editor</h4>
                                 <div class="waveform-tracks" id="waveformTracks">
                                     <div class="waveform-track">
-                                        <div class="track-controls">
-                                            <button class="track-control-btn" title="Mute">M</button>
-                                            <button class="track-control-btn" title="Solo">S</button>
-                                        </div>
-                                        <div class="track-label" id="track1Label">Track 1</div>
-                                        <div class="track-waveform-area" id="track1Waveform">
-                                            <canvas id="waveformCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
-                                            <div class="playhead" id="waveformPlayhead" style="left: 0%;"></div>
-                                        </div>
+                                        <canvas id="waveformCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                                        <div class="playhead" id="waveformPlayhead" style="left: 0%;"></div>
                                     </div>
                                 </div>
                                 <div class="waveform-zoom-controls">
                                     <button class="zoom-btn" onclick="waveformZoomIn()">Zoom In</button>
                                     <span class="time-range-display" id="waveformTimeRange">00:00:00.000 - 00:00:05.123</span>
                                     <button class="zoom-btn" onclick="waveformZoomOut()">Zoom Out</button>
-                                </div>
-                            </div>
-
-                            <!-- Frequency Display -->
-                            <div class="frequency-display">
-                                <h4>Frequency Spectrum</h4>
-                                <div class="frequency-canvas-container">
-                                    <canvas class="frequency-canvas" id="frequencySpectrumCanvas"></canvas>
                                 </div>
                             </div>
 

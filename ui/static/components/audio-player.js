@@ -355,9 +355,9 @@ class AudioPlayerManager {
             if (canvas) {
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
-                    const container = canvas.parentElement;
+                    const container = canvas.parentElement; // waveform-track
                     const width = container ? container.offsetWidth : 800;
-                    const height = container ? container.offsetHeight : 100;
+                    const height = container ? container.offsetHeight : 400; // Larger height for full track display
                     canvas.width = width;
                     canvas.height = height;
                     ctx.fillStyle = '#1e1e1e';
@@ -371,13 +371,13 @@ class AudioPlayerManager {
             return;
         }
 
-        const container = canvas.parentElement;
+        const container = canvas.parentElement; // waveform-track
         if (!container) return;
 
         // Set canvas size with proper pixel ratio for crisp rendering
         const dpr = window.devicePixelRatio || 1;
         const width = container.offsetWidth || 800;
-        const height = container.offsetHeight || 100;
+        const height = container.offsetHeight || 400; // Larger height for full track display
         canvas.width = width * dpr;
         canvas.height = height * dpr;
         canvas.style.width = width + 'px';
@@ -449,7 +449,8 @@ class AudioPlayerManager {
     }
 
     setupWaveformScrubbing() {
-        const waveformAreas = document.querySelectorAll('.track-waveform-area, .audio-player-waveform');
+        // Updated to work with new structure where canvas is directly in waveform-track
+        const waveformAreas = document.querySelectorAll('.waveform-track, .track-waveform-area, .audio-player-waveform');
         waveformAreas.forEach(area => {
             area.addEventListener('click', (e) => {
                 const rect = area.getBoundingClientRect();
@@ -545,10 +546,11 @@ class AudioPlayerManager {
         // Initialize waveform canvas
         const waveformCanvas = getElement('waveformCanvas');
         if (waveformCanvas) {
-            const container = waveformCanvas.parentElement;
+            const container = waveformCanvas.parentElement; // waveform-track
             if (container) {
+                // Make canvas fill the entire track container
                 waveformCanvas.width = container.offsetWidth || 800;
-                waveformCanvas.height = container.offsetHeight || 100;
+                waveformCanvas.height = container.offsetHeight || 400;
             }
         }
     }
