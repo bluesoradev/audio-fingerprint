@@ -45,12 +45,12 @@ class NavigationManager {
      */
     showSection(sectionId, eventElement) {
         try {
-            // Hide all sections - remove both class and inline styles
+            // Hide all sections - explicitly set display: none to override any inline styles
             const allSections = querySelectorAll('.section');
             allSections.forEach(s => {
                 s.classList.remove('active');
-                // Remove inline display style that might override CSS
-                s.style.display = '';
+                // Force hide with inline style to override any conflicting styles
+                s.style.display = 'none';
             });
 
             // Show selected section
@@ -60,7 +60,7 @@ class NavigationManager {
                 return;
             }
             targetSection.classList.add('active');
-            // Ensure inline style doesn't override (CSS will handle display via .active class)
+            // Remove inline style so CSS .active class can control visibility
             targetSection.style.display = '';
             this.currentSection = sectionId;
 
@@ -103,8 +103,18 @@ class NavigationManager {
             };
         }
 
-        // Set up navigation button event listeners
+        // Set up navigation button event listeners and initialize sections
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize: hide all sections except the one marked as active
+            const allSections = querySelectorAll('.section');
+            allSections.forEach(s => {
+                if (!s.classList.contains('active')) {
+                    s.style.display = 'none';
+                } else {
+                    s.style.display = '';
+                }
+            });
+
             querySelectorAll('.nav-menu a').forEach(link => {
                 const onclick = link.getAttribute('onclick');
                 if (onclick && onclick.includes('showSection')) {

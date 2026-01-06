@@ -1143,7 +1143,7 @@ def render_html_report(
     """
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w') as f:
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html)
     
     logger.info(f"Generated HTML report: {output_path}")
