@@ -589,6 +589,9 @@
         /* Transform Tabs Interface */
         .transform-tabs-container {
             margin-top: 20px;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
         }
 
         .transform-tabs {
@@ -597,6 +600,25 @@
             border-bottom: 2px solid #1A1A2E;
             margin-bottom: 0;
             padding: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+
+        .transform-tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .transform-tabs::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .transform-tabs::-webkit-scrollbar-thumb {
+            background: #427eea;
+            border-radius: 2px;
         }
 
         .transform-tab {
@@ -611,6 +633,9 @@
             transition: all 0.3s ease;
             position: relative;
             top: 2px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: fit-content;
         }
 
         .transform-tab:hover {
@@ -1435,6 +1460,23 @@
                 grid-template-columns: 1fr !important;
             }
 
+            .transform-tabs-container {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            .transform-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .transform-tab {
+                padding: 10px 14px;
+                font-size: 13px;
+                white-space: nowrap;
+            }
+
             .stats-grid {
                 grid-template-columns: 1fr !important;
             }
@@ -1725,6 +1767,17 @@
             .workflow-step p {
                 font-size: 11px;
             }
+
+            .transform-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .transform-tab {
+                padding: 10px 16px;
+                font-size: 12px;
+                white-space: nowrap;
+            }
         }
 
         @media(max-width: 480px) {
@@ -1783,6 +1836,17 @@
             select, input[type="text"], input[type="number"] {
                 padding: 5px 6px;
                 font-size: 11px;
+            }
+
+            .transform-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .transform-tab {
+                padding: 8px 12px;
+                font-size: 11px;
+                white-space: nowrap;
             }
         }
     </style>
