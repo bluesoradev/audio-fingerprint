@@ -24,7 +24,7 @@ class DAWParserManager {
         }
 
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}/daw/files`);
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DAW.FILES}`);
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch DAW files: ${response.status} ${response.statusText}`);
@@ -111,7 +111,7 @@ class DAWParserManager {
             const formData = new FormData();
             formData.append('file_path', filePath);
 
-            const response = await fetch(`${API_CONFIG.BASE_URL}/daw/parse`, {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DAW.PARSE}`, {
                 method: 'POST',
                 body: formData
             });
@@ -131,7 +131,7 @@ class DAWParserManager {
 
     async viewDAWMetadata(filePath) {
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}/daw/metadata`);
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DAW.METADATA}`);
             const data = await response.json();
 
             const fileName = filePath.split('/').pop().replace(/\.[^/.]+$/, '');

@@ -4033,9 +4033,23 @@ async def parse_daw_file(file_path: str = Form(...)):
     try:
         from daw_parser.utils import get_parser_for_file
 
-        daw_file = Path(file_path)
+        # Resolve file path - handle both relative and absolute paths
+        file_path_obj = Path(file_path)
+        if file_path_obj.is_absolute():
+            daw_file = file_path_obj
+        else:
+            # Try relative to PROJECT_ROOT first
+            daw_file = PROJECT_ROOT / file_path_obj
+            if not daw_file.exists():
+                # Try relative to DATA_DIR/daw_files (common case for uploaded files)
+                daw_file = DATA_DIR / "daw_files" / file_path_obj.name
+                if not daw_file.exists():
+                    # Try with the full relative path in data/daw_files
+                    daw_file = DATA_DIR / "daw_files" / file_path_obj
+        
         if not daw_file.exists():
-            return JSONResponse({"error": "DAW file not found"}, status_code=404)
+            logger.error(f"DAW file not found: {file_path} (resolved to: {daw_file})")
+            return JSONResponse({"error": f"DAW file not found: {file_path}"}, status_code=404)
 
         parser = get_parser_for_file(daw_file)
         metadata = parser.parse()
@@ -4082,8 +4096,10 @@ async def upload_daw_file(
             except Exception as e:
                 logger.warning(f"Failed to link DAW file to audio: {e}")
 
+        # Return relative path from PROJECT_ROOT for consistency
+        file_path_relative = file_path.relative_to(PROJECT_ROOT) if file_path.is_relative_to(PROJECT_ROOT) else file_path
         return JSONResponse(
-            {"status": "success", "file_path": str(file_path), "link_info": link_info}
+            {"status": "success", "file_path": str(file_path_relative).replace("\\", "/"), "link_info": link_info}
         )
     except Exception as e:
         logger.error(f"Error uploading DAW file: {e}", exc_info=True)
