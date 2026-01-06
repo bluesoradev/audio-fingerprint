@@ -1508,11 +1508,6 @@
                 gap: 15px;
             }
 
-            /* Ensure all children start with default order 0, then we override */
-            .manipulate-container > * {
-                order: 0;
-            }
-
             /* Reorder sections for correct mobile display: 1, 2, 3, 4 */
             /* Use display: contents to allow children to participate in parent flex ordering */
             .manipulate-right-panel {
@@ -1533,30 +1528,30 @@
                 margin-bottom: 20px;
             }
 
-            /* Order: 1. Load Audio File - MUST be first */
-            .manipulate-right-panel > .workflow-step:first-of-type {
+            /* Order: 1. Load Audio File - MUST be first (first child of right panel) */
+            .manipulate-container .manipulate-right-panel > .workflow-step:first-child {
                 order: 1 !important;
             }
 
-            /* Order: Audio Players (between 1 and 2) */
-            .manipulate-right-panel > .audio-players-container {
+            /* Order: Audio Players (second child of right panel) */
+            .manipulate-container .manipulate-right-panel > .audio-players-container {
                 order: 2 !important;
             }
 
-            /* Order: 2. Apply Transforms */
-            .manipulate-left-panel {
+            /* Order: 2. Apply Transforms (left panel) */
+            .manipulate-container .manipulate-left-panel {
                 order: 3 !important;
                 max-height: none;
                 padding: 15px;
             }
 
-            /* Order: 3. Test Fingerprint Robustness - second workflow-step */
-            .manipulate-right-panel > .workflow-step:nth-of-type(2) {
+            /* Order: 3. Test Fingerprint Robustness (third child of right panel) */
+            .manipulate-container .manipulate-right-panel > .workflow-step:nth-child(3) {
                 order: 4 !important;
             }
 
-            /* Order: 4. Test Results - third workflow-step - MUST be last */
-            .manipulate-right-panel > .workflow-step:last-of-type {
+            /* Order: 4. Test Results (fourth child of right panel) - MUST be last */
+            .manipulate-container .manipulate-right-panel > .workflow-step:nth-child(4) {
                 order: 5 !important;
             }
 
