@@ -25,6 +25,8 @@ class AudioPlayerManager {
         this.waveformCanvas = null;
         this.waveformCtx = null;
         this.audioSourceMap = new Map(); // Map audio elements to their MediaElementSourceNodes
+        this.cachedCanvasWidth = null;
+        this.cachedCanvasHeight = null;
     }
 
     initAudioContext() {
@@ -509,24 +511,38 @@ class AudioPlayerManager {
         const container = canvas.parentElement;
         if (!container) return;
 
-        const width = container.offsetWidth || 800;
-        const height = container.offsetHeight || 400; // Match the height used in drawWaveform
+        const width = this.cachedCanvasWidth || container.offsetWidth || 800;
+        const height = this.cachedCanvasHeight || container.offsetHeight || 400;
         const dpr = window.devicePixelRatio || 1;
 
-        // Redraw base waveform (this sets up the canvas and scales context)
-        this.drawWaveform();
+        // Only redraw base waveform if canvas dimensions changed
+        const currentWidth = container.offsetWidth || 800;
+        const currentHeight = container.offsetHeight || 400;
+        if (this.cachedCanvasWidth !== currentWidth || this.cachedCanvasHeight !== currentHeight) {
+            this.drawWaveform();
+        }
         
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Context is already scaled by drawWaveform, use logical coordinates
+        // Save current transform state
+        ctx.save();
+        
+        // Reset transform to logical coordinates
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+
+        // Draw playhead line
         const x = playheadPosition * width;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2 / dpr; // Adjust line width for scaled context
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
+        
+        // Restore transform state
+        ctx.restore();
     }
 
     init() {

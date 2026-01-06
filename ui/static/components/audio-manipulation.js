@@ -1256,6 +1256,7 @@ class AudioManipulationManager {
             if (result.status === 'success') {
                 showCompletionAlert(result.message);
                 addSystemLog(`Chain transform applied: ${result.output_path}`, 'success');
+                await this.loadManipulateAudioFiles();
                 this.clearChain();
                 await this.loadManipulateAudioFiles();
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
@@ -1563,6 +1564,7 @@ class AudioManipulationManager {
             if (result.status === 'success') {
                 showCompletionAlert(result.message);
                 addSystemLog(`Low-pass filter applied: ${result.output_path}`, 'success');
+                await this.loadManipulateAudioFiles();
                 this.updateTransformedPlayer(result.output_path);
                 this.updateTestDisplays(this.selectedAudioFile, result.output_path);
             } else {
@@ -1631,6 +1633,7 @@ class AudioManipulationManager {
             if (result.status === 'success') {
                 showCompletionAlert(result.message);
                 addSystemLog(`Boost lows applied: ${result.output_path}`, 'success');
+                await this.loadManipulateAudioFiles();
                 this.updateTransformedPlayer(result.output_path);
                 this.updateTestDisplays(this.selectedAudioFile, result.output_path);
             } else {
@@ -1695,6 +1698,7 @@ class AudioManipulationManager {
             if (result.status === 'success') {
                 showCompletionAlert(result.message);
                 addSystemLog(`Limiting applied: ${result.output_path}`, 'success');
+                await this.loadManipulateAudioFiles();
                 this.updateTransformedPlayer(result.output_path);
                 this.updateTestDisplays(this.selectedAudioFile, result.output_path);
             } else {
@@ -1762,6 +1766,7 @@ class AudioManipulationManager {
             if (result.status === 'success') {
                 showCompletionAlert(result.message);
                 addSystemLog(`Noise added (${noiseType}): ${result.output_path}`, 'success');
+                await this.loadManipulateAudioFiles();
                 this.updateTransformedPlayer(result.output_path);
                 this.updateTestDisplays(this.selectedAudioFile, result.output_path);
             } else {
@@ -1815,6 +1820,7 @@ class AudioManipulationManager {
             if (result.status === 'success') {
                 showCompletionAlert(result.message);
                 addSystemLog(`Crop applied (${cropType}): ${result.output_path}`, 'success');
+                await this.loadManipulateAudioFiles();
                 this.updateTransformedPlayer(result.output_path);
                 this.updateTestDisplays(this.selectedAudioFile, result.output_path);
             } else {
