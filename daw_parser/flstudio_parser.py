@@ -15,6 +15,8 @@ from .exceptions import DAWParseError, CorruptedFileError
 logger = logging.getLogger(__name__)
 
 
+
+
 class FLStudioParser(BaseDAWParser):
     """Parser for FL Studio .flp project files."""
     
