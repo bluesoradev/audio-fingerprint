@@ -479,12 +479,17 @@
             border-collapse: collapse;
             margin-top: 20px;
             display: table;
+            min-width: 600px;
         }
 
         .table-wrapper {
             width: 100%;
+            max-width: 100%;
             overflow-x: auto;
+            overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
+            display: block;
+            margin: 10px 0;
         }
 
         .table th,
@@ -1477,6 +1482,17 @@
                 white-space: nowrap;
             }
 
+            .table-wrapper {
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .table {
+                min-width: 600px;
+            }
+
             .stats-grid {
                 grid-template-columns: 1fr !important;
             }
@@ -1706,8 +1722,10 @@
             }
 
             .table-wrapper {
-                width: 100%;
-                overflow-x: auto;
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
                 -webkit-overflow-scrolling: touch;
                 display: block;
                 margin: 10px 0;
@@ -1778,6 +1796,17 @@
                 font-size: 12px;
                 white-space: nowrap;
             }
+
+            .table-wrapper {
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .table {
+                min-width: 600px;
+            }
         }
 
         @media(max-width: 480px) {
@@ -1847,6 +1876,23 @@
                 padding: 8px 12px;
                 font-size: 11px;
                 white-space: nowrap;
+            }
+
+            .table-wrapper {
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .table {
+                min-width: 500px;
+                font-size: 10px;
+            }
+
+            .table th,
+            .table td {
+                padding: 6px 8px;
             }
         }
     </style>
