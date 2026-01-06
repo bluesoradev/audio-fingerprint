@@ -358,8 +358,14 @@ class AudioPlayerManager {
                     const container = canvas.parentElement; // waveform-track
                     const width = container ? container.offsetWidth : 800;
                     const height = container ? container.offsetHeight : 400; // Larger height for full track display
-                    canvas.width = width;
-                    canvas.height = height;
+                    const dpr = window.devicePixelRatio || 1;
+                    canvas.width = width * dpr;
+                    canvas.height = height * dpr;
+                    canvas.style.width = width + 'px';
+                    canvas.style.height = height + 'px';
+                    // Reset transform to prevent scaling issues
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.scale(dpr, dpr);
                     ctx.fillStyle = '#1e1e1e';
                     ctx.fillRect(0, 0, width, height);
                     ctx.fillStyle = '#3d3d3d';
@@ -386,6 +392,9 @@ class AudioPlayerManager {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // Reset transform matrix to prevent cumulative scaling
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        
         // Scale context for device pixel ratio
         ctx.scale(dpr, dpr);
 
@@ -501,7 +510,7 @@ class AudioPlayerManager {
         if (!container) return;
 
         const width = container.offsetWidth || 800;
-        const height = container.offsetHeight || 100;
+        const height = container.offsetHeight || 400; // Match the height used in drawWaveform
         const dpr = window.devicePixelRatio || 1;
 
         // Redraw base waveform (this sets up the canvas and scales context)
@@ -513,7 +522,7 @@ class AudioPlayerManager {
         // Context is already scaled by drawWaveform, use logical coordinates
         const x = playheadPosition * width;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 / dpr; // Adjust line width for scaled context
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
