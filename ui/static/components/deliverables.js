@@ -37,7 +37,7 @@ class DeliverablesManager {
                 result.runs.forEach(run => {
                     const runPath = (run.path || '').toLowerCase();
                     const runId = (run.id || '').toLowerCase();
-                    const runPhase = (run.phase || run.summary ? .phase || '').toLowerCase();
+                    const runPhase = (run.phase || (run.summary && run.summary.phase) || '').toLowerCase();
 
                     const isPhase1 = runPhase === 'phase1' || runPath.includes('phase1') || runId.includes('phase1') ||
                         runPath.includes('phase_1') || runId.includes('phase_1') || (runId.includes('test_') && runId.includes('phase1'));
@@ -61,7 +61,7 @@ class DeliverablesManager {
                         if (detailsResp.ok) {
                             const details = await detailsResp.json();
                             const metrics = details.metrics || {};
-                            const phase = (metrics.summary ? .phase || metrics.test_details ? .phase || '').toLowerCase();
+                            const phase = ((metrics.summary && metrics.summary.phase) || (metrics.test_details && metrics.test_details.phase) || '').toLowerCase();
 
                             if (phase === 'phase1') {
                                 run.phase = 'phase1';
@@ -211,7 +211,7 @@ class DeliverablesManager {
             const rank = overall.rank || {};
             const similarity = overall.similarity || {};
             const passFail = metrics.pass_fail || {};
-            const phase = testDetails.phase || metrics.summary ? .phase || 'unknown';
+            const phase = testDetails.phase || (metrics.summary && metrics.summary.phase) || 'unknown';
 
             const matched = testDetails.matched !== undefined ? testDetails.matched : (passFail.passed > 0);
             const statusColor = !hasMetrics ? '#f59e0b' : (matched ? '#10b981' : '#f87171');
@@ -873,25 +873,44 @@ class DeliverablesManager {
     updateDeliverablesTransformState() {
         // Count enabled transformations - function kept for compatibility
         const enabledTransforms = [];
-        if (getElement('deliverablesSpeedEnabled') ? .checked) enabledTransforms.push('Speed');
-        if (getElement('deliverablesPitchEnabled') ? .checked) enabledTransforms.push('Pitch');
-        if (getElement('deliverablesReverbEnabled') ? .checked) enabledTransforms.push('Reverb');
-        if (getElement('deliverablesNoiseEnabled') ? .checked) enabledTransforms.push('Noise Reduction');
-        if (getElement('deliverablesEQEnabled') ? .checked) enabledTransforms.push('EQ');
-        if (getElement('deliverablesCompressionEnabled') ? .checked &&
-            getElement('deliverablesCodecSelect') ? .value !== 'None') enabledTransforms.push('Compression');
-        if (getElement('deliverablesOverlayEnabled') ? .checked) enabledTransforms.push('Overlay');
-        if (getElement('deliverablesHighpassEnabled') ? .checked) enabledTransforms.push('High-Pass');
-        if (getElement('deliverablesLowpassEnabled') ? .checked) enabledTransforms.push('Low-Pass');
-        if (getElement('deliverablesBoostHighsEnabled') ? .checked) enabledTransforms.push('Boost Highs');
-        if (getElement('deliverablesBoostLowsEnabled') ? .checked) enabledTransforms.push('Boost Lows');
-        if (getElement('deliverablesTelephoneEnabled') ? .checked) enabledTransforms.push('Telephone');
-        if (getElement('deliverablesLimitingEnabled') ? .checked) enabledTransforms.push('Limiting');
-        if (getElement('deliverablesMultibandEnabled') ? .checked) enabledTransforms.push('Multiband');
-        if (getElement('deliverablesAddNoiseEnabled') ? .checked) enabledTransforms.push('Add Noise');
-        if (getElement('deliverablesCropEnabled') ? .checked) enabledTransforms.push('Crop');
-        if (getElement('deliverablesEmbeddedSampleEnabled') ? .checked) enabledTransforms.push('Embedded Sample');
-        if (getElement('deliverablesSongAInSongBEnabled') ? .checked) enabledTransforms.push('Song A in Song B');
+        const speedEnabled = getElement('deliverablesSpeedEnabled');
+        if (speedEnabled && speedEnabled.checked) enabledTransforms.push('Speed');
+        const pitchEnabled = getElement('deliverablesPitchEnabled');
+        if (pitchEnabled && pitchEnabled.checked) enabledTransforms.push('Pitch');
+        const reverbEnabled = getElement('deliverablesReverbEnabled');
+        if (reverbEnabled && reverbEnabled.checked) enabledTransforms.push('Reverb');
+        const noiseEnabled = getElement('deliverablesNoiseEnabled');
+        if (noiseEnabled && noiseEnabled.checked) enabledTransforms.push('Noise Reduction');
+        const eqEnabled = getElement('deliverablesEQEnabled');
+        if (eqEnabled && eqEnabled.checked) enabledTransforms.push('EQ');
+        const compressionEnabled = getElement('deliverablesCompressionEnabled');
+        const codecSelect = getElement('deliverablesCodecSelect');
+        if (compressionEnabled && compressionEnabled.checked &&
+            codecSelect && codecSelect.value !== 'None') enabledTransforms.push('Compression');
+        const overlayEnabled = getElement('deliverablesOverlayEnabled');
+        if (overlayEnabled && overlayEnabled.checked) enabledTransforms.push('Overlay');
+        const highpassEnabled = getElement('deliverablesHighpassEnabled');
+        if (highpassEnabled && highpassEnabled.checked) enabledTransforms.push('High-Pass');
+        const lowpassEnabled = getElement('deliverablesLowpassEnabled');
+        if (lowpassEnabled && lowpassEnabled.checked) enabledTransforms.push('Low-Pass');
+        const boostHighsEnabled = getElement('deliverablesBoostHighsEnabled');
+        if (boostHighsEnabled && boostHighsEnabled.checked) enabledTransforms.push('Boost Highs');
+        const boostLowsEnabled = getElement('deliverablesBoostLowsEnabled');
+        if (boostLowsEnabled && boostLowsEnabled.checked) enabledTransforms.push('Boost Lows');
+        const telephoneEnabled = getElement('deliverablesTelephoneEnabled');
+        if (telephoneEnabled && telephoneEnabled.checked) enabledTransforms.push('Telephone');
+        const limitingEnabled = getElement('deliverablesLimitingEnabled');
+        if (limitingEnabled && limitingEnabled.checked) enabledTransforms.push('Limiting');
+        const multibandEnabled = getElement('deliverablesMultibandEnabled');
+        if (multibandEnabled && multibandEnabled.checked) enabledTransforms.push('Multiband');
+        const addNoiseEnabled = getElement('deliverablesAddNoiseEnabled');
+        if (addNoiseEnabled && addNoiseEnabled.checked) enabledTransforms.push('Add Noise');
+        const cropEnabled = getElement('deliverablesCropEnabled');
+        if (cropEnabled && cropEnabled.checked) enabledTransforms.push('Crop');
+        const embeddedSampleEnabled = getElement('deliverablesEmbeddedSampleEnabled');
+        if (embeddedSampleEnabled && embeddedSampleEnabled.checked) enabledTransforms.push('Embedded Sample');
+        const songAInSongBEnabled = getElement('deliverablesSongAInSongBEnabled');
+        if (songAInSongBEnabled && songAInSongBEnabled.checked) enabledTransforms.push('Song A in Song B');
     }
 
     async applyAllDeliverablesTransforms() {
@@ -902,166 +921,210 @@ class DeliverablesManager {
 
         const enabledTransforms = [];
 
-        if (getElement('deliverablesSpeedEnabled') ? .checked) {
+        const deliverablesSpeedEnabled = getElement('deliverablesSpeedEnabled');
+        if (deliverablesSpeedEnabled && deliverablesSpeedEnabled.checked) {
+            const preservePitchEl = getElement('deliverablesPreservePitch');
             enabledTransforms.push({
                 type: 'speed',
                 speed: parseFloat(getElement('deliverablesSpeedSlider').value) / 100,
-                preserve_pitch: getElement('deliverablesPreservePitch') ? .checked || false
+                preserve_pitch: (preservePitchEl && preservePitchEl.checked) || false
             });
         }
 
-        if (getElement('deliverablesPitchEnabled') ? .checked) {
+        const deliverablesPitchEnabled = getElement('deliverablesPitchEnabled');
+        if (deliverablesPitchEnabled && deliverablesPitchEnabled.checked) {
             enabledTransforms.push({
                 type: 'pitch',
                 semitones: parseInt(getElement('deliverablesPitchSlider').value)
             });
         }
 
-        if (getElement('deliverablesReverbEnabled') ? .checked) {
+        const deliverablesReverbEnabled = getElement('deliverablesReverbEnabled');
+        if (deliverablesReverbEnabled && deliverablesReverbEnabled.checked) {
             enabledTransforms.push({
                 type: 'reverb',
                 delay_ms: parseFloat(getElement('deliverablesReverbSlider').value)
             });
         }
 
-        if (getElement('deliverablesNoiseEnabled') ? .checked) {
+        const deliverablesNoiseEnabled = getElement('deliverablesNoiseEnabled');
+        if (deliverablesNoiseEnabled && deliverablesNoiseEnabled.checked) {
             enabledTransforms.push({
                 type: 'noise_reduction',
                 strength: parseFloat(getElement('deliverablesNoiseSlider').value) / 100
             });
         }
 
-        if (getElement('deliverablesEQEnabled') ? .checked) {
+        const deliverablesEQEnabled2 = getElement('deliverablesEQEnabled');
+        if (deliverablesEQEnabled2 && deliverablesEQEnabled2.checked) {
             enabledTransforms.push({
                 type: 'eq',
                 gain_db: parseFloat(getElement('deliverablesEQSlider').value)
             });
         }
 
-        if (getElement('deliverablesCompressionEnabled') ? .checked) {
-            const codec = getElement('deliverablesCodecSelect') ? .value;
+        const deliverablesCompressionEnabled = getElement('deliverablesCompressionEnabled');
+        if (deliverablesCompressionEnabled && deliverablesCompressionEnabled.checked) {
+            const codecSelectEl = getElement('deliverablesCodecSelect');
+            const codec = codecSelectEl && codecSelectEl.value;
             if (codec !== 'None') {
+                const bitrateSelectEl = getElement('deliverablesBitrateSelect');
                 enabledTransforms.push({
                     type: 'compression',
                     codec: codec.toLowerCase(),
-                    bitrate: getElement('deliverablesBitrateSelect') ? .value
+                    bitrate: (bitrateSelectEl && bitrateSelectEl.value) || null
                 });
             }
         }
 
-        if (getElement('deliverablesOverlayEnabled') ? .checked) {
-            const overlayFile = getElement('deliverablesOverlayFile') ? .files[0];
+        const deliverablesOverlayEnabled = getElement('deliverablesOverlayEnabled');
+        if (deliverablesOverlayEnabled && deliverablesOverlayEnabled.checked) {
+            const overlayFileEl = getElement('deliverablesOverlayFile');
+            const overlayFile = overlayFileEl && overlayFileEl.files && overlayFileEl.files[0];
+            const overlayGainSliderEl = getElement('deliverablesOverlayGainSlider');
             enabledTransforms.push({
                 type: 'overlay',
-                gain_db: parseFloat(getElement('deliverablesOverlayGainSlider') ? .value || -6),
+                gain_db: parseFloat((overlayGainSliderEl && overlayGainSliderEl.value) || -6),
                 overlay_file: overlayFile ? overlayFile.name : null
             });
         }
 
-        if (getElement('deliverablesHighpassEnabled') ? .checked) {
+        const deliverablesHighpassEnabled = getElement('deliverablesHighpassEnabled');
+        if (deliverablesHighpassEnabled && deliverablesHighpassEnabled.checked) {
             enabledTransforms.push({
                 type: 'highpass',
                 freq_hz: parseFloat(getElement('deliverablesHighpassSlider').value)
             });
         }
 
-        if (getElement('deliverablesLowpassEnabled') ? .checked) {
+        const deliverablesLowpassEnabled = getElement('deliverablesLowpassEnabled');
+        if (deliverablesLowpassEnabled && deliverablesLowpassEnabled.checked) {
             enabledTransforms.push({
                 type: 'lowpass',
                 freq_hz: parseFloat(getElement('deliverablesLowpassSlider').value)
             });
         }
 
-        if (getElement('deliverablesBoostHighsEnabled') ? .checked) {
+        const deliverablesBoostHighsEnabled = getElement('deliverablesBoostHighsEnabled');
+        if (deliverablesBoostHighsEnabled && deliverablesBoostHighsEnabled.checked) {
             enabledTransforms.push({
                 type: 'boost_highs',
                 gain_db: parseFloat(getElement('deliverablesBoostHighsSlider').value)
             });
         }
 
-        if (getElement('deliverablesBoostLowsEnabled') ? .checked) {
+        const deliverablesBoostLowsEnabled = getElement('deliverablesBoostLowsEnabled');
+        if (deliverablesBoostLowsEnabled && deliverablesBoostLowsEnabled.checked) {
             enabledTransforms.push({
                 type: 'boost_lows',
                 gain_db: parseFloat(getElement('deliverablesBoostLowsSlider').value)
             });
         }
 
-        if (getElement('deliverablesTelephoneEnabled') ? .checked) {
+        const deliverablesTelephoneEnabled = getElement('deliverablesTelephoneEnabled');
+        if (deliverablesTelephoneEnabled && deliverablesTelephoneEnabled.checked) {
+            const telephoneLowEl = getElement('deliverablesTelephoneLow');
+            const telephoneHighEl = getElement('deliverablesTelephoneHigh');
             enabledTransforms.push({
                 type: 'telephone',
-                low_freq: parseFloat(getElement('deliverablesTelephoneLow') ? .value || 300),
-                high_freq: parseFloat(getElement('deliverablesTelephoneHigh') ? .value || 3000)
+                low_freq: parseFloat((telephoneLowEl && telephoneLowEl.value) || 300),
+                high_freq: parseFloat((telephoneHighEl && telephoneHighEl.value) || 3000)
             });
         }
 
-        if (getElement('deliverablesLimitingEnabled') ? .checked) {
+        const deliverablesLimitingEnabled = getElement('deliverablesLimitingEnabled');
+        if (deliverablesLimitingEnabled && deliverablesLimitingEnabled.checked) {
             enabledTransforms.push({
                 type: 'limiting',
                 ceiling_db: parseFloat(getElement('deliverablesLimitingSlider').value)
             });
         }
 
-        if (getElement('deliverablesMultibandEnabled') ? .checked) {
+        const deliverablesMultibandEnabled = getElement('deliverablesMultibandEnabled');
+        if (deliverablesMultibandEnabled && deliverablesMultibandEnabled.checked) {
             enabledTransforms.push({
                 type: 'multiband'
             });
         }
 
-        if (getElement('deliverablesAddNoiseEnabled') ? .checked) {
+        const deliverablesAddNoiseEnabled = getElement('deliverablesAddNoiseEnabled');
+        if (deliverablesAddNoiseEnabled && deliverablesAddNoiseEnabled.checked) {
+            const noiseTypeSelectEl = getElement('deliverablesNoiseTypeSelect');
+            const noiseSNRSliderEl = getElement('deliverablesNoiseSNRSlider');
             enabledTransforms.push({
                 type: 'add_noise',
-                noise_type: getElement('deliverablesNoiseTypeSelect') ? .value || 'white',
-                snr_db: parseFloat(getElement('deliverablesNoiseSNRSlider') ? .value || 20)
+                noise_type: (noiseTypeSelectEl && noiseTypeSelectEl.value) || 'white',
+                snr_db: parseFloat((noiseSNRSliderEl && noiseSNRSliderEl.value) || 20)
             });
         }
 
-        if (getElement('deliverablesCropEnabled') ? .checked) {
-            const cropType = getElement('deliverablesCropTypeSelect') ? .value;
+        const deliverablesCropEnabled = getElement('deliverablesCropEnabled');
+        if (deliverablesCropEnabled && deliverablesCropEnabled.checked) {
+            const cropTypeSelectEl = getElement('deliverablesCropTypeSelect');
+            const cropType = cropTypeSelectEl && cropTypeSelectEl.value;
+            const cropDurationEl = getElement('deliverablesCropDuration');
             enabledTransforms.push({
                 type: 'crop',
                 crop_type: cropType,
                 duration: (cropType === 'middle' || cropType === 'end') ?
-                    parseFloat(getElement('deliverablesCropDuration') ? .value || 10) : null
+                    parseFloat((cropDurationEl && cropDurationEl.value) || 10) : null
             });
         }
 
-        if (getElement('deliverablesEmbeddedSampleEnabled') ? .checked) {
-            const samplePath = getElement('deliverablesEmbeddedSampleFile') ? .value;
+        const deliverablesEmbeddedSampleEnabled = getElement('deliverablesEmbeddedSampleEnabled');
+        if (deliverablesEmbeddedSampleEnabled && deliverablesEmbeddedSampleEnabled.checked) {
+            const embeddedSampleFileEl = getElement('deliverablesEmbeddedSampleFile');
+            const samplePath = embeddedSampleFileEl && embeddedSampleFileEl.value;
             if (!samplePath || !samplePath.trim()) {
                 showError('Embedded Sample requires a sample file to be selected');
                 return;
             }
 
-            const backgroundPath = getElement('deliverablesEmbeddedBackgroundFile') ? .value || '';
-            const applyTransform = getElement('deliverablesEmbeddedApplyTransform') ? .value || 'None';
-            const transformParams = getElement('deliverablesEmbeddedTransformParams') ? .value || '';
+            const embeddedBackgroundFileEl = getElement('deliverablesEmbeddedBackgroundFile');
+            const backgroundPath = (embeddedBackgroundFileEl && embeddedBackgroundFileEl.value) || '';
+            const embeddedApplyTransformEl = getElement('deliverablesEmbeddedApplyTransform');
+            const applyTransform = (embeddedApplyTransformEl && embeddedApplyTransformEl.value) || 'None';
+            const embeddedTransformParamsEl = getElement('deliverablesEmbeddedTransformParams');
+            const transformParams = (embeddedTransformParamsEl && embeddedTransformParamsEl.value) || '';
 
+            const embeddedPositionEl = getElement('deliverablesEmbeddedPosition');
+            const embeddedSampleDurationEl = getElement('deliverablesEmbeddedSampleDuration');
+            const embeddedVolumeDbEl = getElement('deliverablesEmbeddedVolumeDb');
             enabledTransforms.push({
                 type: 'embedded_sample',
                 sample_path: samplePath,
                 background_path: backgroundPath.trim() || null,
-                position: getElement('deliverablesEmbeddedPosition') ? .value || 'start',
-                sample_duration: parseFloat(getElement('deliverablesEmbeddedSampleDuration') ? .value || 1.5),
-                volume_db: parseFloat(getElement('deliverablesEmbeddedVolumeDb') ? .value || 0),
+                position: (embeddedPositionEl && embeddedPositionEl.value) || 'start',
+                sample_duration: parseFloat((embeddedSampleDurationEl && embeddedSampleDurationEl.value) || 1.5),
+                volume_db: parseFloat((embeddedVolumeDbEl && embeddedVolumeDbEl.value) || 0),
                 apply_transform: applyTransform !== 'None' ? applyTransform : null,
                 transform_params: transformParams.trim() ? transformParams : null
             });
         }
 
-        if (getElement('deliverablesSongAInSongBEnabled') ? .checked) {
-            const songAPath = getElement('deliverablesSongAFile') ? .value || '';
-            const songBBasePath = getElement('deliverablesSongBBaseFile') ? .value || '';
-            const applyTransform = getElement('deliverablesSongAApplyTransform') ? .value || 'None';
-            const transformParams = getElement('deliverablesSongATransformParams') ? .value || '';
+        const deliverablesSongAInSongBEnabled = getElement('deliverablesSongAInSongBEnabled');
+        if (deliverablesSongAInSongBEnabled && deliverablesSongAInSongBEnabled.checked) {
+            const songAFileEl = getElement('deliverablesSongAFile');
+            const songAPath = (songAFileEl && songAFileEl.value) || '';
+            const songBBaseFileEl = getElement('deliverablesSongBBaseFile');
+            const songBBasePath = (songBBaseFileEl && songBBaseFileEl.value) || '';
+            const songAApplyTransformEl = getElement('deliverablesSongAApplyTransform');
+            const applyTransform = (songAApplyTransformEl && songAApplyTransformEl.value) || 'None';
+            const songATransformParamsEl = getElement('deliverablesSongATransformParams');
+            const transformParams = (songATransformParamsEl && songATransformParamsEl.value) || '';
 
+            const songASampleStartTimeEl = getElement('deliverablesSongASampleStartTime');
+            const songASampleDurationEl = getElement('deliverablesSongASampleDuration');
+            const songBDurationEl = getElement('deliverablesSongBDuration');
+            const songAMixVolumeDbEl = getElement('deliverablesSongAMixVolumeDb');
             enabledTransforms.push({
                 type: 'song_a_in_song_b',
                 song_a_path: songAPath.trim() || null,
                 song_b_base_path: songBBasePath.trim() || null,
-                sample_start_time: parseFloat(getElement('deliverablesSongASampleStartTime') ? .value || 0.0),
-                sample_duration: parseFloat(getElement('deliverablesSongASampleDuration') ? .value || 1.5),
-                song_b_duration: parseFloat(getElement('deliverablesSongBDuration') ? .value || 30.0),
-                mix_volume_db: parseFloat(getElement('deliverablesSongAMixVolumeDb') ? .value || 0),
+                sample_start_time: parseFloat((songASampleStartTimeEl && songASampleStartTimeEl.value) || 0.0),
+                sample_duration: parseFloat((songASampleDurationEl && songASampleDurationEl.value) || 1.5),
+                song_b_duration: parseFloat((songBDurationEl && songBDurationEl.value) || 30.0),
+                mix_volume_db: parseFloat((songAMixVolumeDbEl && songAMixVolumeDbEl.value) || 0),
                 apply_transform: applyTransform !== 'None' ? applyTransform : null,
                 transform_params: transformParams.trim() ? transformParams : null
             });
@@ -1078,7 +1141,8 @@ class DeliverablesManager {
             formData.append('transforms', JSON.stringify(enabledTransforms));
             formData.append('generate_reports', 'false');
 
-            const overlayFile = getElement('deliverablesOverlayFile') ? .files[0];
+            const overlayFileEl = getElement('deliverablesOverlayFile');
+            const overlayFile = overlayFileEl && overlayFileEl.files && overlayFileEl.files[0];
             if (overlayFile) {
                 formData.append('overlay_file', overlayFile);
             }

@@ -40,7 +40,8 @@ class ConfigManager {
      */
     async saveTestMatrix() {
         try {
-            const configText = getElement('testMatrixConfig') ? .value;
+            const configTextEl = getElement('testMatrixConfig');
+            const configText = configTextEl && configTextEl.value;
             if (!configText) {
                 showError('No configuration to save');
                 return;

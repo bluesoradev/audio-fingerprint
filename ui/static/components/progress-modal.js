@@ -382,7 +382,7 @@ class ProgressModalManager {
                 both: 'Generating Phase 1 & 2…',
                 phase1: 'Generating Phase 1…',
                 phase2: 'Generating Phase 2…'
-            } [phase] || 'Generating…';
+            }[phase] || 'Generating…';
 
             this.showProgressModal(phase);
 

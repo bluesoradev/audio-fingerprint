@@ -155,7 +155,7 @@ class AudioManipulationManager {
         }
 
         this.selectedAudioFile = filePath;
-        const fileName = select.options[select.selectedIndex] ? .textContent || filePath.split('/').pop();
+        const fileName = (select.options[select.selectedIndex] && select.options[select.selectedIndex].textContent) || filePath.split('/').pop();
 
         const selectedFileName = getElement('selectedFileName');
         const selectedFilePath = getElement('selectedFilePath');
@@ -173,7 +173,7 @@ class AudioManipulationManager {
         // Update original test display in "Test Fingerprint Robustness" section
         // Preserve existing transformed path if it exists
         const transformedDisplay = getElement('transformedTestDisplay');
-        const existingTransformed = transformedDisplay ? .value ? .trim() || null;
+        const existingTransformed = transformedDisplay ?.value ?.trim() || null;
         console.log('[loadAudioInfo] Updating test displays - Original:', filePath, 'Transformed (preserved):', existingTransformed);
         this.updateTestDisplays(filePath, existingTransformed);
 
@@ -562,9 +562,12 @@ class AudioManipulationManager {
             return;
         }
         const speedRatio = parseFloat(speedSlider.value) / 100.0;
-        const preservePitch = getElement('preservePitch') ? .checked || false;
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const preservePitchEl = getElement('preservePitch');
+        const preservePitch = (preservePitchEl && preservePitchEl.checked) || false;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -599,7 +602,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -623,8 +626,10 @@ class AudioManipulationManager {
             return;
         }
         const semitones = parseInt(pitchSlider.value);
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -658,7 +663,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -682,8 +687,10 @@ class AudioManipulationManager {
             return;
         }
         const delayMs = parseInt(reverbSlider.value);
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -705,7 +712,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -730,8 +737,10 @@ class AudioManipulationManager {
         }
         const reductionPercent = parseInt(noiseSlider.value);
         const reductionStrength = reductionPercent / 100.0;
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -765,7 +774,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -789,8 +798,10 @@ class AudioManipulationManager {
             return;
         }
         const gainDb = parseInt(eqSlider.value);
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -824,7 +835,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -859,8 +870,10 @@ class AudioManipulationManager {
             return;
         }
         const bitrate = bitrateSelect.value;
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -883,7 +896,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -902,7 +915,7 @@ class AudioManipulationManager {
         }
 
         const overlayFileInput = getElement('overlayFile');
-        const overlayFile = overlayFileInput ? .files ? . [0] || null;
+        const overlayFile = (overlayFileInput && overlayFileInput.files && overlayFileInput.files[0]) || null;
 
         const overlayGainSlider = getElement('overlayGainSlider');
         if (!overlayGainSlider) {
@@ -910,8 +923,10 @@ class AudioManipulationManager {
             return;
         }
         const gainDb = parseInt(overlayGainSlider.value);
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -951,7 +966,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -971,8 +986,10 @@ class AudioManipulationManager {
 
         const snrDb = 20;
         const noiseType = 'white';
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -1009,7 +1026,8 @@ class AudioManipulationManager {
 
         const codec = getElement('encodeCodec').value;
         const bitrate = getElement('encodeBitrate').value;
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
         const outputName = getElement('manipulateOutputName').value || null;
 
         try {
@@ -1047,7 +1065,8 @@ class AudioManipulationManager {
 
         const removeStart = parseFloat(getElement('chopStart').value);
         const removeEnd = parseFloat(getElement('chopEnd').value);
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
         const outputName = getElement('manipulateOutputName').value || null;
 
         try {
@@ -1184,8 +1203,10 @@ class AudioManipulationManager {
             return;
         }
 
-        const outputDir = getElement('manipulateOutputDir') ? .value || 'data/manipulated';
-        const outputName = getElement('manipulateOutputName') ? .value || null;
+        const outputDirEl = getElement('manipulateOutputDir');
+        const outputDir = (outputDirEl && outputDirEl.value) || 'data/manipulated';
+        const outputNameEl = getElement('manipulateOutputName');
+        const outputName = (outputNameEl && outputNameEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -1220,7 +1241,7 @@ class AudioManipulationManager {
                 if (window.loadTestFileSelects) await window.loadTestFileSelects();
                 if (result.output_path) {
                     const originalDisplay = getElement('originalTestDisplay');
-                    const existingOriginal = originalDisplay ? .value ? .trim() || this.selectedAudioFile || null;
+                    const existingOriginal = (originalDisplay && originalDisplay.value && originalDisplay.value.trim()) || this.selectedAudioFile || null;
                     this.updateTestDisplays(existingOriginal, result.output_path);
                     this.updateTransformedPlayer(result.output_path);
                 }
@@ -1470,7 +1491,8 @@ class AudioManipulationManager {
             return;
         }
 
-        const freqHz = parseFloat(getElement('highpassSlider') ? .value || 150);
+        const highpassSlider = getElement('highpassSlider');
+        const freqHz = parseFloat((highpassSlider && highpassSlider.value) || 150);
 
         try {
             const formData = new FormData();
@@ -1503,7 +1525,8 @@ class AudioManipulationManager {
             return;
         }
 
-        const freqHz = parseFloat(getElement('lowpassSlider') ? .value || 6000);
+        const lowpassSlider = getElement('lowpassSlider');
+        const freqHz = parseFloat((lowpassSlider && lowpassSlider.value) || 6000);
 
         try {
             const formData = new FormData();
@@ -1536,7 +1559,8 @@ class AudioManipulationManager {
             return;
         }
 
-        const gainDb = parseFloat(getElement('boostHighsSlider') ? .value || 6);
+        const boostHighsSlider = getElement('boostHighsSlider');
+        const gainDb = parseFloat((boostHighsSlider && boostHighsSlider.value) || 6);
 
         try {
             const formData = new FormData();
@@ -1569,7 +1593,8 @@ class AudioManipulationManager {
             return;
         }
 
-        const gainDb = parseFloat(getElement('boostLowsSlider') ? .value || 6);
+        const boostLowsSlider = getElement('boostLowsSlider');
+        const gainDb = parseFloat((boostLowsSlider && boostLowsSlider.value) || 6);
 
         try {
             const formData = new FormData();
@@ -1632,7 +1657,8 @@ class AudioManipulationManager {
             return;
         }
 
-        const ceilingDb = parseFloat(getElement('limitingSlider') ? .value || -1);
+        const limitingSlider = getElement('limitingSlider');
+        const ceilingDb = parseFloat((limitingSlider && limitingSlider.value) || -1);
 
         try {
             const formData = new FormData();
@@ -1695,8 +1721,10 @@ class AudioManipulationManager {
             return;
         }
 
-        const noiseType = getElement('noiseTypeSelect') ? .value || 'white';
-        const snrDb = parseFloat(getElement('noiseSNRSlider') ? .value || 20);
+        const noiseTypeSelect = getElement('noiseTypeSelect');
+        const noiseType = (noiseTypeSelect && noiseTypeSelect.value) || 'white';
+        const noiseSNRSlider = getElement('noiseSNRSlider');
+        const snrDb = parseFloat((noiseSNRSlider && noiseSNRSlider.value) || 20);
 
         try {
             const formData = new FormData();
@@ -1730,7 +1758,8 @@ class AudioManipulationManager {
             return;
         }
 
-        const cropType = getElement('cropTypeSelect') ? .value || '10s';
+        const cropTypeSelect = getElement('cropTypeSelect');
+        const cropType = (cropTypeSelect && cropTypeSelect.value) || '10s';
 
         try {
             let endpoint = '';
@@ -1782,17 +1811,23 @@ class AudioManipulationManager {
             return;
         }
 
-        const backgroundFile = getElement('embeddedBackgroundFile') ? .value;
+        const embeddedBackgroundFileEl = getElement('embeddedBackgroundFile');
+        const backgroundFile = embeddedBackgroundFileEl && embeddedBackgroundFileEl.value;
         if (!backgroundFile) {
             showError('Please select a background audio file');
             return;
         }
 
-        const position = getElement('embeddedPosition') ? .value || 'start';
-        const sampleDuration = parseFloat(getElement('embeddedSampleDuration') ? .value || '1.5');
-        const volumeDb = parseFloat(getElement('embeddedVolumeDb') ? .value || '0.0');
-        const applyTransform = getElement('embeddedApplyTransform') ? .value || 'None';
-        const transformParams = getElement('embeddedTransformParams') ? .value || null;
+        const embeddedPositionEl = getElement('embeddedPosition');
+        const position = (embeddedPositionEl && embeddedPositionEl.value) || 'start';
+        const embeddedSampleDurationEl = getElement('embeddedSampleDuration');
+        const sampleDuration = parseFloat((embeddedSampleDurationEl && embeddedSampleDurationEl.value) || '1.5');
+        const embeddedVolumeDbEl = getElement('embeddedVolumeDb');
+        const volumeDb = parseFloat((embeddedVolumeDbEl && embeddedVolumeDbEl.value) || '0.0');
+        const embeddedApplyTransformEl = getElement('embeddedApplyTransform');
+        const applyTransform = (embeddedApplyTransformEl && embeddedApplyTransformEl.value) || 'None';
+        const embeddedTransformParamsEl = getElement('embeddedTransformParams');
+        const transformParams = (embeddedTransformParamsEl && embeddedTransformParamsEl.value) || null;
 
         try {
             const formData = new FormData();
@@ -1836,13 +1871,20 @@ class AudioManipulationManager {
             return;
         }
 
-        const songBBaseFile = getElement('songBBaseFile') ? .value || null;
-        const sampleStartTime = parseFloat(getElement('songASampleStartTime') ? .value || '0.0');
-        const sampleDuration = parseFloat(getElement('songASampleDuration') ? .value || '1.5');
-        const songBDuration = parseFloat(getElement('songBDuration') ? .value || '30.0');
-        const applyTransform = getElement('songAApplyTransform') ? .value || 'None';
-        const transformParams = getElement('songATransformParams') ? .value || null;
-        const mixVolumeDb = parseFloat(getElement('songAMixVolumeDb') ? .value || '0.0');
+        const songBBaseFileEl = getElement('songBBaseFile');
+        const songBBaseFile = (songBBaseFileEl && songBBaseFileEl.value) || null;
+        const songASampleStartTimeEl = getElement('songASampleStartTime');
+        const sampleStartTime = parseFloat((songASampleStartTimeEl && songASampleStartTimeEl.value) || '0.0');
+        const songASampleDurationEl = getElement('songASampleDuration');
+        const sampleDuration = parseFloat((songASampleDurationEl && songASampleDurationEl.value) || '1.5');
+        const songBDurationEl = getElement('songBDuration');
+        const songBDuration = parseFloat((songBDurationEl && songBDurationEl.value) || '30.0');
+        const songAApplyTransformEl = getElement('songAApplyTransform');
+        const applyTransform = (songAApplyTransformEl && songAApplyTransformEl.value) || 'None';
+        const songATransformParamsEl = getElement('songATransformParams');
+        const transformParams = (songATransformParamsEl && songATransformParamsEl.value) || null;
+        const songAMixVolumeDbEl = getElement('songAMixVolumeDb');
+        const mixVolumeDb = parseFloat((songAMixVolumeDbEl && songAMixVolumeDbEl.value) || '0.0');
 
         try {
             const formData = new FormData();

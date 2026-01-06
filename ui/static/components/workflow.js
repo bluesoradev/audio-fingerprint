@@ -26,9 +26,12 @@ class WorkflowManager {
      * Create test audio files
      */
     async createTestAudio() {
-        const numFiles = getElement('numFiles') ? .value;
-        const duration = getElement('duration') ? .value;
-        const outputDir = getElement('audioOutputDir') ? .value;
+        const numFilesEl = getElement('numFiles');
+        const numFiles = numFilesEl && numFilesEl.value;
+        const durationEl = getElement('duration');
+        const duration = durationEl && durationEl.value;
+        const outputDirEl = getElement('audioOutputDir');
+        const outputDir = outputDirEl && outputDirEl.value;
 
         if (!numFiles || !duration || !outputDir) {
             showError('Please fill in all fields');
@@ -60,8 +63,10 @@ class WorkflowManager {
      * Create manifest file
      */
     async createManifest() {
-        const audioDir = getElement('audioDir') ? .value;
-        const output = getElement('manifestOutput') ? .value;
+        const audioDirEl = getElement('audioDir');
+        const audioDir = audioDirEl && audioDirEl.value;
+        const manifestOutputEl = getElement('manifestOutput');
+        const output = manifestOutputEl && manifestOutputEl.value;
 
         try {
             const formData = new FormData();
@@ -82,8 +87,10 @@ class WorkflowManager {
      * Ingest files
      */
     async ingestFiles() {
-        const manifestPath = getElement('ingestManifest') ? .value;
-        const sampleRate = getElement('sampleRate') ? .value;
+        const ingestManifestEl = getElement('ingestManifest');
+        const manifestPath = ingestManifestEl && ingestManifestEl.value;
+        const sampleRateEl = getElement('sampleRate');
+        const sampleRate = sampleRateEl && sampleRateEl.value;
 
         if (!manifestPath) {
             showError('Please select a manifest file');
@@ -110,7 +117,8 @@ class WorkflowManager {
      * Generate transforms
      */
     async generateTransforms() {
-        const manifestPath = getElement('transformManifest') ? .value;
+        const transformManifestEl = getElement('transformManifest');
+        const manifestPath = transformManifestEl && transformManifestEl.value;
 
         if (!manifestPath) {
             showError('Please select a manifest file');
@@ -137,7 +145,8 @@ class WorkflowManager {
      * Run full experiment
      */
     async runExperiment() {
-        const manifestPath = getElement('experimentManifest') ? .value;
+        const experimentManifestEl = getElement('experimentManifest');
+        const manifestPath = experimentManifestEl && experimentManifestEl.value;
 
         if (!manifestPath) {
             showError('Please select a manifest file');

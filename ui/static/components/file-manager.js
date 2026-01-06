@@ -67,7 +67,8 @@ class FileManager {
      * Load audio files
      */
     async loadAudioFiles() {
-        const directory = getElement('audioDirectory') ? .value;
+        const audioDirectoryEl = getElement('audioDirectory');
+        const directory = audioDirectoryEl && audioDirectoryEl.value;
 
         try {
             const result = await apiClient.get(`${API_CONFIG.ENDPOINTS.FILES.AUDIO}?directory=${directory}`);

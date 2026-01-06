@@ -70,7 +70,7 @@ class ProcessMonitor {
                     const line = document.createElement('div');
                     line.className = `log-line ${log.type}`;
                     line.textContent = log.message;
-                    logsDiv ? .appendChild(line);
+                    if (logsDiv) logsDiv.appendChild(line);
                 });
                 if (logsDiv) logsDiv.scrollTop = logsDiv.scrollHeight;
             }
@@ -94,7 +94,7 @@ class ProcessMonitor {
                 }
                 this.currentProcessId = null;
 
-                const processName = window.processNames ? . [commandId] || 'Process';
+                const processName = (window.processNames && window.processNames[commandId]) || 'Process';
 
                 if (status.status === 'completed') {
                     showCompletionAlert(processName + ' completed successfully!');
@@ -104,7 +104,7 @@ class ProcessMonitor {
                     showCompletionAlert(processName + ' was cancelled.', 'warning');
                 }
 
-                if (window.processNames ? . [commandId]) {
+                if (window.processNames && window.processNames[commandId]) {
                     delete window.processNames[commandId];
                 }
 
