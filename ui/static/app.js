@@ -402,11 +402,8 @@
 
     } catch (error) {
         console.error('Failed to load componentized app.js:', error);
-        // Fallback: load original app.js
-        console.warn('Falling back to original app.js...');
-        const script = document.createElement('script');
-        script.src = '/static/app-original.js';
-        document.head.appendChild(script);
+        // Componentization is complete - no fallback needed
+        throw error;
     }
 })();
 

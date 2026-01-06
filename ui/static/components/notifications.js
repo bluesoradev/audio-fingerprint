@@ -148,3 +148,4 @@ export const notificationManager = new NotificationManager();
 export const showError = (message) => notificationManager.showError(message);
 export const showCompletionAlert = (message, type) => notificationManager.showCompletionAlert(message, type);
 export const showNotification = (message, type) => notificationManager.showNotification(message, type);
+export const addSystemLog = (message, type) => notificationManager.addSystemLog(message, type);
