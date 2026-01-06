@@ -24,6 +24,59 @@ class NavigationManager {
     }
 
     /**
+     * Update content-area height for manipulate section based on test results
+     * @param {HTMLElement} contentArea - Content area element
+     */
+    updateManipulateContentHeight(contentArea) {
+        const testResultsContent = getElement('testResultsContent');
+        if (!testResultsContent) {
+            // Default to 1200px if test results container not found
+            contentArea.classList.add('content-area-manipulate');
+            return;
+        }
+
+        // Check if test results have actual test data (not just system logs)
+        const hasTestResults = this.hasActualTestResults(testResultsContent);
+        
+        if (hasTestResults) {
+            contentArea.classList.remove('content-area-manipulate');
+            contentArea.classList.add('content-area-manipulate-with-results');
+        } else {
+            contentArea.classList.remove('content-area-manipulate-with-results');
+            contentArea.classList.add('content-area-manipulate');
+        }
+    }
+
+    /**
+     * Check if test results content has actual test results (not just system logs)
+     * @param {HTMLElement} testResultsContent - Test results content element
+     * @returns {boolean} - True if actual test results exist
+     */
+    hasActualTestResults(testResultsContent) {
+        if (!testResultsContent) return false;
+        
+        const html = testResultsContent.innerHTML || '';
+        const text = testResultsContent.textContent || '';
+        
+        // Check for indicators of actual test results (not just system logs)
+        // Test results contain: similarity scores, rank, match status, error messages, etc.
+        const hasSimilarity = html.includes('Similarity Score') || (html.includes('similarity') && /(\d+\.?\d*)%/.test(text));
+        const hasRank = html.includes('Rank') || html.includes('rank');
+        const hasMatchStatus = html.includes('Strong match') || html.includes('Good match') || 
+                              html.includes('Moderate match') || html.includes('could not match') ||
+                              html.includes('robust to this transformation');
+        const hasErrorResult = html.includes('Error testing fingerprint') || html.includes('Error:');
+        const hasPercent = /(\d+\.?\d*)%/.test(text) && (hasSimilarity || hasMatchStatus);
+        
+        // If it has similarity score, match status, or error from test, it's actual test results
+        // Exclude system initialization messages
+        const isSystemLog = text.includes('System initialized') || text.includes('Ready for audio input');
+        const hasTestContent = (hasSimilarity && (hasRank || hasMatchStatus || hasPercent)) || hasErrorResult;
+        
+        return hasTestContent && !isSystemLog;
+    }
+
+    /**
      * Load section-specific data
      * @param {string} sectionId - Section ID to load
      */
@@ -69,11 +122,15 @@ class NavigationManager {
             if (contentArea) {
                 // Dashboard doesn't need full height
                 if (sectionId === 'dashboard') {
-                    contentArea.classList.remove('content-area-full');
+                    contentArea.classList.remove('content-area-full', 'content-area-manipulate', 'content-area-manipulate-with-results');
                     contentArea.classList.add('dashboard-content-area');
+                } else if (sectionId === 'manipulate') {
+                    // Manipulate section height depends on test results
+                    contentArea.classList.remove('dashboard-content-area', 'content-area-full', 'content-area-manipulate-with-results');
+                    this.updateManipulateContentHeight(contentArea);
                 } else {
-                    // Other sections (manipulate, deliverables, etc.) need full height
-                    contentArea.classList.remove('dashboard-content-area');
+                    // Other sections (deliverables, etc.) need full height
+                    contentArea.classList.remove('dashboard-content-area', 'content-area-manipulate', 'content-area-manipulate-with-results');
                     contentArea.classList.add('content-area-full');
                 }
             }
@@ -135,10 +192,13 @@ class NavigationManager {
             const contentArea = querySelectorAll('.content-area')[0];
             if (contentArea && activeSectionId) {
                 if (activeSectionId === 'dashboard') {
-                    contentArea.classList.remove('content-area-full');
+                    contentArea.classList.remove('content-area-full', 'content-area-manipulate', 'content-area-manipulate-with-results');
                     contentArea.classList.add('dashboard-content-area');
+                } else if (activeSectionId === 'manipulate') {
+                    contentArea.classList.remove('dashboard-content-area', 'content-area-full', 'content-area-manipulate-with-results');
+                    this.updateManipulateContentHeight(contentArea);
                 } else {
-                    contentArea.classList.remove('dashboard-content-area');
+                    contentArea.classList.remove('dashboard-content-area', 'content-area-manipulate', 'content-area-manipulate-with-results');
                     contentArea.classList.add('content-area-full');
                 }
             }

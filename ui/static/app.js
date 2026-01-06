@@ -29,6 +29,9 @@
         const {
             navigationManager
         } = await import('./components/navigation.js');
+        
+        // Make navigationManager available globally for audio manipulation component
+        window.navigationManager = navigationManager;
         const {
             notificationManager,
             showError,

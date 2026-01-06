@@ -1380,14 +1380,49 @@ class AudioManipulationManager {
                 `;
 
                 addSystemLog(`Fingerprint test: (${similarityPercent}% similarity)`, result.matched ? 'success' : 'warning');
+                
+                // Update content-area height since test results are now shown
+                this.updateManipulateContentHeight();
             } else {
                 resultDiv.className = 'test-results error';
                 detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">Error: ${result.message || 'Test failed'}</pre>`;
+                
+                // Update content-area height since test results (error) are shown
+                this.updateManipulateContentHeight();
             }
         } catch (error) {
             testBtn.disabled = false;
             resultDiv.className = 'test-results error';
             detailsDiv.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">Error testing fingerprint: ${error.message}\n\nPlease ensure:\n1. Fingerprint model is properly configured\n2. Audio files are valid and accessible\n3. Required dependencies are installed</pre>`;
+            
+            // Update content-area height since test results (error) are shown
+            this.updateManipulateContentHeight();
+        }
+    }
+
+    updateManipulateContentHeight() {
+        // Only update if we're currently on the manipulate section
+        const manipulateSection = getElement('manipulate');
+        if (!manipulateSection || !manipulateSection.classList.contains('active')) {
+            return;
+        }
+
+        // Use window.navigationManager if available (set in app.js)
+        if (window.navigationManager && typeof window.navigationManager.updateManipulateContentHeight === 'function') {
+            const contentArea = document.querySelector('.content-area');
+            if (contentArea) {
+                window.navigationManager.updateManipulateContentHeight(contentArea);
+            }
+        } else {
+            // Fallback: try dynamic import
+            import('./navigation.js').then(({ navigationManager }) => {
+                const contentArea = document.querySelector('.content-area');
+                if (contentArea && typeof navigationManager.updateManipulateContentHeight === 'function') {
+                    navigationManager.updateManipulateContentHeight(contentArea);
+                }
+            }).catch(() => {
+                console.warn('Could not update manipulate content height');
+            });
         }
     }
 
