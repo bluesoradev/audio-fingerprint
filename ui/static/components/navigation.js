@@ -64,6 +64,20 @@ class NavigationManager {
             targetSection.style.display = '';
             this.currentSection = sectionId;
 
+            // Toggle content-area height based on section
+            const contentArea = querySelectorAll('.content-area')[0];
+            if (contentArea) {
+                // Dashboard doesn't need full height
+                if (sectionId === 'dashboard') {
+                    contentArea.classList.remove('content-area-full');
+                    contentArea.classList.add('dashboard-content-area');
+                } else {
+                    // Other sections (manipulate, deliverables, etc.) need full height
+                    contentArea.classList.remove('dashboard-content-area');
+                    contentArea.classList.add('content-area-full');
+                }
+            }
+
             // Update active nav item
             const navLinks = querySelectorAll('.nav-menu a');
             navLinks.forEach(a => a.classList.remove('active'));
@@ -107,13 +121,27 @@ class NavigationManager {
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize: hide all sections except the one marked as active
             const allSections = querySelectorAll('.section');
+            let activeSectionId = null;
             allSections.forEach(s => {
                 if (!s.classList.contains('active')) {
                     s.style.display = 'none';
                 } else {
                     s.style.display = '';
+                    activeSectionId = s.id;
                 }
             });
+
+            // Initialize content-area height based on active section
+            const contentArea = querySelectorAll('.content-area')[0];
+            if (contentArea && activeSectionId) {
+                if (activeSectionId === 'dashboard') {
+                    contentArea.classList.remove('content-area-full');
+                    contentArea.classList.add('dashboard-content-area');
+                } else {
+                    contentArea.classList.remove('dashboard-content-area');
+                    contentArea.classList.add('content-area-full');
+                }
+            }
 
             querySelectorAll('.nav-menu a').forEach(link => {
                 const onclick = link.getAttribute('onclick');
