@@ -21,6 +21,10 @@ class AudioPlayerManager {
         this.transportLoopEnabled = false;
         this.waveformZoomLevel = 1.0;
         this.waveformStartTime = 0;
+        this.waveformData = null;
+        this.waveformCanvas = null;
+        this.waveformCtx = null;
+        this.currentAudioSource = null;
     }
 
     initAudioContext() {
@@ -121,16 +125,28 @@ class AudioPlayerManager {
 
         try {
             const ctx = this.initAudioContext();
+            
+            // Disconnect previous source if exists
+            if (this.currentAudioSource) {
+                try {
+                    this.currentAudioSource.disconnect();
+                } catch (e) {}
+            }
+
             if (!this.analyserNode) {
                 this.analyserNode = ctx.createAnalyser();
-                this.analyserNode.fftSize = 256;
+                this.analyserNode.fftSize = 2048; // Higher resolution for better visualization
                 this.frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
             }
 
-            const source = ctx.createMediaElementSource(audioElement);
-            source.connect(this.analyserNode);
+            this.currentAudioSource = ctx.createMediaElementSource(audioElement);
+            this.currentAudioSource.connect(this.analyserNode);
             this.analyserNode.connect(ctx.destination);
 
+            // Load and draw waveform
+            this.loadWaveformData(audioElement);
+            
+            // Start frequency visualization
             this.animateFrequency();
         } catch (error) {
             console.error('Error initializing frequency visualization:', error);
@@ -170,27 +186,57 @@ class AudioPlayerManager {
     }
 
     drawFrequencySpectrum(canvas, data) {
+        if (!canvas) return;
+        
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const width = canvas.width || canvas.offsetWidth;
-        const height = canvas.height || canvas.offsetHeight;
+        // Get container dimensions
+        const container = canvas.parentElement;
+        const width = container ? container.offsetWidth : 800;
+        const height = container ? container.offsetHeight : 150;
 
-        canvas.width = width;
-        canvas.height = height;
+        // Set canvas size with proper pixel ratio
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
 
+        // Scale context for device pixel ratio
+        ctx.scale(dpr, dpr);
+
+        // Clear canvas
         ctx.fillStyle = '#1e1e1e';
         ctx.fillRect(0, 0, width, height);
 
-        const barWidth = width / data.length;
+        if (!data || data.length === 0) {
+            // Draw placeholder
+            ctx.fillStyle = '#3d3d3d';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No frequency data', width / 2, height / 2);
+            return;
+        }
+
+        // Draw frequency bars
+        const barWidth = (width / data.length) * 2.5;
         let x = 0;
 
         for (let i = 0; i < data.length; i++) {
             const barHeight = (data[i] / 255) * height;
-            const hue = (i / data.length) * 360;
-
-            ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
-            ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+            
+            if (barHeight > 0) {
+                // Create gradient for each bar
+                const gradient = ctx.createLinearGradient(x, height - barHeight, x, height);
+                const hue = (i / data.length) * 240; // Blue to purple range
+                gradient.addColorStop(0, `hsl(${hue}, 100%, 60%)`);
+                gradient.addColorStop(1, `hsl(${hue}, 100%, 30%)`);
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, height - barHeight, Math.max(1, barWidth - 1), barHeight);
+            }
+            
             x += barWidth;
         }
     }
@@ -205,12 +251,140 @@ class AudioPlayerManager {
         this.updateWaveformDisplay();
     }
 
+    async loadWaveformData(audioElement) {
+        if (!audioElement || !audioElement.src) return;
+
+        try {
+            const ctx = this.initAudioContext();
+            const response = await fetch(audioElement.src);
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+            // Extract waveform data
+            const channelData = audioBuffer.getChannelData(0); // Use first channel
+            const samples = 2000; // Number of samples to display
+            const blockSize = Math.floor(channelData.length / samples);
+            this.waveformData = [];
+
+            for (let i = 0; i < samples; i++) {
+                let sum = 0;
+                for (let j = 0; j < blockSize; j++) {
+                    sum += Math.abs(channelData[i * blockSize + j]);
+                }
+                this.waveformData.push(sum / blockSize);
+            }
+
+            // Draw waveform
+            this.drawWaveform();
+            
+            // Update track label
+            const trackLabel = getElement('track1Label');
+            if (trackLabel) {
+                const fileName = audioElement.src.split('/').pop() || 'Audio Track';
+                trackLabel.textContent = fileName;
+            }
+        } catch (error) {
+            console.error('Error loading waveform data:', error);
+        }
+    }
+
+    drawWaveform() {
+        const canvas = getElement('waveformCanvas');
+        if (!canvas || !this.waveformData || this.waveformData.length === 0) {
+            // Draw placeholder if no data
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    const container = canvas.parentElement;
+                    const width = container ? container.offsetWidth : 800;
+                    const height = container ? container.offsetHeight : 100;
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.fillStyle = '#1e1e1e';
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.fillStyle = '#3d3d3d';
+                    ctx.font = '12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No waveform data', width / 2, height / 2);
+                }
+            }
+            return;
+        }
+
+        const container = canvas.parentElement;
+        if (!container) return;
+
+        // Set canvas size with proper pixel ratio for crisp rendering
+        const dpr = window.devicePixelRatio || 1;
+        const width = container.offsetWidth || 800;
+        const height = container.offsetHeight || 100;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Scale context for device pixel ratio
+        ctx.scale(dpr, dpr);
+
+        // Clear canvas
+        ctx.fillStyle = '#1e1e1e';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw waveform
+        const centerY = height / 2;
+        const maxAmplitude = Math.max(...this.waveformData);
+        const scale = maxAmplitude > 0 ? (height * 0.4) / maxAmplitude : 1;
+
+        // Draw waveform as filled shape
+        ctx.fillStyle = '#22D2E6';
+        ctx.strokeStyle = '#22D2E6';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+
+        // Draw top half
+        for (let i = 0; i < this.waveformData.length; i++) {
+            const x = (i / this.waveformData.length) * width;
+            const amplitude = this.waveformData[i] * scale;
+            const y = centerY - amplitude;
+
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+
+        // Draw bottom half (mirrored)
+        for (let i = this.waveformData.length - 1; i >= 0; i--) {
+            const x = (i / this.waveformData.length) * width;
+            const amplitude = this.waveformData[i] * scale;
+            const y = centerY + amplitude;
+            ctx.lineTo(x, y);
+        }
+
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    }
+
     updateWaveformDisplay() {
         const timeRangeDisplay = getElement('waveformTimeRange');
         if (timeRangeDisplay) {
-            const duration = 5.123; // This should come from actual audio duration
+            const originalPlayer = getElement('originalAudioPlayer');
+            const transformedPlayer = getElement('transformedAudioPlayer');
+            const activePlayer = (originalPlayer && originalPlayer.src) ? originalPlayer : transformedPlayer;
+            
+            const duration = activePlayer && activePlayer.duration ? activePlayer.duration : 5.123;
             const visibleDuration = duration / this.waveformZoomLevel;
             timeRangeDisplay.textContent = `00:00:00.000 - ${formatTimeWithMs(visibleDuration)}`;
+        }
+        
+        // Redraw waveform with zoom
+        if (this.waveformData) {
+            this.drawWaveform();
         }
     }
 
@@ -251,15 +425,71 @@ class AudioPlayerManager {
         if (playhead) {
             playhead.style.left = (percentage * 100) + '%';
         }
+        
+        // Update waveform display with playhead
+        if (this.waveformData) {
+            this.drawWaveformWithPlayhead(percentage);
+        }
+    }
+
+    drawWaveformWithPlayhead(playheadPosition) {
+        const canvas = getElement('waveformCanvas');
+        if (!canvas || !this.waveformData || this.waveformData.length === 0) return;
+
+        const container = canvas.parentElement;
+        if (!container) return;
+
+        const width = container.offsetWidth || 800;
+        const height = container.offsetHeight || 100;
+        const dpr = window.devicePixelRatio || 1;
+
+        // Redraw base waveform (this sets up the canvas and scales context)
+        this.drawWaveform();
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Context is already scaled by drawWaveform, use logical coordinates
+        const x = playheadPosition * width;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
     }
 
     init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 this.setupWaveformScrubbing();
+                this.initializeCanvases();
             });
         } else {
             this.setupWaveformScrubbing();
+            this.initializeCanvases();
+        }
+    }
+
+    initializeCanvases() {
+        // Initialize frequency spectrum canvas
+        const freqCanvas = getElement('frequencySpectrumCanvas');
+        if (freqCanvas) {
+            const container = freqCanvas.parentElement;
+            if (container) {
+                freqCanvas.width = container.offsetWidth || 800;
+                freqCanvas.height = container.offsetHeight || 150;
+            }
+        }
+
+        // Initialize waveform canvas
+        const waveformCanvas = getElement('waveformCanvas');
+        if (waveformCanvas) {
+            const container = waveformCanvas.parentElement;
+            if (container) {
+                waveformCanvas.width = container.offsetWidth || 800;
+                waveformCanvas.height = container.offsetHeight || 100;
+            }
         }
     }
 }

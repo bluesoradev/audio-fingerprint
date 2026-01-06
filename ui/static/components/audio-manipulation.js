@@ -261,11 +261,23 @@ class AudioManipulationManager {
             player.onpause = () => {
                 if (playBtn) playBtn.textContent = '▶';
                 this.originalAudioPlaying = false;
+                if (window.stopFrequencyVisualization) window.stopFrequencyVisualization();
             };
             player.onended = () => {
                 if (playBtn) playBtn.textContent = '▶';
                 this.originalAudioPlaying = false;
+                if (window.stopFrequencyVisualization) window.stopFrequencyVisualization();
             };
+        player.onloadedmetadata = () => {
+            // Load waveform when audio metadata is loaded
+            if (window.audioPlayerManager && window.audioPlayerManager.loadWaveformData) {
+                window.audioPlayerManager.loadWaveformData(player);
+            }
+            // Update waveform display with actual duration
+            if (window.updateWaveformDisplay) {
+                window.updateWaveformDisplay();
+            }
+        };
         }
         if (playBtn) {
             playBtn.disabled = false;
@@ -340,6 +352,14 @@ class AudioManipulationManager {
         player.onloadeddata = () => {
             console.log('[updateTransformedPlayer] Audio loaded successfully:', audioUrl);
             console.log('[updateTransformedPlayer] Audio duration:', player.duration);
+            // Load waveform when audio is loaded
+            if (window.audioPlayerManager && window.audioPlayerManager.loadWaveformData) {
+                window.audioPlayerManager.loadWaveformData(player);
+            }
+            // Update waveform display with actual duration
+            if (window.updateWaveformDisplay) {
+                window.updateWaveformDisplay();
+            }
         };
 
         player.oncanplay = () => {
@@ -434,6 +454,7 @@ class AudioManipulationManager {
             });
             playBtn.textContent = '⏸';
             this.transformedAudioPlaying = true;
+            if (window.startFrequencyVisualization) window.startFrequencyVisualization(player);
             if (window.startFrequencyVisualization) window.startFrequencyVisualization(player);
         }
     }

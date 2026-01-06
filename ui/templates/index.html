@@ -1868,29 +1868,6 @@
                                 </div>
                             </div>
 
-                            <!-- Transport & Project Controls -->
-                            <div class="transport-controls">
-                                <h4>Transport & Project Controls</h4>
-                                <div class="transport-buttons">
-                                    <button class="transport-btn" id="transportPlayBtn" onclick="toggleTransportPlayback()">▶</button>
-                                    <button class="transport-btn secondary" id="transportHopOffBtn" onclick="transportHopOff()">🌿</button>
-                                    <button class="transport-btn secondary" id="transportCheckBtn" onclick="transportCheck()">✓</button>
-                                    <button class="transport-btn secondary" id="transportLoopBtn" onclick="toggleTransportLoop()">↻</button>
-                                </div>
-                                <div class="transport-controls-row">
-                                    <div class="volume-control">
-                                        <label>🔊</label>
-                                        <input type="range" class="volume-slider" id="transportVolumeSlider" min="0" max="100" value="70" oninput="updateTransportVolume(this.value)">
-                                        <span id="transportVolumeValue" style="color: #ffffff; font-size: 12px; min-width: 40px;">70%</span>
-                                    </div>
-                                    <div class="tempo-control">
-                                        <label>Tempo:</label>
-                                        <input type="number" class="tempo-input" id="transportTempoInput" value="120" min="60" max="200" onchange="updateTransportTempo(this.value)">
-                                        <span class="tempo-label">BPM</span>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Audio Players -->
                             <div class="audio-players-container">
                                 <div class="audio-player-panel">
@@ -1928,8 +1905,9 @@
                                             <button class="track-control-btn" title="Mute">M</button>
                                             <button class="track-control-btn" title="Solo">S</button>
                                         </div>
-                                        <div class="track-label" id="track1Label">No track loaded</div>
+                                        <div class="track-label" id="track1Label">Track 1</div>
                                         <div class="track-waveform-area" id="track1Waveform">
+                                            <canvas id="waveformCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
                                             <div class="playhead" id="waveformPlayhead" style="left: 0%;"></div>
                                         </div>
                                     </div>

@@ -361,6 +361,9 @@
         window.viewDAWMetadata = viewDAWMetadata;
         window.displayDAWMetadata = displayDAWMetadata;
 
+        // Export audio player manager instance
+        window.audioPlayerManager = audioPlayerManager;
+
         // Export audio player functions
         window.initAudioContext = initAudioContext;
         window.toggleTransportPlayback = toggleTransportPlayback;
