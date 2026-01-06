@@ -214,6 +214,8 @@
             color: #ffffff;
             border-bottom: 2px solid #427eea;
             padding-bottom: 10px;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .workflow-step {
@@ -459,6 +461,13 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            display: table;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .table th,
@@ -466,6 +475,12 @@
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #3d3d3d;
+            white-space: nowrap;
+        }
+
+        .table td:last-child,
+        .table th:last-child {
+            white-space: normal;
         }
 
         .table th {
@@ -656,6 +671,8 @@
         .transform-card-header h4 {
             margin: 0;
             flex: 1;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .transform-card-header .enable-checkbox {
@@ -1246,6 +1263,8 @@
             min-width: 200px;
             color: #ffffff;
             font-size: 12px;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .track-waveform-area {
@@ -1598,6 +1617,12 @@
                 max-height: 200px;
             }
 
+            h2, h3, h4 {
+                word-break: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;
+            }
+
             h2 {
                 font-size: 1.3em;
             }
@@ -1610,28 +1635,60 @@
                 font-size: 0.95em;
             }
 
-            table {
-                font-size: 11px;
+            p, label, span {
+                word-break: break-word;
+                overflow-wrap: break-word;
+            }
+
+            .table-wrapper {
                 width: 100%;
-                display: block;
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
+                display: block;
+                margin: 10px 0;
+            }
+
+            table,
+            .table {
+                font-size: 11px;
+                width: 100%;
+                min-width: 600px;
+                display: table;
+                border-collapse: collapse;
             }
 
             table th,
-            table td {
-                padding: 6px;
+            table td,
+            .table th,
+            .table td {
+                padding: 8px 6px;
                 white-space: nowrap;
+                font-size: 11px;
             }
 
-            .table {
-                width: 100%;
-                display: block;
-                overflow-x: auto;
+            .table td:last-child,
+            .table th:last-child {
+                white-space: normal;
+                min-width: 60px;
+            }
+
+            /* Ensure all text elements wrap properly on mobile */
+            .workflow-step *,
+            .deliverable-card *,
+            .section * {
+                max-width: 100%;
             }
 
             .daw-upload-area {
                 padding: 30px 15px;
+            }
+
+            .workflow-step h3 {
+                font-size: 16px;
+            }
+
+            .workflow-step p {
+                font-size: 11px;
             }
         }
 
@@ -1784,7 +1841,7 @@
             <div class="content-area">
                 <!-- Dashboard Section -->
                 <div id="dashboard" class="section">
-                    <h2>Dashboard</h2>
+                    <h2 style="word-break: break-word; overflow-wrap: break-word;">Dashboard</h2>
                     <div class="stats-grid" id="dashboardStats"></div>
                     <div id="recentRuns"></div>
                 </div>
@@ -2226,7 +2283,7 @@
                                 <div class="form-group" style="margin-top: 15px;">
                                     <div class="upload-area" id="manipulateUploadArea" ondrop="handleManipulateDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('manipulateFileInput').click()">
                                         <div class="upload-area-cloud"><img src="/static/img/file_upload.png" alt="Upload"></div>
-                                        <p style="margin: 0; color: #9ca3af;">Drag and drop audio file here or click to browse</p>
+                                        <p style="margin: 0; color: #9ca3af; word-break: break-word; overflow-wrap: break-word; padding: 0 10px;">Drag and drop audio file here or click to browse</p>
                                         <button class="btn" style="margin-top: 15px; padding: 8px 20px; font-size: 12px;">Browse</button>
                                         <input type="file" id="manipulateFileInput" style="display: none;" accept="audio/*" onchange="handleManipulateFileSelect(event)">
                                     </div>
@@ -2302,14 +2359,14 @@
 
                 <!-- Deliverables Section -->
                 <div id="deliverables" class="section active">
-                    <h2 style="display: flex; align-items: center; gap: 10px;"><img src="/static/img/deliverable.png" alt="Deliverables" style="width: 24px; height: 24px;">Deliverables & Reports</h2>
-                    <p style="margin-bottom: 20px; color: #9ca3af;">
+                    <h2 style="display: flex; align-items: center; gap: 10px; word-break: break-word; overflow-wrap: break-word; flex-wrap: wrap;"><img src="/static/img/deliverable.png" alt="Deliverables" style="width: 24px; height: 24px; flex-shrink: 0;">Deliverables & Reports</h2>
+                    <p style="margin-bottom: 20px; color: #9ca3af; word-break: break-word; overflow-wrap: break-word;">
                         Configure transformations and generate comprehensive Phase 1 and Phase 2 test reports.
                     </p>
 
                     <!-- Section 1: Select Audio File -->
                     <div class="workflow-step" style="margin-bottom: 20px;">
-                        <h3>1. Select Audio File</h3>
+                        <h3 style="word-break: break-word; overflow-wrap: break-word;">1. Select Audio File</h3>
 
                         <!-- Browser existing files -->
                         <div class="form-group">
@@ -2324,7 +2381,7 @@
                             <label>Or Upload Audio File</label>
                             <div class="upload-area" id="deliverablesUploadArea" ondrop="handleDeliverablesDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('deliverablesFileInput').click()">
                                 <div class="upload-area-cloud"><img src="/static/img/file_upload.png" alt="Upload"></div>
-                                <p style="margin: 10px 0; color: #9ca3af;">Drag and drop audio file here or click to browse</p>
+                                <p style="margin: 10px 0; color: #9ca3af; word-break: break-word; overflow-wrap: break-word; padding: 0 10px;">Drag and drop audio file here or click to browse</p>
                                 <input type="file" id="deliverablesFileInput" style="display: none;" accept="audio/*" onchange="handleDeliverablesFileSelect(event)">
                             </div>
                         </div>
@@ -2343,7 +2400,7 @@
 
                     <!-- Section 2: Configure Transformations (Quick Single Run) -->
                     <div class="workflow-step" style="margin-bottom: 20px;">
-                        <h3 style="color: #22D2E6; font-size: 20px; font-weight: 600; margin-bottom: 10px;">2. Configure Transformations (Quick Single Run)</h3>
+                        <h3 style="color: #22D2E6; font-size: 20px; font-weight: 600; margin-bottom: 10px; word-break: break-word;">2. Configure Transformations (Quick Single Run)</h3>
                         <p style="color: #9ca3af; margin-bottom: 15px; font-size: 12px;">
                             This is a quick single run only. Does not generate full Phase 1/Phase 2 matrix reports—use the "Full Test Suites" buttons below for that.
                         </p>

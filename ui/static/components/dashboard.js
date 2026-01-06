@@ -58,7 +58,7 @@ class DashboardManager {
 
             if (recentRunsDiv) {
                 if (runs.runs && runs.runs.length > 0) {
-                    recentRunsDiv.innerHTML = '<h3 style="margin-top: 20px;">Recent Runs</h3><table class="table"><thead><tr><th>Run ID</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>';
+                    recentRunsDiv.innerHTML = '<h3 style="margin-top: 20px;">Recent Runs</h3><div class="table-wrapper"><table class="table"><thead><tr><th>Run ID</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table></div>';
                     const tbody = recentRunsDiv.querySelector('tbody');
                     runs.runs.slice(0, 5).forEach(run => {
                         const date = new Date(run.timestamp * 1000).toLocaleString();

@@ -295,7 +295,7 @@ class DeliverablesManager {
 
             if (result.summary && result.summary.length > 0) {
                 html += '<h5 style="color: #427eea; margin-top: 20px; margin-bottom: 10px; font-size: 14px;">📋 Per-Severity Summary</h5>';
-                html += '<div style="overflow-x: auto;"><table class="table" style="width: 100%; margin-top: 10px; font-size: 12px;"><thead><tr style="background: #2d2d2d;"><th style="padding: 8px; text-align: left;">Severity</th><th style="padding: 8px; text-align: right;">Count</th><th style="padding: 8px; text-align: right;">Recall@1</th><th style="padding: 8px; text-align: right;">Recall@5</th><th style="padding: 8px; text-align: right;">Recall@10</th></tr></thead><tbody>';
+                html += '<div class="table-wrapper"><table class="table" style="width: 100%; margin-top: 10px; font-size: 12px; min-width: 500px;"><thead><tr style="background: #2d2d2d;"><th style="padding: 8px; text-align: left;">Severity</th><th style="padding: 8px; text-align: right;">Count</th><th style="padding: 8px; text-align: right;">Recall@1</th><th style="padding: 8px; text-align: right;">Recall@5</th><th style="padding: 8px; text-align: right;">Recall@10</th></tr></thead><tbody>';
                 result.summary.forEach(row => {
                     const severityColor = row.severity === 'mild' ? '#10b981' : row.severity === 'moderate' ? '#f59e0b' : '#f87171';
                     html += `<tr style="border-bottom: 1px solid #3d3d3d;">
@@ -306,7 +306,7 @@ class DeliverablesManager {
                         <td style="padding: 8px; text-align: right; color: #ffffff;">${((row.recall_at_10 || 0) * 100).toFixed(1)}%</td>
                     </tr>`;
                 });
-                html += '</tbody></table></div>';
+                html += '</tbody></table></div></div>';
             }
 
             html += `
@@ -357,8 +357,8 @@ class DeliverablesManager {
                 html += `
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
                     <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">📋 Detailed Test Results</h5>
-                    <div style="overflow-x: auto; background: #2d2d2d; border-radius: 8px; padding: 15px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <div class="table-wrapper" style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px;">
                             <thead>
                                 <tr style="background: #1e1e1e; border-bottom: 2px solid #3d3d3d;">
                                     <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600;">severity</th>
@@ -404,8 +404,8 @@ class DeliverablesManager {
                 html += `
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
                     <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Latency Metrics</h5>
-                    <div style="overflow-x: auto; background: #2d2d2d; border-radius: 8px; padding: 15px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <div class="table-wrapper" style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px;">
                             <thead>
                                 <tr style="background: #1e1e1e; border-bottom: 2px solid #3d3d3d;">
                                     <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600;">Metric</th>
@@ -439,8 +439,8 @@ class DeliverablesManager {
                 html += `
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
                     <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Per-Transform Analysis</h5>
-                    <div style="overflow-x: auto; background: #2d2d2d; border-radius: 8px; padding: 15px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <div class="table-wrapper" style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px;">
                             <thead>
                                 <tr style="background: #1e1e1e; border-bottom: 2px solid #3d3d3d;">
                                     <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600;">Transform</th>
@@ -490,7 +490,7 @@ class DeliverablesManager {
                 html += `
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #3d3d3d;">
                     <h5 style="color: #427eea; margin-bottom: 15px; font-size: 16px; font-weight: 600;">Overall Metrics</h5>
-                    <div style="background: #2d2d2d; border-radius: 8px; padding: 15px; overflow-x: auto;">
+                    <div class="table-wrapper" style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
                         <pre style="color: #ffffff; font-family: 'Courier New', monospace; font-size: 11px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">${JSON.stringify(result.metrics.overall, null, 2)}</pre>
                     </div>
                 </div>

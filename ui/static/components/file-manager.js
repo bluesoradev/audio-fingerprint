@@ -132,7 +132,7 @@ class FileManager {
             if (!runsListDiv) return;
 
             if (result.runs && result.runs.length > 0) {
-                runsListDiv.innerHTML = '<table class="table"><thead><tr><th>Run ID</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>';
+                runsListDiv.innerHTML = '<div class="table-wrapper"><table class="table"><thead><tr><th>Run ID</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div>';
                 const tbody = runsListDiv.querySelector('tbody');
 
                 result.runs.forEach(run => {
