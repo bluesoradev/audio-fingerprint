@@ -1508,14 +1508,51 @@
                 gap: 15px;
             }
 
-            .manipulate-left-panel {
+            /* Reorder sections for correct mobile display: 1, 2, 3, 4 */
+            /* Use display: contents to allow children to participate in parent flex ordering */
+            .manipulate-right-panel {
+                display: contents;
+                background: transparent;
+                border: none;
+                padding: 0;
+                border-radius: 0;
+            }
+
+            /* Preserve styling for right panel children when using display: contents */
+            .manipulate-right-panel > .workflow-step,
+            .manipulate-right-panel > .audio-players-container {
+                background: #1A1A2E;
+                border-radius: 8px;
+                padding: 20px;
+                border: 1px solid rgba(34, 210, 230, 0.2);
+                margin-bottom: 20px;
+            }
+
+            /* Order: 1. Load Audio File */
+            .manipulate-right-panel > .workflow-step:first-of-type {
+                order: 1;
+            }
+
+            /* Order: Audio Players (between 1 and 2) */
+            .manipulate-right-panel > .audio-players-container {
                 order: 2;
+            }
+
+            /* Order: 2. Apply Transforms */
+            .manipulate-left-panel {
+                order: 3;
                 max-height: none;
                 padding: 15px;
             }
 
-            .manipulate-right-panel {
-                order: 1;
+            /* Order: 3. Test Fingerprint Robustness */
+            .manipulate-right-panel > .workflow-step:nth-of-type(2) {
+                order: 4;
+            }
+
+            /* Order: 4. Test Results */
+            .manipulate-right-panel > .workflow-step:nth-of-type(3) {
+                order: 5;
             }
 
 
