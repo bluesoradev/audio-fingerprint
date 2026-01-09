@@ -27,6 +27,56 @@
             width: 100%;
         }
 
+        /* Global Custom Scrollbar Styling for all scrollable elements */
+        html, body, .container, .workflow-step, .daw-metadata-view {
+            scrollbar-width: thin;
+            scrollbar-color: #4b5563 #1f2937;
+        }
+
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar,
+        .container::-webkit-scrollbar,
+        .workflow-step::-webkit-scrollbar,
+        .daw-metadata-view::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        html::-webkit-scrollbar-track,
+        body::-webkit-scrollbar-track,
+        .container::-webkit-scrollbar-track,
+        .workflow-step::-webkit-scrollbar-track,
+        .daw-metadata-view::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+
+        html::-webkit-scrollbar-thumb,
+        body::-webkit-scrollbar-thumb,
+        .container::-webkit-scrollbar-thumb,
+        .workflow-step::-webkit-scrollbar-thumb,
+        .daw-metadata-view::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+            border: 1px solid #1f2937;
+        }
+
+        html::-webkit-scrollbar-thumb:hover,
+        body::-webkit-scrollbar-thumb:hover,
+        .container::-webkit-scrollbar-thumb:hover,
+        .workflow-step::-webkit-scrollbar-thumb:hover,
+        .daw-metadata-view::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        html::-webkit-scrollbar-corner,
+        body::-webkit-scrollbar-corner,
+        .container::-webkit-scrollbar-corner,
+        .workflow-step::-webkit-scrollbar-corner,
+        .daw-metadata-view::-webkit-scrollbar-corner {
+            background: #1f2937;
+        }
+
         .container {
             max-width: 1600px;
             margin: 0 auto;
@@ -195,7 +245,7 @@
         }
 
         .content-area-full {
-            min-height: 1400px;
+            min-height: 800px;
         }
 
         .content-area-manipulate {
@@ -518,6 +568,8 @@
             display: block;
             margin: 10px 0;
         }
+
+        
 
         .table th,
         .table td {
@@ -3308,13 +3360,13 @@
                     </div>
 
                     <!-- Content Grid: Files List and Metadata Side by Side -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 100%; box-sizing: border-box;">
                         <!-- DAW Files List -->
-                        <div class="workflow-step">
+                        <div class="workflow-step" style="min-width: 0; overflow: hidden;">
                             <h3 style="display: flex; align-items: center; gap: 8px;">
                                 DAW Files
                             </h3>
-                            <div class="daw-file-list" id="dawFileList" style="margin-top: 15px; min-height: 200px;">
+                            <div class="daw-file-list" id="dawFileList" style="margin-top: 15px; min-height: 200px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden;">
                                 <div style="color: #9ca3af; text-align: center; padding: 40px 20px;">
                                     <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">📄</div>
                                     <p style="margin: 0;">No DAW files uploaded yet</p>
@@ -3324,11 +3376,11 @@
                         </div>
 
                         <!-- Metadata Viewer -->
-                        <div class="workflow-step">
+                        <div class="workflow-step" style="min-width: 0; overflow: hidden;">
                             <h3 style="display: flex; align-items: center; gap: 8px;">
                                 DAW Metadata
                             </h3>
-                            <div class="daw-metadata-view" id="dawMetadataView" style="margin-top: 15px; min-height: 200px;">
+                            <div class="daw-metadata-view" id="dawMetadataView" style="margin-top: 15px; min-height: 200px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden;">
                                 <div style="color: #9ca3af; text-align: center; padding: 40px 20px;">
                                     <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;">🔍</div>
                                     <p style="margin: 0;">Select a DAW file to view metadata</p>
@@ -3774,21 +3826,73 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            min-width: 0; /* Allow flex items to shrink */
         }
 
         .daw-file-info {
             flex: 1;
+            min-width: 0; /* Allow text truncation */
+            overflow: hidden;
         }
 
         .daw-file-name {
             font-weight: 600;
             color: #ffffff;
             margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .daw-file-meta {
             font-size: 12px;
             color: #9ca3af;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .daw-file-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+            flex-wrap: wrap; /* Allow buttons to wrap on small screens */
+        }
+
+        /* Hide "Parse" button with false parameter */
+        .daw-file-actions button[onclick*="parseDAWFile"][onclick*=", false)"],
+        .daw-file-actions button[onclick*="parseDAWFile"][onclick*=",false)"],
+        .daw-file-actions button[onclick*="parseDAWFile('"][onclick*="false)"] {
+            display: none !important;
+        }
+
+        .daw-file-actions .btn {
+            white-space: nowrap;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+
+        @media (max-width: 768px) {
+            .daw-file-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .daw-file-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .daw-file-name {
+                white-space: normal;
+                word-break: break-word;
+            }
         }
 
         .daw-metadata-view {
@@ -3814,6 +3918,153 @@
         .daw-stat-value {
             color: #ffffff;
             font-weight: 600;
+        }
+
+        .daw-metadata-container {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .daw-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #374151;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .daw-tabs.daw-scrollable-horizontal::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .daw-tab-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: fit-content;
+        }
+
+        .daw-tab-btn:hover {
+            color: #f3f4f6;
+            background: #1f2937;
+        }
+
+        .daw-tab-btn.active {
+            color: #60a5fa;
+            border-bottom-color: #60a5fa;
+        }
+
+        .daw-tab-content {
+            display: none;
+        }
+
+        .daw-tab-content.active {
+            display: block;
+            height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Custom Scrollbar Styling for All Scrollable Areas */
+        .daw-scrollable,
+        .daw-scrollable * {
+            scrollbar-width: thin;
+            scrollbar-color: #4b5563 #1f2937;
+        }
+
+        .daw-scrollable::-webkit-scrollbar,
+        .daw-scrollable *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .daw-scrollable::-webkit-scrollbar-track,
+        .daw-scrollable *::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+
+        .daw-scrollable::-webkit-scrollbar-thumb,
+        .daw-scrollable *::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+            border: 1px solid #1f2937;
+        }
+
+        .daw-scrollable::-webkit-scrollbar-thumb:hover,
+        .daw-scrollable *::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        .daw-scrollable::-webkit-scrollbar-corner,
+        .daw-scrollable *::-webkit-scrollbar-corner {
+            background: #1f2937;
+        }
+
+        /* Horizontal scrollbar specific styling */
+        .daw-scrollable-horizontal::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        /* Vertical scrollbar specific styling */
+        .daw-scrollable-vertical::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .daw-section {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #1f2937;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+
+        .daw-section h4 {
+            margin: 0 0 10px 0;
+            color: #60a5fa;
+            font-size: 14px;
+        }
+
+        .daw-section table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .daw-section table thead {
+            background: #111827;
+        }
+
+        .daw-section table th {
+            padding: 8px;
+            text-align: left;
+            color: #f3f4f6;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .daw-section table td {
+            padding: 6px 8px;
+            color: #d1d5db;
+            border-bottom: 1px solid #374151;
+        }
+
+        .daw-section table tbody tr:hover {
+            background: #1f2937;
         }
     </style>
 

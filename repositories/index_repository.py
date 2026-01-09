@@ -49,7 +49,7 @@ class IndexRepository(IIndexRepository):
         
         return _query_index(
             index=index,
-            query_vector=embedding,
+            query_vectors=embedding,
             topk=topk,
             ids=index_metadata.ids if index_metadata else None,
             normalize=True,

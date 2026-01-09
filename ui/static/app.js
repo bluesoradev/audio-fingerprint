@@ -393,6 +393,7 @@
         // Register section loaders
         navigationManager.registerLoader('manipulate', loadManipulateAudioFiles);
         navigationManager.registerLoader('deliverables', loadDeliverablesAudioFiles);
+        navigationManager.registerLoader('daw', loadDAWFiles);
 
         // Set up DOMContentLoaded handler
         if (document.readyState === 'loading') {
@@ -413,6 +414,10 @@
             // This ensures files are available even if user hasn't navigated to the sections yet
             loadManipulateAudioFiles();
             loadDeliverablesAudioFiles();
+            
+            // Load DAW files on page load
+            // This ensures existing DAW files are displayed when the page loads
+            loadDAWFiles();
         }
 
     } catch (error) {

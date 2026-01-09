@@ -36,7 +36,8 @@ class QueryService(IQueryService):
         transform_service: ITransformService,
         index: Any = None,
         index_metadata: Optional[IndexMetadata] = None,
-        model_config: Optional[ModelConfig] = None
+        model_config: Optional[ModelConfig] = None,
+        model_dict: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize query service.
@@ -49,6 +50,7 @@ class QueryService(IQueryService):
             index: Pre-loaded FAISS index (optional)
             index_metadata: Pre-loaded index metadata (optional)
             model_config: Pre-loaded model config (optional)
+            model_dict: Full model dict with EmbeddingGenerator (optional, for embedding extraction)
         """
         self.index_repository = index_repository
         self.file_repository = file_repository
@@ -60,6 +62,7 @@ class QueryService(IQueryService):
         self._index = index
         self._index_metadata = index_metadata
         self._model_config = model_config
+        self._model_dict = model_dict  # Store model dict with EmbeddingGenerator
     
     def query_file(
         self,
@@ -125,7 +128,13 @@ class QueryService(IQueryService):
             overlap_ratio=query_config.overlap_ratio
         )
         
-        embeddings = extract_embeddings(segments, model_config.__dict__, save_embeddings=False)
+        # Use model_dict (with EmbeddingGenerator) if available, otherwise fallback to model_config.__dict__
+        if self._model_dict:
+            embeddings = extract_embeddings(segments, self._model_dict, save_embeddings=False)
+        else:
+            # Fallback to old method (for compatibility)
+            logger.warning("Using model_config.__dict__ fallback - model_dict not available")
+            embeddings = extract_embeddings(segments, model_config.__dict__, save_embeddings=False)
         embeddings = normalize_embeddings(embeddings, method="l2")
         
         # Query first scale
@@ -178,7 +187,13 @@ class QueryService(IQueryService):
                     overlap_ratio=query_config.overlap_ratio
                 )
                 
-                embeddings = extract_embeddings(segments, model_config.__dict__, save_embeddings=False)
+                # Use model_dict (with EmbeddingGenerator) if available, otherwise fallback to model_config.__dict__
+                if self._model_dict:
+                    embeddings = extract_embeddings(segments, self._model_dict, save_embeddings=False)
+                else:
+                    # Fallback to old method (for compatibility)
+                    logger.warning("Using model_config.__dict__ fallback - model_dict not available")
+                    embeddings = extract_embeddings(segments, model_config.__dict__, save_embeddings=False)
                 embeddings = normalize_embeddings(embeddings, method="l2")
                 
                 scale_results = self._query_segments(

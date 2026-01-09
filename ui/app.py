@@ -100,6 +100,56 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Include API routes
+try:
+    from api.routes import router as api_router
+    app.include_router(api_router)
+    logger.info("API routes included")
+except ImportError as e:
+    logger.warning(f"Could not import API routes: {e}")
+
+# Initialize dependency container on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize dependency container on app startup."""
+    try:
+        from infrastructure.dependency_container import get_container
+        
+        container = get_container()
+        
+        # Load fingerprint index
+        index_path = PROJECT_ROOT / "indexes" / "faiss_index.bin"
+        if index_path.exists():
+            try:
+                container.load_index(index_path)
+                logger.info(f"✓ Loaded fingerprint index from {index_path}")
+            except Exception as e:
+                logger.error(f"✗ Failed to load fingerprint index: {e}", exc_info=True)
+        else:
+            logger.warning(f"⚠ Fingerprint index not found at {index_path}")
+            logger.warning("   API endpoints requiring index will fail until index is loaded")
+        
+        # Load model config
+        config_path = CONFIG_DIR / "fingerprint_v1.yaml"
+        if config_path.exists():
+            try:
+                container.load_model_config(config_path)
+                logger.info(f"✓ Loaded model config from {config_path}")
+            except Exception as e:
+                logger.error(f"✗ Failed to load model config: {e}", exc_info=True)
+        else:
+            logger.warning(f"⚠ Model config not found at {config_path}")
+            logger.warning("   API endpoints requiring model config will fail until config is loaded")
+        
+        # Verify initialization
+        if container._index is not None and container._model_config is not None:
+            logger.info("✓ Dependency container initialized successfully")
+        else:
+            logger.warning("⚠ Dependency container partially initialized - some features may not work")
+            
+    except Exception as e:
+        logger.error(f"✗ Error initializing dependency container: {e}", exc_info=True)
+
 # Process management
 running_processes = {}
 process_logs = {}
@@ -4028,33 +4078,107 @@ async def update_test_matrix(config: dict = Body(...)):
 
 # DAW Parser API Endpoints
 @app.post("/api/daw/parse")
-async def parse_daw_file(file_path: str = Form(...)):
-    """Parse a DAW project file and extract metadata."""
+async def parse_daw_file(
+    file_path: str = Form(...),
+    detailed: str = Form("false")
+):
+    """Parse a DAW project file and extract metadata.
+    
+    Args:
+        file_path: Path to the DAW file to parse
+        detailed: "true" to include full detailed data, "false" for summary only (default)
+    """
     try:
         from daw_parser.utils import get_parser_for_file
 
-        # Resolve file path - handle both relative and absolute paths
-        file_path_obj = Path(file_path)
-        if file_path_obj.is_absolute():
-            daw_file = file_path_obj
-        else:
-            # Try relative to PROJECT_ROOT first
-            daw_file = PROJECT_ROOT / file_path_obj
-            if not daw_file.exists():
-                # Try relative to DATA_DIR/daw_files (common case for uploaded files)
-                daw_file = DATA_DIR / "daw_files" / file_path_obj.name
-                if not daw_file.exists():
-                    # Try with the full relative path in data/daw_files
-                    daw_file = DATA_DIR / "daw_files" / file_path_obj
+        # Normalize path separators (handle both / and \)
+        # Also handle malformed paths where backslashes were stripped
+        file_path_normalized = file_path.replace('\\', '/')
         
-        if not daw_file.exists():
+        # Extract filename if path is malformed (e.g., "D:projectmanipulate-audiodatadaw_filesfile.flp")
+        filename = None
+        if ':' in file_path_normalized and 'daw_files' in file_path_normalized.lower():
+            # Try to extract filename from malformed path
+            parts = file_path_normalized.split('daw_files')
+            if len(parts) > 1:
+                filename = parts[-1].lstrip('/').lstrip('\\')
+                if not filename or not filename.endswith(('.als', '.flp', '.logicx', '.logic')):
+                    filename = None
+        
+        # Resolve file path - handle both relative and absolute paths
+        file_path_obj = Path(file_path_normalized)
+        
+        # Try multiple resolution strategies
+        daw_file = None
+        
+        # Strategy 1: If it's an absolute path, use it directly (if it exists)
+        if file_path_obj.is_absolute() and file_path_obj.exists():
+            daw_file = file_path_obj
+        # Strategy 2: Try relative to PROJECT_ROOT
+        if not daw_file:
+            try:
+                candidate = PROJECT_ROOT / file_path_obj
+                if candidate.exists():
+                    daw_file = candidate
+            except (ValueError, Exception):
+                pass
+        
+        # Strategy 3: Try relative to DATA_DIR
+        if not daw_file:
+            try:
+                candidate = DATA_DIR / file_path_obj
+                if candidate.exists():
+                    daw_file = candidate
+            except (ValueError, Exception):
+                pass
+        
+        # Strategy 4: Try with just the filename in daw_files (most common case)
+        if not daw_file:
+            test_filename = filename or file_path_obj.name
+            if test_filename:
+                candidate = DATA_DIR / "daw_files" / test_filename
+                if candidate.exists():
+                    daw_file = candidate
+        
+        # Strategy 5: Try path relative to DATA_DIR/daw_files
+        if not daw_file:
+            try:
+                # Remove 'data/daw_files' prefix if present
+                path_str = str(file_path_obj)
+                if 'data/daw_files' in path_str or 'data\\daw_files' in path_str:
+                    path_str = path_str.split('daw_files')[-1].lstrip('/').lstrip('\\')
+                    candidate = DATA_DIR / "daw_files" / path_str
+                    if candidate.exists():
+                        daw_file = candidate
+            except (ValueError, Exception):
+                pass
+        # Strategy 5: Try reconstructing from malformed path (fix missing backslashes)
+        if not daw_file:
+            # Handle malformed paths like "D:projectmanipulate-audiodatadaw_filesfile.flp"
+            if ':' in file_path_normalized and 'daw_files' in file_path_normalized.lower():
+                # Try to extract just the filename
+                parts = file_path_normalized.split('daw_files')
+                if len(parts) > 1:
+                    filename = parts[-1].lstrip('/').lstrip('\\')
+                    if filename and filename.endswith(('.als', '.flp', '.logicx', '.logic')):
+                        candidate = DATA_DIR / "daw_files" / filename
+                        if candidate.exists():
+                            daw_file = candidate
+        
+        if not daw_file or not daw_file.exists():
             logger.error(f"DAW file not found: {file_path} (resolved to: {daw_file})")
             return JSONResponse({"error": f"DAW file not found: {file_path}"}, status_code=404)
 
         parser = get_parser_for_file(daw_file)
         metadata = parser.parse()
+        
+        # Parse detailed parameter
+        include_detailed = detailed.lower() in ("true", "1", "yes")
 
-        return JSONResponse({"status": "success", "metadata": metadata.to_dict()})
+        return JSONResponse({
+            "status": "success", 
+            "metadata": metadata.to_dict(detailed=include_detailed)
+        })
     except Exception as e:
         logger.error(f"Error parsing DAW file: {e}", exc_info=True)
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -4142,10 +4266,25 @@ async def list_daw_files():
         if daw_files_dir.exists():
             for ext in [".als", ".flp", ".logicx", ".logic"]:
                 for file_path in daw_files_dir.glob(f"*{ext}"):
+                    # Use relative path to avoid backslash issues in HTML attributes
+                    try:
+                        # Try relative to PROJECT_ROOT first
+                        relative_path = file_path.relative_to(PROJECT_ROOT)
+                        path_str = str(relative_path).replace('\\', '/')  # Normalize to forward slashes
+                    except ValueError:
+                        # If not relative to PROJECT_ROOT, use relative to DATA_DIR
+                        try:
+                            relative_path = file_path.relative_to(DATA_DIR)
+                            path_str = f"data/{relative_path}".replace('\\', '/')
+                        except ValueError:
+                            # Fallback: just use filename
+                            path_str = file_path.name
+                    
                     files.append(
                         {
                             "name": file_path.name,
-                            "path": str(file_path),
+                            "path": path_str,  # Use relative path
+                            "absolute_path": str(file_path),  # Keep absolute for server-side use
                             "type": ext[1:],
                             "size": file_path.stat().st_size,
                             "modified": datetime.fromtimestamp(

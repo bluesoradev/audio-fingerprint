@@ -12,10 +12,23 @@ dist/
 *.egg-info/
 
 # Data files
-data/originals/*
-data/transformed/*
-data/manifests/*.csv
-!data/manifests/.gitkeep
+data/cache/
+data/originals/
+data/transformed/
+data/manipulated/
+
+# Audio files
+*.mp3
+*.wav
+*.m4a
+*.ogg
+*.flac
+*.aac
+
+# DAW files
+*.flp
+*.als
+*.logicx
 
 # Embeddings and indexes
 embeddings/

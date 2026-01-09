@@ -1,11 +1,10 @@
 @echo off
-REM Start the web interface
+REM Start the web interface for network access
 
 echo Starting Audio Fingerprint Robustness Lab Web Interface...
 echo.
-echo Opening browser at http://localhost:8080
+echo Server will be accessible at: http://148.251.88.48:8080
 echo.
 
 cd ui
-start http://localhost:8080
-python -m uvicorn app:app --reload --port 8080
+python -m uvicorn app:app --host 0.0.0.0 --port 8080

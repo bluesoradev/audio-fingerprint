@@ -141,9 +141,13 @@ class DAWMetadata:
     extraction_version: str = "1.0.0"
     raw_metadata: Dict[str, Any] = field(default_factory=dict)  # Store raw extracted data
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return {
+    def to_dict(self, detailed: bool = False) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+        
+        Args:
+            detailed: If True, includes full detailed data. If False, returns summary counts only.
+        """
+        base_dict = {
             "project_path": str(self.project_path),
             "daw_type": self.daw_type.value,
             "version": self.version,
@@ -158,3 +162,120 @@ class DAWMetadata:
             "extracted_at": self.extracted_at.isoformat(),
             "extraction_version": self.extraction_version
         }
+        
+        if detailed:
+            # Include full detailed data
+            # Note: Keep count fields (tempo_changes, plugin_chains, sample_sources) as numbers
+            # Use separate keys for detailed arrays to avoid overwriting counts
+            base_dict.update({
+                "midi_data": [
+                    {
+                        "track_name": track.track_name,
+                        "track_index": track.track_index,
+                        "instrument": track.instrument,
+                        "volume": track.volume,
+                        "pan": track.pan,
+                        "note_count": len(track.notes),
+                        "notes": [
+                            {
+                                "note": note.note,
+                                "velocity": note.velocity,
+                                "start_time": note.start_time,
+                                "duration": note.duration,
+                                "channel": note.channel,
+                                "track_name": note.track_name
+                            }
+                            for note in track.notes
+                        ]
+                    }
+                    for track in self.midi_data
+                ],
+                "arrangement": {
+                    "clips": [
+                        {
+                            "clip_name": clip.clip_name,
+                            "start_time": clip.start_time,
+                            "end_time": clip.end_time,
+                            "track_name": clip.track_name,
+                            "clip_type": clip.clip_type,
+                            "file_path": str(clip.file_path) if clip.file_path else None
+                        }
+                        for clip in self.arrangement.clips
+                    ],
+                    "tracks": self.arrangement.tracks,
+                    "total_length": self.arrangement.total_length
+                },
+                # Use separate keys for detailed arrays to preserve count fields
+                "tempo_changes_data": [
+                    {
+                        "time": tc.time,
+                        "tempo": tc.tempo,
+                        "time_signature": tc.time_signature
+                    }
+                    for tc in self.tempo_changes
+                ],
+                "key_changes_data": [
+                    {
+                        "time": kc.time,
+                        "key": kc.key,
+                        "scale": kc.scale
+                    }
+                    for kc in self.key_changes
+                ],
+                "plugin_chains_data": [
+                    {
+                        "track_name": chain.track_name,
+                        "chain_position": chain.chain_position,
+                        "device_count": len(chain.devices),
+                        "devices": [
+                            {
+                                "device_name": device.device_name,
+                                "device_type": device.device_type,
+                                "device_id": device.device_id,
+                                "enabled": device.enabled,
+                                "parameter_count": len(device.parameters),
+                                "parameters": [
+                                    {
+                                        "parameter_name": param.parameter_name,
+                                        "value": param.value,
+                                        "unit": param.unit
+                                    }
+                                    for param in device.parameters
+                                ]
+                            }
+                            for device in chain.devices
+                        ]
+                    }
+                    for chain in self.plugin_chains
+                ],
+                "sample_sources_data": [
+                    {
+                        "file_path": str(sample.file_path),
+                        "sample_name": sample.sample_name,
+                        "track_name": sample.track_name,
+                        "start_time": sample.start_time,
+                        "duration": sample.duration,
+                        "file_hash": sample.file_hash
+                    }
+                    for sample in self.sample_sources
+                ],
+                "automation_data": [
+                    {
+                        "parameter_name": auto.parameter_name,
+                        "track_name": auto.track_name,
+                        "parameter_id": auto.parameter_id,
+                        "point_count": len(auto.points),
+                        "points": [
+                            {
+                                "time": point.time,
+                                "value": point.value,
+                                "curve_type": point.curve_type
+                            }
+                            for point in auto.points
+                        ]
+                    }
+                    for auto in self.automation
+                ]
+            })
+        
+        return base_dict

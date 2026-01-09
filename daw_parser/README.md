@@ -6,9 +6,9 @@ This module provides functionality to parse DAW (Digital Audio Workstation) proj
 
 ### Phase 1 (Current)
 - **Ableton Live (.als)** - Full support
+- **FL Studio (.flp)** - Full support (requires pyflp library)
 
 ### Phase 2 (Planned)
-- **FL Studio (.flp)** - In development
 - **Logic Pro (.logicx)** - In development
 
 ## Features
@@ -177,12 +177,14 @@ daw_parser/
 
 ## Limitations
 
-### Current Limitations (Phase 1)
+### Current Limitations
 
-- Only Ableton Live (.als) files are supported
-- Some complex Ableton features may not be fully extracted
+- Ableton Live (.als) files are fully supported
+- FL Studio (.flp) files are supported (requires pyflp library)
+- Some complex DAW features may not be fully extracted
 - Encrypted or password-protected projects are not supported
 - Very large projects may take significant time to parse
+- FL Studio parser depends on pyflp library API which may vary by version
 
 ### Known Issues
 
@@ -192,8 +194,8 @@ daw_parser/
 
 ## Future Enhancements
 
-- FL Studio (.flp) parser (Phase 2)
 - Logic Pro (.logicx) parser (Phase 2)
+- Enhanced FL Studio feature extraction
 - Integration with fingerprinting pipeline (Phase 3)
 - Metadata-based query filtering (Phase 3)
 - Enhanced visualization in reports (Phase 3)

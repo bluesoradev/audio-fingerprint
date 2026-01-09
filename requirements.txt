@@ -41,3 +41,6 @@ checksumdir>=1.2.0
 
 # Optional: PDF generation
 # weasyprint>=59.0  # or use pandoc/wkhtmltopdf
+
+
+pyflp>=2.0.0

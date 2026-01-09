@@ -1,7 +1,7 @@
 """Dependency injection container."""
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from repositories import IndexRepository, FileRepository, ConfigRepository
 from services import QueryService, TransformService
@@ -24,6 +24,7 @@ class DependencyContainer:
         self._index = None
         self._index_metadata: Optional[IndexMetadata] = None
         self._model_config: Optional[ModelConfig] = None
+        self._model_dict: Optional[Dict[str, Any]] = None  # Store full model dict with EmbeddingGenerator
     
     def initialize_repositories(self):
         """Initialize repository instances."""
@@ -50,6 +51,12 @@ class DependencyContainer:
             self.initialize_repositories()
         
         logger.info(f"Loading model config from {config_path}")
+        
+        # Load the full model dict (includes EmbeddingGenerator)
+        from fingerprint.load_model import load_fingerprint_model
+        self._model_dict = load_fingerprint_model(config_path)
+        
+        # Also create ModelConfig for compatibility
         self._model_config = self._config_repository.load_model_config(config_path)
     
     def get_query_service(self) -> QueryService:
@@ -62,6 +69,8 @@ class DependencyContainer:
                 raise ValueError("Index must be loaded before creating QueryService")
             if self._model_config is None:
                 raise ValueError("Model config must be loaded before creating QueryService")
+            if self._model_dict is None:
+                raise ValueError("Model dict must be loaded before creating QueryService")
             
             self._query_service = QueryService(
                 index_repository=self._index_repository,
@@ -70,7 +79,8 @@ class DependencyContainer:
                 transform_service=self._transform_service,
                 index=self._index,
                 index_metadata=self._index_metadata,
-                model_config=self._model_config
+                model_config=self._model_config,
+                model_dict=self._model_dict  # Pass model dict with EmbeddingGenerator
             )
         
         return self._query_service
