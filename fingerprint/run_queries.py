@@ -12,11 +12,13 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import time
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import multiprocessing
 
 from .load_model import load_fingerprint_model
 from .embed import segment_audio, extract_embeddings, normalize_embeddings
@@ -1761,15 +1763,104 @@ def run_query_on_file(
         }
 
 
+def _process_single_query(
+    query_data: Tuple[Dict, any, Dict, any, Dict, Path, int, Path]
+) -> Tuple[Dict, bool]:
+    """
+    Process a single query (for parallel execution).
+    
+    Args:
+        query_data: Tuple of (row_dict, index, model_config, index_metadata, results_dir, topk, files_manifest_path)
+    
+    Returns:
+        Tuple of (query_record_dict, success: bool)
+    """
+    row, index, model_config, index_metadata, results_dir, topk, files_manifest_path = query_data
+    
+    try:
+        file_path = Path(row["output_path"])
+        
+        if not file_path.exists():
+            logger.warning(f"File not found: {file_path}")
+            return (None, False)
+        
+        # Run query with transform info for enhanced detection
+        result = run_query_on_file(
+            file_path,
+            index,
+            model_config,
+            topk=topk,
+            index_metadata=index_metadata,
+            transform_type=row.get("transform_type"),
+            expected_orig_id=row.get("orig_id"),
+            files_manifest_path=files_manifest_path
+        )
+        
+        # Save individual result JSON
+        safe_id = str(row['transformed_id']).replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
+        result_path = results_dir / f"{safe_id}_query.json"
+        result_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(result_path, 'w') as f:
+            json.dump(result, f, indent=2)
+        
+        # Extract top match info
+        top_match = result.get("aggregated_results", [{}])[0] if result.get("aggregated_results") else {}
+        
+        query_record = {
+            "transformed_id": row["transformed_id"],
+            "orig_id": row["orig_id"],
+            "transform_type": row["transform_type"],
+            "severity": row["severity"],
+            "file_path": str(file_path),
+            "latency_ms": result.get("latency_ms", 0),
+            "num_segments": result.get("num_segments", 0),
+            "top_match_id": top_match.get("id", ""),
+            "top_match_similarity": top_match.get("mean_similarity", 0.0),
+            "top_match_rank": top_match.get("rank", -1),
+            "result_path": str(result_path),
+            "error": result.get("error", ""),
+        }
+        
+        return (query_record, True)
+        
+    except Exception as e:
+        logger.error(f"Error processing query for {row.get('transformed_id', 'unknown')}: {e}", exc_info=True)
+        return ({
+            "transformed_id": row.get("transformed_id", "unknown"),
+            "orig_id": row.get("orig_id", ""),
+            "transform_type": row.get("transform_type", ""),
+            "severity": row.get("severity", ""),
+            "file_path": str(row.get("output_path", "")),
+            "latency_ms": 0,
+            "num_segments": 0,
+            "top_match_id": "",
+            "top_match_similarity": 0.0,
+            "top_match_rank": -1,
+            "result_path": "",
+            "error": str(e),
+        }, False)
+
+
 def run_queries(
     transform_manifest_path: Path,
     index_path: Path,
     fingerprint_config_path: Path,
     output_dir: Path,
-    topk: int = 30
+    topk: int = 30,
+    max_workers: Optional[int] = None,
+    use_parallel: bool = True
 ) -> pd.DataFrame:
     """
-    Run queries on all transformed files.
+    Run queries on all transformed files (OPTIMIZED WITH PARALLEL PROCESSING).
+    
+    Args:
+        transform_manifest_path: Path to transform manifest CSV
+        index_path: Path to FAISS index
+        fingerprint_config_path: Path to fingerprint config YAML
+        output_dir: Output directory for results
+        topk: Top-K results per query
+        max_workers: Number of parallel workers (None = auto-detect)
+        use_parallel: Whether to use parallel processing (default: True)
     
     Returns:
         DataFrame with query results
@@ -1826,54 +1917,114 @@ def run_queries(
     results_dir = output_dir / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
     
+    # Determine optimal number of workers
+    if max_workers is None:
+        try:
+            import torch
+            if torch.cuda.is_available():
+                # GPU available: use fewer workers to share GPU efficiently (queries use GPU for embeddings)
+                max_workers = min(4, len(transform_df), multiprocessing.cpu_count())
+                logger.info(f"GPU detected: using {max_workers} workers for query execution")
+            else:
+                # CPU only: use more workers
+                max_workers = min(8, len(transform_df), multiprocessing.cpu_count() - 1)
+                logger.info(f"CPU only: using {max_workers} workers for query execution")
+        except ImportError:
+            max_workers = min(4, len(transform_df), multiprocessing.cpu_count())
+    
     query_records = []
     
-    # Process each transformed file
-    for _, row in tqdm(transform_df.iterrows(), total=len(transform_df), desc="Running queries"):
-        file_path = Path(row["output_path"])
+    # Prepare query data
+    query_data_list = [
+        (row.to_dict(), index, model_config, index_metadata, results_dir, topk, files_manifest_path)
+        for _, row in transform_df.iterrows()
+    ]
+    
+    # Process queries in parallel or sequentially
+    if use_parallel and len(query_data_list) > 1 and max_workers > 1:
+        logger.info(f"Using parallel query processing with {max_workers} workers...")
+        start_time = time.time()
         
-        if not file_path.exists():
-            logger.warning(f"File not found: {file_path}")
-            continue
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all queries
+            futures = {executor.submit(_process_single_query, data): i 
+                      for i, data in enumerate(query_data_list)}
+            
+            completed = 0
+            with tqdm(total=len(query_data_list), desc="Running queries (parallel)") as pbar:
+                for future in as_completed(futures):
+                    idx = futures[future]
+                    completed += 1
+                    
+                    try:
+                        query_record, success = future.result()
+                        if success and query_record:
+                            query_records.append(query_record)
+                            pbar.update(1)
+                        elif query_record:
+                            # Failed but returned error record
+                            query_records.append(query_record)
+                            pbar.update(1)
+                    except Exception as e:
+                        logger.error(f"Error processing query {idx}: {e}", exc_info=True)
+                        pbar.update(1)
         
-        # Run query with transform info for enhanced detection
-        result = run_query_on_file(
-            file_path,
-            index,
-            model_config,
-            topk=topk,
-            index_metadata=index_metadata,
-            transform_type=row.get("transform_type"),
-            expected_orig_id=row.get("orig_id"),
-            files_manifest_path=files_manifest_path
-        )
+        total_time = time.time() - start_time
+        avg_time = total_time / len(query_data_list) if query_data_list else 0
+        logger.info(f"Parallel query processing completed in {total_time:.1f}s (avg: {avg_time:.2f}s/query, {len(query_data_list)/total_time:.2f} queries/sec)")
         
-        # Save individual result JSON
-        # Sanitize transformed_id to remove filesystem-invalid characters (/, \, :, *, ?, ", <, >, |)
-        safe_id = str(row['transformed_id']).replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
-        result_path = results_dir / f"{safe_id}_query.json"
-        # Ensure parent directory exists
-        result_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(result_path, 'w') as f:
-            json.dump(result, f, indent=2)
+    else:
+        # Sequential processing (fallback)
+        logger.info("Using sequential query processing...")
+        start_time = time.time()
         
-        # Extract top match info
-        top_match = result.get("aggregated_results", [{}])[0] if result.get("aggregated_results") else {}
+        for _, row in tqdm(transform_df.iterrows(), total=len(transform_df), desc="Running queries (sequential)"):
+            file_path = Path(row["output_path"])
+            
+            if not file_path.exists():
+                logger.warning(f"File not found: {file_path}")
+                continue
+            
+            # Run query with transform info for enhanced detection
+            result = run_query_on_file(
+                file_path,
+                index,
+                model_config,
+                topk=topk,
+                index_metadata=index_metadata,
+                transform_type=row.get("transform_type"),
+                expected_orig_id=row.get("orig_id"),
+                files_manifest_path=files_manifest_path
+            )
+            
+            # Save individual result JSON
+            safe_id = str(row['transformed_id']).replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
+            result_path = results_dir / f"{safe_id}_query.json"
+            result_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(result_path, 'w') as f:
+                json.dump(result, f, indent=2)
+            
+            # Extract top match info
+            top_match = result.get("aggregated_results", [{}])[0] if result.get("aggregated_results") else {}
+            
+            query_records.append({
+                "transformed_id": row["transformed_id"],
+                "orig_id": row["orig_id"],
+                "transform_type": row["transform_type"],
+                "severity": row["severity"],
+                "file_path": str(file_path),
+                "latency_ms": result.get("latency_ms", 0),
+                "num_segments": result.get("num_segments", 0),
+                "top_match_id": top_match.get("id", ""),
+                "top_match_similarity": top_match.get("mean_similarity", 0.0),
+                "top_match_rank": top_match.get("rank", -1),
+                "result_path": str(result_path),
+                "error": result.get("error", ""),
+            })
         
-        query_records.append({
-            "transformed_id": row["transformed_id"],
-            "orig_id": row["orig_id"],
-            "transform_type": row["transform_type"],
-            "severity": row["severity"],
-            "file_path": str(file_path),
-            "latency_ms": result.get("latency_ms", 0),
-            "num_segments": result.get("num_segments", 0),
-            "top_match_id": top_match.get("id", ""),
-            "top_match_similarity": top_match.get("mean_similarity", 0.0),
-            "top_match_rank": top_match.get("rank", -1),
-            "result_path": str(result_path),
-            "error": result.get("error", ""),
-        })
+        total_time = time.time() - start_time
+        avg_time = total_time / len(transform_df) if len(transform_df) > 0 else 0
+        logger.info(f"Sequential query processing completed in {total_time:.1f}s (avg: {avg_time:.2f}s/query)")
     
     # Save summary CSV
     results_df = pd.DataFrame(query_records)
@@ -1892,6 +2043,8 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=Path, required=True, help="Fingerprint config YAML")
     parser.add_argument("--output", type=Path, required=True, help="Output directory")
     parser.add_argument("--topk", type=int, default=30, help="Top-K results (increased from 10 for better aggregation)")
+    parser.add_argument("--workers", type=int, default=None, help="Number of parallel workers (default: auto-detect)")
+    parser.add_argument("--no-parallel", action="store_true", help="Disable parallel processing (use sequential)")
     
     args = parser.parse_args()
     
@@ -1900,5 +2053,7 @@ if __name__ == "__main__":
         args.index,
         args.config,
         args.output,
-        topk=args.topk
+        topk=args.topk,
+        max_workers=args.workers,
+        use_parallel=not args.no_parallel
     )

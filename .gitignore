@@ -36,8 +36,12 @@ indexes/
 *.npy
 *.bin
 
+# ZIP files
+*.zip
+
 # Reports (keep structure but not large files)
 reports/*/
+reports/*.zip
 !reports/.gitkeep
 
 # IDE

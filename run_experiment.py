@@ -10,9 +10,9 @@ from data_ingest import ingest_manifest
 from transforms.generate_transforms import generate_transforms
 from fingerprint.embed import segment_audio, extract_embeddings, normalize_embeddings
 from fingerprint.query_index import build_index, load_index
-from daw_parser.integration import load_daw_metadata_from_manifest
 from fingerprint.run_queries import run_queries
 from evaluation.analyze import analyze_results
+from typing import Optional
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,32 +31,42 @@ except ImportError as e:
 
 # Optional import for report generation (requires matplotlib/PIL)
 try:
-    from reports.render_report import generate_plots, render_html_report, package_report
+    from reports.render_report import generate_plots, render_html_report
     HAS_REPORT_GENERATION = True
 except ImportError as e:
     logger.warning(f"Could not import report generation module: {e}. Report generation will be skipped.")
     HAS_REPORT_GENERATION = False
     generate_plots = None
     render_html_report = None
-    package_report = None
 
 
 def run_full_experiment(
     config_path: Path,
     original_files_csv: Path = None,
-    skip_steps: list = None
+    skip_steps: list = None,
+    max_workers: Optional[int] = None,
+    batch_size: Optional[int] = None,
+    use_parallel: bool = True
 ):
     """
-    Run the complete robustness experiment pipeline.
+    Run the complete robustness experiment pipeline (OPTIMIZED WITH PARALLEL PROCESSING).
     
     Steps:
     1. Ingest original files (if CSV provided)
     2. Generate transforms
-    3. Build index from originals
+    3. Build index from originals (parallel processing enabled)
     4. Run queries on transforms
     5. Analyze results
     6. Capture failures
     7. Generate report
+    
+    Args:
+        config_path: Path to test matrix config YAML
+        original_files_csv: Optional CSV with original files
+        skip_steps: List of steps to skip
+        max_workers: Number of parallel workers for indexing (None = auto-detect)
+        batch_size: Batch size for segment processing (None = auto-detect)
+        use_parallel: Whether to use parallel processing (default: True)
     """
     skip_steps = skip_steps or []
     
@@ -131,249 +141,74 @@ def run_full_experiment(
             raise FileNotFoundError(f"Transform manifest not found: {transform_manifest_path}")
         logger.info(f"Using existing transform manifest: {transform_manifest_path}")
     
-    # Step 3: Build index from originals
+    # Step 3: Build index from originals (OPTIMIZED WITH PARALLEL PROCESSING)
     if "index" not in skip_steps:
         logger.info("=" * 60)
-        logger.info("Step 3: Building FAISS index from originals")
+        logger.info("Step 3: Building FAISS index from originals (Parallel Processing Enabled)")
         logger.info("=" * 60)
         
         import pandas as pd
         import numpy as np
         import json
-        import tempfile
-        from fingerprint.load_model import load_fingerprint_model
-        from fingerprint.original_embeddings_cache import OriginalEmbeddingsCache
-        from fingerprint.incremental_index import update_index_incremental
+        from scripts.create_index import create_or_update_index
+        from daw_parser.integration import load_daw_metadata_from_manifest
         
-        # Initialize cache
-        cache = OriginalEmbeddingsCache()
-        cache_stats = cache.get_cache_stats()
-        logger.info(f"Cache stats: {cache_stats['num_cached_files']} files cached ({cache_stats['total_cache_size_mb']:.2f} MB)")
-        
-        # Load fingerprint config
-        fingerprint_config_path = Path("config/fingerprint_v1.yaml")
-        model_config = load_fingerprint_model(fingerprint_config_path)
-        
-        # Process all original files
-        files_df = pd.read_csv(files_manifest_path)
-        logger.info(f"Loaded manifest with {len(files_df)} files. Columns: {list(files_df.columns)}")
-        
-        # Identify new files that need embedding generation
-        new_files_df = cache.get_new_files(files_manifest_path, model_config)
-        logger.info(f"Files to process: {len(new_files_df)} new files, {len(files_df) - len(new_files_df)} cached files")
-        
-        # Check if index already exists
+        # Use optimized create_or_update_index function (with parallel processing)
         index_path = indexes_dir / "faiss_index.bin"
+        fingerprint_config_path = Path("config/fingerprint_v1.yaml")
         index_config_path = Path("config/index_config.json")
         
-        existing_index = None
-        existing_metadata = None
-        existing_file_ids = set()
+        # Check if we need to rebuild (force rebuild if requested in config)
+        force_rebuild = test_config.get("index", {}).get("force_rebuild", False)
         
-        if index_path.exists():
+        # Get parallel processing parameters from function args, config, or use defaults
+        # Function parameters take precedence over config
+        index_config = test_config.get("index", {})
+        index_max_workers = max_workers if max_workers is not None else index_config.get("max_workers", None)
+        index_batch_size = batch_size if batch_size is not None else index_config.get("batch_size", None)
+        index_use_parallel = use_parallel if use_parallel is not None else index_config.get("use_parallel", True)
+        
+        # Load DAW metadata from manifest (before indexing)
+        daw_metadata = {}
+        try:
+            if files_manifest_path.exists():
+                daw_metadata = load_daw_metadata_from_manifest(files_manifest_path)
+                logger.info(f"Loaded DAW metadata for {len(daw_metadata)} files")
+        except Exception as e:
+            logger.warning(f"Failed to load DAW metadata: {e}")
+        
+        # Use optimized create_or_update_index function
+        # This will use parallel processing automatically
+        index_obj, index_metadata = create_or_update_index(
+            files_input=files_manifest_path,
+            output_index=index_path,
+            fingerprint_config=fingerprint_config_path,
+            index_config=index_config_path,
+            existing_index=index_path if not force_rebuild else None,
+            force_rebuild=force_rebuild,
+            embeddings_dir=embeddings_dir,
+            create_manifest=False,  # Already have manifest
+            max_workers=index_max_workers,
+            batch_size=index_batch_size,
+            use_parallel=index_use_parallel
+        )
+        
+        # Add DAW metadata to index metadata if not already present
+        if daw_metadata and "daw_metadata" not in index_metadata:
             try:
-                logger.info(f"Found existing index: {index_path}")
-                existing_index, existing_metadata = load_index(index_path)
-                existing_ids = existing_metadata.get("ids", [])
-                # Extract file IDs from segment IDs (format: "file_id_seg_0000")
-                existing_file_ids = {id_str.split("_seg_")[0] for id_str in existing_ids if "_seg_" in id_str}
-                logger.info(f"Existing index contains {existing_index.ntotal} vectors from {len(existing_file_ids)} files")
+                # Reload metadata and add DAW data
+                metadata_path = index_path.with_suffix(".json")
+                if metadata_path.exists():
+                    with open(metadata_path, 'r') as f:
+                        existing_metadata = json.load(f)
+                    existing_metadata["daw_metadata"] = daw_metadata
+                    with open(metadata_path, 'w') as f:
+                        json.dump(existing_metadata, f, indent=2, default=str)
+                    logger.info(f"Added DAW metadata to index metadata file")
             except Exception as e:
-                logger.warning(f"Failed to load existing index: {e}, will rebuild")
-                existing_index = None
+                logger.warning(f"Failed to add DAW metadata to index metadata: {e}")
         
-        # Determine which files need to be processed
-        current_file_ids = set(files_df["id"].tolist())
-        files_to_index_rows = []
-        files_already_indexed = []
-        
-        if existing_index is not None:
-            # Check which files are already indexed
-            for _, row in files_df.iterrows():
-                file_id = row["id"]
-                if file_id in existing_file_ids:
-                    files_already_indexed.append(file_id)
-                else:
-                    files_to_index_rows.append(row)
-        else:
-            # No existing index - need to index all files
-            files_to_index_rows = [row for _, row in files_df.iterrows()]
-        
-        logger.info(f"Files already in index: {len(files_already_indexed)}, Files to add: {len(files_to_index_rows)}")
-        
-        # Process files that need embedding generation
-        all_embeddings = []
-        all_ids = []
-        cached_count = 0
-        generated_count = 0
-        
-        for row in files_to_index_rows:
-            # Handle both "file_path" and "path" column names for compatibility
-            file_path_str = row.get("file_path") or row.get("path")
-            if not file_path_str:
-                logger.error(f"Manifest row missing 'file_path' or 'path' column. Available columns: {list(row.index)}")
-                continue
-            
-            file_path = Path(file_path_str)
-            file_id = row["id"]
-            
-            # Resolve relative paths
-            if not file_path.is_absolute():
-                if not file_path.exists():
-                    # Try resolving relative to project root (current working directory)
-                    potential_path = Path.cwd() / file_path
-                    if potential_path.exists():
-                        file_path = potential_path
-                        logger.info(f"Resolved relative path: {file_path_str} -> {file_path}")
-            
-            if not file_path.exists():
-                logger.error(f"File not found: {file_path} (from manifest: {file_path_str})")
-                continue
-            
-            # Check cache first
-            cached_embeddings, cached_segments = cache.get(file_id, file_path, model_config)
-            
-            if cached_embeddings is not None:
-                # Use cached embeddings
-                logger.info(f"Using cached embeddings for {file_id} ({len(cached_embeddings)} segments)")
-                segments = cached_segments if cached_segments else []
-                embeddings = cached_embeddings
-                cached_count += 1
-            else:
-                # Generate new embeddings
-                logger.info(f"Generating embeddings for {file_id} -> {file_path}")
-                overlap_ratio = model_config.get("overlap_ratio", None)
-                segments = segment_audio(
-                    file_path,
-                    segment_length=model_config["segment_length"],
-                    sample_rate=model_config["sample_rate"],
-                    overlap_ratio=overlap_ratio
-                )
-                
-                embeddings = extract_embeddings(
-                    segments,
-                    model_config,
-                    output_dir=embeddings_dir / file_id,
-                    save_embeddings=True
-                )
-                
-                # Normalize
-                embeddings = normalize_embeddings(embeddings, method="l2")
-                
-                # Cache for future use
-                cache.set(file_id, file_path, model_config, embeddings, segments)
-                generated_count += 1
-            
-            # Store with IDs
-            for i, emb in enumerate(embeddings):
-                seg_id = f"{file_id}_seg_{i:04d}"
-                all_embeddings.append(emb)
-                all_ids.append(seg_id)
-        
-        logger.info(f"Embedding generation complete: {cached_count} from cache, {generated_count} newly generated")
-        
-        # Build or update index
-        if existing_index is not None and len(files_to_index_rows) == 0:
-            # All files already indexed, reuse existing index
-            logger.info("✓ All files already indexed. Reusing existing index.")
-        elif existing_index is not None and len(files_to_index_rows) > 0:
-            # Some new files to add - use incremental update
-            logger.info(f"Adding {len(files_to_index_rows)} new files to existing index using incremental update...")
-            if not all_embeddings:
-                logger.warning("No new embeddings to add, but files were marked as new. Reusing existing index.")
-            else:
-                try:
-                    # Create temporary manifest for new files only
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp_file:
-                        new_files_df = pd.DataFrame(files_to_index_rows)
-                        new_files_df.to_csv(tmp_file.name, index=False)
-                        tmp_manifest_path = Path(tmp_file.name)
-                    
-                    # Use incremental update
-                    updated_index, updated_metadata = update_index_incremental(
-                        new_files_manifest_path=tmp_manifest_path,
-                        existing_index_path=index_path,
-                        fingerprint_config_path=fingerprint_config_path,
-                        output_index_path=index_path,
-                        index_config_path=index_config_path
-                    )
-                    
-                    # Clean up temp file
-                    tmp_manifest_path.unlink()
-                    
-                    logger.info(f"✓ Incrementally updated index: {updated_index.ntotal} total vectors")
-                except Exception as e:
-                    logger.warning(f"Incremental update failed: {e}, falling back to full rebuild")
-                    # Need to rebuild with ALL files, not just new ones
-                    # Process all files for full rebuild
-                    logger.info("Processing all files for full rebuild...")
-                    all_embeddings_rebuild = []
-                    all_ids_rebuild = []
-                    
-                    for _, row in files_df.iterrows():
-                        file_path_str = row.get("file_path") or row.get("path")
-                        if not file_path_str:
-                            continue
-                        file_path = Path(file_path_str)
-                        file_id = row["id"]
-                        
-                        if not file_path.is_absolute() and not file_path.exists():
-                            potential_path = Path.cwd() / file_path
-                            if potential_path.exists():
-                                file_path = potential_path
-                        
-                        if not file_path.exists():
-                            continue
-                        
-                        cached_embeddings, _ = cache.get(file_id, file_path, model_config)
-                        if cached_embeddings is None:
-                            # Generate if not cached
-                            overlap_ratio = model_config.get("overlap_ratio", None)
-                            segments = segment_audio(
-                                file_path,
-                                segment_length=model_config["segment_length"],
-                                sample_rate=model_config["sample_rate"],
-                                overlap_ratio=overlap_ratio
-                            )
-                            cached_embeddings = extract_embeddings(
-                                segments, model_config, output_dir=None, save_embeddings=False
-                            )
-                            cached_embeddings = normalize_embeddings(cached_embeddings, method="l2")
-                            cache.set(file_id, file_path, model_config, cached_embeddings, segments)
-                        
-                        for i, emb in enumerate(cached_embeddings):
-                            seg_id = f"{file_id}_seg_{i:04d}"
-                            all_embeddings_rebuild.append(emb)
-                            all_ids_rebuild.append(seg_id)
-                    
-                    all_embeddings = all_embeddings_rebuild
-                    all_ids = all_ids_rebuild
-                    existing_index = None  # Force rebuild
-        
-        if existing_index is None:
-            # No existing index or incremental update failed - build from scratch
-            if not all_embeddings:
-                raise ValueError("No embeddings generated. Check file paths and manifest.")
-            
-            logger.info("Building new index from scratch...")
-            embeddings_array = np.vstack(all_embeddings)
-            
-            # Load index config
-            with open(index_config_path, 'r') as f:
-                index_config = json.load(f)
-            
-            # Load DAW metadata from manifest
-            daw_metadata = {}
-            try:
-                files_manifest_path = manifests_dir / "files_manifest.csv"
-                if files_manifest_path.exists():
-                    daw_metadata = load_daw_metadata_from_manifest(files_manifest_path)
-                    logger.info(f"Loaded DAW metadata for {len(daw_metadata)} files")
-            except Exception as e:
-                logger.warning(f"Failed to load DAW metadata: {e}")
-            
-            build_index(embeddings_array, all_ids, index_path, index_config, daw_metadata=daw_metadata)
-            logger.info(f"✓ Built new index with {len(all_ids)} vectors")
+        logger.info(f"✓ Index built/updated with {index_obj.ntotal} vectors")
     else:
         index_path = indexes_dir / "faiss_index.bin"
         if not index_path.exists():
@@ -390,12 +225,19 @@ def run_full_experiment(
         query_results_dir = run_dir / "query_results"
         query_results_dir.mkdir(parents=True, exist_ok=True)
         
+        # Get parallel processing parameters from config or function args
+        query_config = test_config.get("queries", {})
+        query_max_workers = max_workers if max_workers is not None else query_config.get("max_workers", None)
+        query_use_parallel = use_parallel if use_parallel is not None else query_config.get("use_parallel", True)
+        
         query_df = run_queries(
             transform_manifest_path,
             index_path,
             fingerprint_config_path,
             query_results_dir,
-            topk=10  # Optimal: 10 candidates for better recall (GPU handles this efficiently)
+            topk=query_config.get("topk", 10),  # Use config topk or default to 10
+            max_workers=query_max_workers,
+            use_parallel=query_use_parallel
         )
         query_summary_path = query_results_dir / "query_summary.csv"
     else:
@@ -498,8 +340,7 @@ def run_full_experiment(
                 
                 logger.info(f"Report generated: {final_report_dir / 'report.html'}")
                 
-                # Package report
-                package_report(final_report_dir, run_dir.parent / f"final_report_{run_timestamp}.zip")
+                # ZIP packaging disabled - report files are available directly in {final_report_dir}
     
     logger.info("=" * 60)
     logger.info("Experiment complete!")
@@ -527,10 +368,33 @@ if __name__ == "__main__":
         help="Steps to skip"
     )
     
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Number of parallel workers for indexing (default: auto-detect, 4-6 for GPU, CPU_count-1 for CPU)"
+    )
+    
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=None,
+        help="Batch size for segment processing (default: 64-128 for GPU, 32 for CPU)"
+    )
+    
+    parser.add_argument(
+        "--no-parallel",
+        action="store_true",
+        help="Disable parallel processing for indexing (use sequential)"
+    )
+    
     args = parser.parse_args()
     
     run_full_experiment(
         args.config,
         original_files_csv=args.originals,
-        skip_steps=args.skip or []
+        skip_steps=args.skip or [],
+        max_workers=args.workers,
+        batch_size=args.batch_size,
+        use_parallel=not args.no_parallel
     )

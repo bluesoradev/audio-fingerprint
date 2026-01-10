@@ -33,17 +33,17 @@ def _get_optimal_batch_size(model: any, embedding_dim: int = 512, max_batch: int
         reserved_memory_gb = torch.cuda.memory_reserved(0) / 1e9
         available_memory_gb = total_memory_gb - reserved_memory_gb
         
-        # Estimate: each embedding ~2KB (FP32), batch overhead ~50MB
-        # Conservative: use 40% of available memory for batch processing
+        # Estimate: each embedding ~2KB (FP32), batch overhead ~100MB
+        # More aggressive: use 50% of available memory for batch processing (was 40%)
         # Account for model weights and intermediate activations
-        safe_memory_gb = available_memory_gb * 0.4
+        safe_memory_gb = available_memory_gb * 0.5
         
         # Estimate batch size: (memory_bytes) / (embedding_dim * 4 bytes * segments_per_batch + overhead)
-        # Rough estimate: 2KB per embedding + 50MB overhead per batch
-        estimated_batch = int((safe_memory_gb * 1e9 - 50e6) / (embedding_dim * 4 * 2))
+        # Rough estimate: 2KB per embedding + 100MB overhead per batch (MERT needs more memory)
+        estimated_batch = int((safe_memory_gb * 1e9 - 100e6) / (embedding_dim * 4 * 3))  # More conservative factor
         
-        # Clamp between reasonable bounds
-        optimal_batch = max(32, min(estimated_batch, max_batch))
+        # Clamp between reasonable bounds, prefer larger batches for GPU efficiency
+        optimal_batch = max(64, min(estimated_batch, max_batch))  # Minimum 64 for GPU
         
         logger.debug(
             f"GPU memory: {total_memory_gb:.2f}GB total, "
@@ -178,17 +178,25 @@ def extract_embeddings(
         embedding_dim = model["embedding_dim"]
     
     # PHASE 1 & 3 OPTIMIZATION: Dynamic batch sizing based on GPU memory
-    if batch_size == 32:  # Only optimize if using default
+    if batch_size == 32 or batch_size is None:  # Optimize if using default or None
         try:
             from utils.memory_manager import MemoryManager
             batch_size = MemoryManager.optimize_batch_size(
-                batch_size,
+                batch_size or 32,
                 target_memory_usage=0.7,
                 embedding_dim=embedding_dim
             )
         except Exception:
-            # Fallback to local optimization
-            batch_size = _get_optimal_batch_size(actual_model, embedding_dim, max_batch=128)
+            # Fallback to local optimization with higher max for GPU
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    max_batch = 128  # Higher max for GPU
+                else:
+                    max_batch = 64   # Lower max for CPU
+            except ImportError:
+                max_batch = 64
+            batch_size = _get_optimal_batch_size(actual_model, embedding_dim, max_batch=max_batch)
     
     logger.info(f"Extracting embeddings using model: {type(actual_model).__name__}, batch_support: {has_batch_method}, batch_size: {batch_size}")
     

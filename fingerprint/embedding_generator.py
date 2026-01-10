@@ -449,23 +449,42 @@ class EmbeddingGenerator:
     def generate_embeddings_batch(
         self,
         audio_paths: List[Path],
-        batch_size: int = 32
+        batch_size: int = 64  # Increased default for better GPU utilization
     ) -> List[np.ndarray]:
         """
-        Generate embeddings for multiple audio files.
+        Generate embeddings for multiple audio files (OPTIMIZED FOR PERFORMANCE).
         
         Args:
             audio_paths: List of paths to audio files
-            batch_size: Batch size for processing
+            batch_size: Batch size for processing (default: 64 for GPU, 32 for CPU)
         
         Returns:
             List of embedding vectors
         """
         embeddings = []
         
+        # Auto-detect optimal batch size if default is used
+        if batch_size == 64:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    # GPU: use larger batches for efficiency
+                    # Check available GPU memory
+                    total_memory = torch.cuda.get_device_properties(0).total_memory / 1e9
+                    if total_memory >= 16:  # 16GB+ GPU
+                        batch_size = 128
+                    elif total_memory >= 8:  # 8GB+ GPU
+                        batch_size = 64
+                    else:  # <8GB GPU
+                        batch_size = 32
+                else:
+                    batch_size = 32  # CPU: smaller batches
+            except ImportError:
+                batch_size = 32
+        
         # For MERT, we can do actual batching
         if self.active_model_name == "mert" and self.mert_model is not None:
-            # Batch processing for MERT
+            # Batch processing for MERT (optimized for larger batches)
             for i in range(0, len(audio_paths), batch_size):
                 batch_paths = audio_paths[i:i+batch_size]
                 batch_embeddings = self._generate_mert_batch(batch_paths)
